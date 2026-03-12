@@ -41,6 +41,18 @@ const ALL_PUZZLE_TYPES: MatchPlayablePuzzleType[] = [
   "wordle_guess",
   "chess_tactic",
   "checkers_tactic",
+  "logic_sequence",
+  "trivia_blitz",
+  "geography_quiz",
+  "science_quiz",
+  "math_race",
+  "code_breaker",
+  "analogies",
+  "deduction_grid",
+  "chess_endgame",
+  "chess_opening",
+  "chess_mate_net",
+  "vocabulary_duel",
 ];
 
 function createWeightMap(baseWeight = 1) {

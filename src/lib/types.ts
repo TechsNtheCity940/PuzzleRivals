@@ -12,7 +12,23 @@ export type PuzzleType =
   | "sudoku_mini"
   | "word_search"
   | "maze"
-  | "memory_grid";
+  | "memory_grid"
+  | "riddle_choice"
+  | "wordle_guess"
+  | "chess_tactic"
+  | "checkers_tactic"
+  | "logic_sequence"
+  | "trivia_blitz"
+  | "geography_quiz"
+  | "science_quiz"
+  | "math_race"
+  | "code_breaker"
+  | "analogies"
+  | "deduction_grid"
+  | "chess_endgame"
+  | "chess_opening"
+  | "chess_mate_net"
+  | "vocabulary_duel";
 
 export type StockAvatarId =
   | "blue-spinner"
@@ -82,7 +98,7 @@ export interface UserProfile {
     facebook?: string;
     tiktok?: string;
   };
-  puzzleSkills: Record<PuzzleType, number>; // 0-100 proficiency
+  puzzleSkills: Partial<Record<PuzzleType, number>>; // 0-100 proficiency
   nemeses: string[]; // user IDs
   friends: string[];
 }

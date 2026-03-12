@@ -2,8 +2,10 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? "";
 const supabaseBrowserKey =
+  import.meta.env.VITE_SUPABASE_PUBLIC_KEY ??
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
   import.meta.env.VITE_SUPABASE_ANON_KEY ??
+  import.meta.env["VITE-SUPABASE_PUBLIC_KEY"] ??
   "";
 
 function decodeJwtPayload(token: string) {
@@ -35,7 +37,7 @@ export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseBrowserKey &&
 export const supabaseConfigErrorMessage = !supabaseUrl
   ? "Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file."
   : !supabaseBrowserKey
-    ? "Supabase is not configured. Set VITE_SUPABASE_ANON_KEY or VITE_SUPABASE_PUBLISHABLE_KEY in your .env file."
+    ? "Supabase is not configured. Set VITE_SUPABASE_ANON_KEY, VITE_SUPABASE_PUBLISHABLE_KEY, or VITE_SUPABASE_PUBLIC_KEY in your .env file."
     : hasForbiddenBrowserKey
       ? "Supabase browser auth is misconfigured. Replace VITE_SUPABASE_ANON_KEY with the public anon/publishable key from Supabase Settings > API. Do not use a service_role or secret key in the browser."
       : "";

@@ -14,7 +14,19 @@ export type MatchPlayablePuzzleType =
   | "riddle_choice"
   | "wordle_guess"
   | "chess_tactic"
-  | "checkers_tactic";
+  | "checkers_tactic"
+  | "logic_sequence"
+  | "trivia_blitz"
+  | "geography_quiz"
+  | "science_quiz"
+  | "math_race"
+  | "code_breaker"
+  | "analogies"
+  | "deduction_grid"
+  | "chess_endgame"
+  | "chess_opening"
+  | "chess_mate_net"
+  | "vocabulary_duel";
 
 export interface PuzzleCatalogEntry {
   type: MatchPlayablePuzzleType;
@@ -146,6 +158,66 @@ export type CheckersTacticSubmission = {
   answers: number[];
 };
 
+export type LogicSequenceSubmission = {
+  kind: "logic_sequence";
+  answers: number[];
+};
+
+export type TriviaBlitzSubmission = {
+  kind: "trivia_blitz";
+  answers: number[];
+};
+
+export type GeographyQuizSubmission = {
+  kind: "geography_quiz";
+  answers: number[];
+};
+
+export type ScienceQuizSubmission = {
+  kind: "science_quiz";
+  answers: number[];
+};
+
+export type MathRaceSubmission = {
+  kind: "math_race";
+  answers: number[];
+};
+
+export type CodeBreakerSubmission = {
+  kind: "code_breaker";
+  answers: number[];
+};
+
+export type AnalogiesSubmission = {
+  kind: "analogies";
+  answers: number[];
+};
+
+export type DeductionGridSubmission = {
+  kind: "deduction_grid";
+  answers: number[];
+};
+
+export type ChessEndgameSubmission = {
+  kind: "chess_endgame";
+  answers: number[];
+};
+
+export type ChessOpeningSubmission = {
+  kind: "chess_opening";
+  answers: number[];
+};
+
+export type ChessMateNetSubmission = {
+  kind: "chess_mate_net";
+  answers: number[];
+};
+
+export type VocabularyDuelSubmission = {
+  kind: "vocabulary_duel";
+  answers: number[];
+};
+
 export type PuzzleSubmission =
   | RotatePipesSubmission
   | NumberGridSubmission
@@ -158,4 +230,16 @@ export type PuzzleSubmission =
   | RiddleChoiceSubmission
   | WordleGuessSubmission
   | ChessTacticSubmission
-  | CheckersTacticSubmission;
+  | CheckersTacticSubmission
+  | LogicSequenceSubmission
+  | TriviaBlitzSubmission
+  | GeographyQuizSubmission
+  | ScienceQuizSubmission
+  | MathRaceSubmission
+  | CodeBreakerSubmission
+  | AnalogiesSubmission
+  | DeductionGridSubmission
+  | ChessEndgameSubmission
+  | ChessOpeningSubmission
+  | ChessMateNetSubmission
+  | VocabularyDuelSubmission;

@@ -10,7 +10,19 @@ export type MatchPlayablePuzzleType =
   | "riddle_choice"
   | "wordle_guess"
   | "chess_tactic"
-  | "checkers_tactic";
+  | "checkers_tactic"
+  | "logic_sequence"
+  | "trivia_blitz"
+  | "geography_quiz"
+  | "science_quiz"
+  | "math_race"
+  | "code_breaker"
+  | "analogies"
+  | "deduction_grid"
+  | "chess_endgame"
+  | "chess_opening"
+  | "chess_mate_net"
+  | "vocabulary_duel";
 
 export interface PuzzleCatalogEntry {
   type: MatchPlayablePuzzleType;
@@ -40,7 +52,19 @@ export type PuzzleSubmission =
   | { kind: "riddle_choice"; answers: number[] }
   | { kind: "wordle_guess"; guesses: string[] }
   | { kind: "chess_tactic"; answers: number[] }
-  | { kind: "checkers_tactic"; answers: number[] };
+  | { kind: "checkers_tactic"; answers: number[] }
+  | { kind: "logic_sequence"; answers: number[] }
+  | { kind: "trivia_blitz"; answers: number[] }
+  | { kind: "geography_quiz"; answers: number[] }
+  | { kind: "science_quiz"; answers: number[] }
+  | { kind: "math_race"; answers: number[] }
+  | { kind: "code_breaker"; answers: number[] }
+  | { kind: "analogies"; answers: number[] }
+  | { kind: "deduction_grid"; answers: number[] }
+  | { kind: "chess_endgame"; answers: number[] }
+  | { kind: "chess_opening"; answers: number[] }
+  | { kind: "chess_mate_net"; answers: number[] }
+  | { kind: "vocabulary_duel"; answers: number[] };
 
 type PatternShape = "circle" | "square" | "triangle" | "diamond";
 type PipeType = "straight" | "corner" | "tee" | "cross" | "end" | "empty";
@@ -109,6 +133,18 @@ const MATCH_PLAYABLE_PUZZLES: MatchPlayablePuzzleType[] = [
   "wordle_guess",
   "chess_tactic",
   "checkers_tactic",
+  "logic_sequence",
+  "trivia_blitz",
+  "geography_quiz",
+  "science_quiz",
+  "math_race",
+  "code_breaker",
+  "analogies",
+  "deduction_grid",
+  "chess_endgame",
+  "chess_opening",
+  "chess_mate_net",
+  "vocabulary_duel",
 ];
 
 const PUZZLE_CATALOG: Record<MatchPlayablePuzzleType, PuzzleCatalogEntry> = {
@@ -124,6 +160,18 @@ const PUZZLE_CATALOG: Record<MatchPlayablePuzzleType, PuzzleCatalogEntry> = {
   wordle_guess: { type: "wordle_guess", label: "Word Strike", icon: "🟩", description: "Guess the five-letter word using color feedback from each attempt." },
   chess_tactic: { type: "chess_tactic", label: "Chess Shot", icon: "♞", description: "Pick the best tactical move from the presented chess position." },
   checkers_tactic: { type: "checkers_tactic", label: "Checkers Trap", icon: "⚫", description: "Choose the strongest capture or positional follow-up in a checkers setup." },
+  logic_sequence: { type: "logic_sequence", label: "Logic Sequence", icon: "123", description: "Pick the next term in a fast-moving number or symbol pattern." },
+  trivia_blitz: { type: "trivia_blitz", label: "Trivia Blitz", icon: "Target", description: "Answer broad knowledge questions before the clock burns down." },
+  geography_quiz: { type: "geography_quiz", label: "Geo Sprint", icon: "Globe", description: "Match capitals, flags, and world landmarks under pressure." },
+  science_quiz: { type: "science_quiz", label: "Science Snap", icon: "Lab", description: "Choose the right science or tech fact from rapid prompts." },
+  math_race: { type: "math_race", label: "Math Race", icon: "Math", description: "Solve mental arithmetic and number logic as fast as possible." },
+  code_breaker: { type: "code_breaker", label: "Code Breaker", icon: "Lock", description: "Crack a coded pattern by selecting the valid rule." },
+  analogies: { type: "analogies", label: "Analogy Ace", icon: "Analogy", description: "Pick the answer that completes the relationship cleanly." },
+  deduction_grid: { type: "deduction_grid", label: "Deduction Grid", icon: "Grid", description: "Finish a compact logic-grid clue chain with the right statement." },
+  chess_endgame: { type: "chess_endgame", label: "Chess Endgame", icon: "Rook", description: "Find the winning endgame conversion or drawing resource." },
+  chess_opening: { type: "chess_opening", label: "Chess Opening", icon: "Bishop", description: "Choose the most principled opening continuation from the position." },
+  chess_mate_net: { type: "chess_mate_net", label: "Mate Net", icon: "Queen", description: "Spot the move that creates an unavoidable mating net." },
+  vocabulary_duel: { type: "vocabulary_duel", label: "Vocab Duel", icon: "Book", description: "Choose the strongest synonym, definition, or word fit." },
 };
 
 const WORD_BANK = ["BRAIN", "SPEED", "QUICK", "FLASH", "POWER", "SMART", "BLAZE", "STORM", "CLASH", "RIVAL", "CROWN", "DREAM", "FLAME", "GLEAM", "HEART", "JOLTS", "KNACK", "LEMON", "MANGO", "NERVE", "ORBIT", "PRISM", "QUEST", "REIGN", "PIXEL", "DRIFT", "SPARK", "CHASE", "PULSE", "TIGER", "GIANT", "NOBLE"];
@@ -144,6 +192,66 @@ const CHECKERS_BANK: QuizRound[] = [
   { prompt: "Your red piece can force a double jump. Which landing square starts it?", options: ["B6", "D6", "F6", "H6"], correctOption: 1 },
   { prompt: "Black to move: preserve tempo and threaten promotion.", options: ["C3", "E5", "G5", "B4"], correctOption: 2 },
   { prompt: "Red to move: take the only capture that keeps king pressure.", options: ["A5", "C5", "E3", "G3"], correctOption: 1 },
+];
+const LOGIC_SEQUENCE_BANK: QuizRound[] = [
+  { prompt: "What comes next: 2, 6, 12, 20, 30, ?", options: ["36", "40", "42", "48"], correctOption: 2 },
+  { prompt: "Find the next value: 1, 1, 2, 3, 5, 8, ?", options: ["11", "12", "13", "21"], correctOption: 2 },
+  { prompt: "Which symbol completes the pattern: circle, triangle, square, circle, triangle, ?", options: ["diamond", "square", "circle", "star"], correctOption: 1 },
+];
+const TRIVIA_BLITZ_BANK: QuizRound[] = [
+  { prompt: "Which planet is known as the Red Planet?", options: ["Venus", "Mars", "Mercury", "Jupiter"], correctOption: 1 },
+  { prompt: "Which instrument has 88 keys?", options: ["Violin", "Trumpet", "Piano", "Harp"], correctOption: 2 },
+  { prompt: "What color do you get by mixing blue and yellow?", options: ["Green", "Purple", "Orange", "Red"], correctOption: 0 },
+];
+const GEOGRAPHY_BANK: QuizRound[] = [
+  { prompt: "What is the capital of Canada?", options: ["Toronto", "Vancouver", "Ottawa", "Montreal"], correctOption: 2 },
+  { prompt: "Which country is home to the city of Kyoto?", options: ["South Korea", "Japan", "China", "Thailand"], correctOption: 1 },
+  { prompt: "Which desert covers much of northern Africa?", options: ["Gobi", "Atacama", "Kalahari", "Sahara"], correctOption: 3 },
+];
+const SCIENCE_BANK: QuizRound[] = [
+  { prompt: "What gas do plants absorb from the atmosphere?", options: ["Oxygen", "Carbon dioxide", "Nitrogen", "Helium"], correctOption: 1 },
+  { prompt: "How many bones does an adult human typically have?", options: ["206", "201", "212", "198"], correctOption: 0 },
+  { prompt: "Which device measures earthquakes?", options: ["Barometer", "Seismograph", "Telescope", "Altimeter"], correctOption: 1 },
+];
+const MATH_RACE_BANK: QuizRound[] = [
+  { prompt: "What is 18 x 7?", options: ["112", "126", "134", "142"], correctOption: 1 },
+  { prompt: "If a puzzle round lasts 90 seconds, how many 15-second segments are there?", options: ["5", "6", "7", "8"], correctOption: 1 },
+  { prompt: "Solve: 144 / 12 + 9", options: ["18", "19", "20", "21"], correctOption: 3 },
+];
+const CODE_BREAKER_BANK: QuizRound[] = [
+  { prompt: "A lock code uses ascending even digits. Which fits best?", options: ["2468", "2486", "8642", "1357"], correctOption: 0 },
+  { prompt: "If A=1, B=2, C=3, what code spells CAB?", options: ["312", "321", "123", "231"], correctOption: 0 },
+  { prompt: "Which code breaks the rule: two letters followed by two digits?", options: ["AB12", "QZ77", "A1B2", "RT45"], correctOption: 2 },
+];
+const ANALOGIES_BANK: QuizRound[] = [
+  { prompt: "Knight is to chess as king is to ?", options: ["checkers", "cards", "board", "crown"], correctOption: 0 },
+  { prompt: "Puzzle is to solve as race is to ?", options: ["sprint", "win", "track", "start"], correctOption: 1 },
+  { prompt: "Seed is to tree as clue is to ?", options: ["answer", "timer", "question", "penalty"], correctOption: 0 },
+];
+const DEDUCTION_GRID_BANK: QuizRound[] = [
+  { prompt: "Ava is not red. Ben is not blue. If blue belongs to Cy, what color must Ava have?", options: ["Red", "Green", "Blue", "Unknown"], correctOption: 1 },
+  { prompt: "One player solved first, one second, one third. Kim was before Lou. Lou was before Max. Who won?", options: ["Kim", "Lou", "Max", "Tie"], correctOption: 0 },
+  { prompt: "Three boxes hold coin, gem, and key. Box A is not gem. Box B is key. What is Box C?", options: ["Coin", "Gem", "Key", "Unknown"], correctOption: 1 },
+];
+const CHESS_ENDGAME_BANK: QuizRound[] = [
+  { prompt: "King and pawn ending: your king is in front of the pawn. What is the winning plan?", options: ["Push immediately", "Opposition first", "Trade kings", "Stalemate trick"], correctOption: 1 },
+  { prompt: "Rook ending with active king: what matters most?", options: ["Passive rook checks", "Cut off the king", "Keep pawns split", "Move the rook behind your king"], correctOption: 1 },
+  { prompt: "Opposite-colored bishops with equal pawns usually trend toward?", options: ["Forced win", "Drawish play", "Mate net", "Piece fork"], correctOption: 1 },
+];
+const CHESS_OPENING_BANK: QuizRound[] = [
+  { prompt: "After 1.e4 e5 2.Nf3 Nc6, what is a classical developing move for White?", options: ["Bb5", "h4", "Qh5", "a3"], correctOption: 0 },
+  { prompt: "What is the main purpose of castling early in the opening?", options: ["Win a pawn", "Develop the queen", "King safety and rook activity", "Threaten mate immediately"], correctOption: 2 },
+  { prompt: "In many openings, why fight for the center?", options: ["It makes bishops weaker", "It gives pieces more influence", "It avoids development", "It locks your king in place"], correctOption: 1 },
+];
+const CHESS_MATE_NET_BANK: QuizRound[] = [
+  { prompt: "Your queen and rook align on the back rank. What kind of move often starts the mate net?", options: ["Random pawn push", "Quiet luft move", "Forcing check", "Knight retreat"], correctOption: 2 },
+  { prompt: "A boxed king with no escape squares is most vulnerable to?", options: ["A discovered check", "A perpetual shuffle", "Trading queens", "Opposite-side castling"], correctOption: 0 },
+  { prompt: "When your bishop covers the escape square, what should your heavy piece look for?", options: ["A fork", "A checking line", "A retreat square", "A pawn trade"], correctOption: 1 },
+];
+const VOCABULARY_DUEL_BANK: QuizRound[] = [
+  { prompt: "Which word is closest in meaning to rapid?", options: ["Slow", "Swift", "Quiet", "Heavy"], correctOption: 1 },
+  { prompt: "Choose the best definition of elusive.", options: ["Easy to catch", "Hard to find or pin down", "Very noisy", "Brightly colored"], correctOption: 1 },
+  { prompt: "Which word best completes: The puzzle's elegant design was ____.", options: ["clumsy", "ingenious", "fragile", "ordinary"], correctOption: 1 },
 ];
 
 function randomSeed() {
@@ -499,6 +607,54 @@ export function evaluatePuzzleSubmission(
     }
     case "checkers_tactic": {
       const rounds = buildQuizRounds(seed, CHECKERS_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+    }
+    case "logic_sequence": {
+      const rounds = buildQuizRounds(seed, LOGIC_SEQUENCE_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+    }
+    case "trivia_blitz": {
+      const rounds = buildQuizRounds(seed, TRIVIA_BLITZ_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+    }
+    case "geography_quiz": {
+      const rounds = buildQuizRounds(seed, GEOGRAPHY_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+    }
+    case "science_quiz": {
+      const rounds = buildQuizRounds(seed, SCIENCE_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+    }
+    case "math_race": {
+      const rounds = buildQuizRounds(seed, MATH_RACE_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+    }
+    case "code_breaker": {
+      const rounds = buildQuizRounds(seed, CODE_BREAKER_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+    }
+    case "analogies": {
+      const rounds = buildQuizRounds(seed, ANALOGIES_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+    }
+    case "deduction_grid": {
+      const rounds = buildQuizRounds(seed, DEDUCTION_GRID_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+    }
+    case "chess_endgame": {
+      const rounds = buildQuizRounds(seed, CHESS_ENDGAME_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+    }
+    case "chess_opening": {
+      const rounds = buildQuizRounds(seed, CHESS_OPENING_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+    }
+    case "chess_mate_net": {
+      const rounds = buildQuizRounds(seed, CHESS_MATE_NET_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+    }
+    case "vocabulary_duel": {
+      const rounds = buildQuizRounds(seed, VOCABULARY_DUEL_BANK, Math.min(3, Math.max(2, difficulty - 1)));
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
   }
