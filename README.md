@@ -26,6 +26,11 @@ VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
 ```
 
+Important:
+- `VITE_SUPABASE_ANON_KEY` must be the public anon/publishable browser key from Supabase Settings > API
+- do not use `SUPABASE_SERVICE_ROLE_KEY` or any `sb_secret_...` key in browser env vars
+- `VITE_SUPABASE_PUBLISHABLE_KEY` is also supported as an alias
+
 Run the frontend:
 
 ```sh

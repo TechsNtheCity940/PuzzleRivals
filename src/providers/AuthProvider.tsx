@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { buildGuestUser, loadCurrentUserFromSession, saveProfileToSupabase } from "@/lib/player-data";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase-client";
+import { isSupabaseConfigured, supabase, supabaseConfigErrorMessage } from "@/lib/supabase-client";
 import type { UserProfile } from "@/lib/types";
 
 interface AuthContextValue {
@@ -157,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signInWithEmail(email: string) {
     if (!supabase) {
-      throw new Error("Supabase is not configured.");
+      throw new Error(supabaseConfigErrorMessage);
     }
 
     const { error } = await supabase.auth.signInWithOtp({
@@ -179,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signInWithFacebook() {
     if (!supabase) {
-      throw new Error("Supabase is not configured.");
+      throw new Error(supabaseConfigErrorMessage);
     }
 
     const { error } = await supabase.auth.signInWithOAuth({

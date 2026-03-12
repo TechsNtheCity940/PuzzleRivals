@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { fetchLeaderboard, fetchSocialDirectory } from "@/lib/player-data";
 import { DEFAULT_AVATAR_ID, STOCK_AVATARS } from "@/lib/profile-customization";
 import { getRankBand, getRankColor, PUZZLE_TYPES } from "@/lib/seed-data";
+import { isSupabaseConfigured, supabaseConfigErrorMessage } from "@/lib/supabase-client";
 import type { LeaderboardEntry } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -258,6 +259,11 @@ export default function ProfilePage() {
 
           {isGuest ? (
             <>
+              {!isSupabaseConfigured && (
+                <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {supabaseConfigErrorMessage}
+                </div>
+              )}
               <label className="grid gap-2">
                 <span className="text-sm font-bold">Email Sign-In</span>
                 <input
