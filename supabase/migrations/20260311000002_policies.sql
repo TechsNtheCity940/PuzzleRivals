@@ -1,4 +1,4 @@
-                                            mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm                                                                                            alter table public.profiles enable row level security;
+alter table public.profiles enable row level security;
 alter table public.player_stats enable row level security;
 alter table public.queue_entries enable row level security;
 alter table public.lobbies enable row level security;

@@ -21,8 +21,8 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   username text not null unique,
   avatar_url text,
-  rank text not null default 'gold',
-  elo integer not null default 1650,
+  rank text not null default 'bronze',
+  elo integer not null default 0,
   level integer not null default 1,
   xp integer not null default 0,
   xp_to_next integer not null default 5000,
@@ -183,7 +183,7 @@ begin
   insert into public.profiles (id, username)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data ->> 'username', 'Player-' || left(new.id::text, 8))
+    coalesce(nullif(new.raw_user_meta_data ->> 'username', ''), 'Player') || '-' || left(replace(new.id::text, '-', ''), 6)
   )
   on conflict (id) do nothing;
 

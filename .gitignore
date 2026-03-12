@@ -13,6 +13,7 @@ server/.env
 server/data/*.sqlite
 server/data/*.sqlite-shm
 server/data/*.sqlite-wal
+supabase/.temp/
 
 node_modules
 dist

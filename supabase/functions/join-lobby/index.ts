@@ -1,6 +1,8 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { requireUser } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
+import { advanceLobbyState } from "../_shared/lobby-state.ts";
+import { broadcastLobbySnapshot } from "../_shared/realtime.ts";
 import { getLobbySnapshot } from "../_shared/matchmaking.ts";
 
 Deno.serve(async (req) => {
@@ -13,61 +15,23 @@ Deno.serve(async (req) => {
     const { mode, region = "global" } = await req.json();
     const admin = createAdminClient();
 
-    const { data: existingLobby } = await admin
-      .from("lobbies")
-      .select("*")
-      .eq("mode", mode)
-      .eq("region", region)
-      .eq("status", "filling")
-      .order("created_at", { ascending: true })
-      .limit(1);
-
-    let lobby = existingLobby?.[0] ?? null;
-
-    if (!lobby) {
-      const { data: createdLobby, error: createError } = await admin
-        .from("lobbies")
-        .insert({ mode, region, status: "filling", max_players: 4 })
-        .select("*")
-        .single();
-
-      if (createError) throw createError;
-      lobby = createdLobby;
-    }
-
-    const { data: currentPlayers } = await admin
-      .from("lobby_players")
-      .select("seat_no")
-      .eq("lobby_id", lobby.id)
-      .is("left_at", null)
-      .order("seat_no", { ascending: true });
-
-    const takenSeats = new Set((currentPlayers ?? []).map((entry) => entry.seat_no));
-    let seatNo = 1;
-    while (takenSeats.has(seatNo)) seatNo += 1;
-
-    await admin.from("queue_entries").upsert({
-      user_id: user.id,
-      mode,
-      region,
-      status: "matched",
+    const { data, error } = await admin.rpc("join_lobby", {
+      p_user_id: user.id,
+      p_mode: mode,
+      p_region: region,
     });
 
-    await admin.from("lobby_players").upsert({
-      lobby_id: lobby.id,
-      user_id: user.id,
-      seat_no: seatNo,
-      is_ready: false,
-      next_round_vote: null,
-      left_at: null,
-    });
+    if (error) throw error;
 
-    const snapshot = await getLobbySnapshot(lobby.id);
+    const lobbyId = data?.[0]?.lobby_id as string;
+    await advanceLobbyState(lobbyId);
+    const snapshot = await getLobbySnapshot(lobbyId);
+    await broadcastLobbySnapshot(lobbyId);
     return Response.json(snapshot, { headers: corsHeaders });
   } catch (error) {
-    return Response.json({ message: error instanceof Error ? error.message : "Failed to join lobby." }, {
-      status: 400,
-      headers: corsHeaders,
-    });
+    return Response.json(
+      { message: error instanceof Error ? error.message : "Failed to join lobby." },
+      { status: 400, headers: corsHeaders },
+    );
   }
 });

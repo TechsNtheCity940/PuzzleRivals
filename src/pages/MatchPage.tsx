@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Clock, Home, RotateCcw, Share2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MatchPuzzleBoard from "@/components/match/MatchPuzzleBoard";
-import { apiRequest, getWebSocketUrl } from "@/lib/api-client";
+import { subscribeToLobby, supabaseApi } from "@/lib/api-client";
 import type { BackendLobby, BackendLobbyPlayer, MatchMode, PuzzleSubmission } from "@/lib/backend";
 import { getRankColor } from "@/lib/seed-data";
 import { useAuth } from "@/providers/AuthProvider";
@@ -30,19 +30,11 @@ function rankPlayers(players: BackendLobbyPlayer[]) {
   });
 }
 
-async function postReady(lobbyId: string, token: string) {
-  return apiRequest<{ lobby: BackendLobby }>(`/api/lobbies/${lobbyId}/ready`, {
-    method: "POST",
-    token,
-    body: JSON.stringify({}),
-  });
-}
-
 export default function MatchPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const mode = (params.get("mode") || "ranked") as MatchMode;
-  const { isReady, token, user, refreshUser } = useAuth();
+  const { isReady, user, refreshUser } = useAuth();
 
   const [lobby, setLobby] = useState<BackendLobby | null>(null);
   const [practiceSolved, setPracticeSolved] = useState(false);
@@ -55,62 +47,68 @@ export default function MatchPage() {
   const progressTimeoutRef = useRef<number | null>(null);
   const lastSubmissionRef = useRef<PuzzleSubmission | null>(null);
   const readySentLobbyIdRef = useRef<string | null>(null);
-  const completedLobbyIdRef = useRef<string | null>(null);
+  const completedRoundRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!isReady || !token || !user) return;
+    if (!isReady || !user) return;
 
     let cancelled = false;
     setLobby(null);
     setPracticeSolved(false);
     setOptimisticProgress(0);
     readySentLobbyIdRef.current = null;
-    completedLobbyIdRef.current = null;
+    completedRoundRef.current = null;
 
-    void apiRequest<{ lobby: BackendLobby }>("/api/matchmaking/join", {
-      method: "POST",
-      token,
-      body: JSON.stringify({ mode }),
-    }).then((response) => {
-      if (!cancelled) {
-        setLobby(response.lobby);
-      }
-    });
+    void supabaseApi
+      .joinLobby(mode)
+      .then((response) => {
+        if (!cancelled) {
+          setLobby(response.lobby);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to join lobby", error);
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [isReady, mode, rematchKey, token, user]);
+  }, [isReady, mode, rematchKey, user]);
 
   useEffect(() => {
-    if (!token || !lobby?.id) return;
-
-    const socket = new WebSocket(getWebSocketUrl(token));
-    socket.addEventListener("open", () => {
-      socket.send(JSON.stringify({ type: "subscribe_lobby", lobbyId: lobby.id }));
-    });
-    socket.addEventListener("message", (event) => {
-      const message = JSON.parse(String(event.data)) as { type: string; payload?: BackendLobby };
-      if (message.type === "lobby.snapshot" && message.payload?.id === lobby.id) {
-        setLobby(message.payload);
-      }
-    });
-
-    return () => {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: "unsubscribe_lobby", lobbyId: lobby.id }));
-      }
-      socket.close();
-    };
-  }, [lobby?.id, token]);
+    if (!lobby?.id) return;
+    return subscribeToLobby(lobby.id, setLobby);
+  }, [lobby?.id]);
 
   useEffect(() => {
-    if (!lobby || lobby.status !== "ready" || !token) return;
+    if (!lobby?.id) return;
+
+    const intervalMs = lobby.status === "filling" ? 2000 : 1000;
+    const interval = window.setInterval(() => {
+      void supabaseApi
+        .syncLobby(lobby.id)
+        .then((response) => setLobby(response.lobby))
+        .catch((error) => {
+          console.error("Failed to sync lobby", error);
+        });
+    }, intervalMs);
+
+    return () => window.clearInterval(interval);
+  }, [lobby?.id, lobby?.status]);
+
+  useEffect(() => {
+    if (!lobby || lobby.status !== "ready") return;
     if (readySentLobbyIdRef.current === lobby.id) return;
 
     readyTimeoutRef.current = window.setTimeout(() => {
       readySentLobbyIdRef.current = lobby.id;
-      void postReady(lobby.id, token);
+      void supabaseApi
+        .readyLobby(lobby.id)
+        .then((response) => setLobby(response.lobby))
+        .catch((error) => {
+          readySentLobbyIdRef.current = null;
+          console.error("Failed to ready lobby", error);
+        });
     }, 2200);
 
     return () => {
@@ -118,7 +116,7 @@ export default function MatchPage() {
         window.clearTimeout(readyTimeoutRef.current);
       }
     };
-  }, [lobby, token]);
+  }, [lobby]);
 
   useEffect(() => {
     if (lobby?.status !== "practice" && lobby?.status !== "live" && lobby?.status !== "intermission") return;
@@ -131,9 +129,9 @@ export default function MatchPage() {
   }, [lobby?.status]);
 
   useEffect(() => {
-    if (!lobby || lobby.status !== "complete") return;
-    if (completedLobbyIdRef.current === lobby.id) return;
-    completedLobbyIdRef.current = lobby.id;
+    const completedAt = lobby?.results?.completedAt ?? null;
+    if (!completedAt || completedRoundRef.current === completedAt) return;
+    completedRoundRef.current = completedAt;
     void refreshUser();
   }, [lobby, refreshUser]);
 
@@ -142,6 +140,20 @@ export default function MatchPage() {
       setOptimisticProgress(0);
     }
   }, [lobby?.status]);
+
+  useEffect(() => {
+    if (lobby?.status !== "practice") {
+      setPracticeSolved(false);
+    }
+  }, [lobby?.status]);
+
+  useEffect(() => {
+    return () => {
+      if (progressTimeoutRef.current !== null) {
+        window.clearTimeout(progressTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!lobby || !user) return;
@@ -171,7 +183,7 @@ export default function MatchPage() {
   );
 
   function queueProgressSubmission(stage: "practice" | "live", submission: PuzzleSubmission, progress: number) {
-    if (!token || !lobby) return;
+    if (!lobby) return;
     lastSubmissionRef.current = submission;
     if (stage === "live") {
       setOptimisticProgress(progress);
@@ -182,40 +194,33 @@ export default function MatchPage() {
     }
 
     progressTimeoutRef.current = window.setTimeout(() => {
-      void apiRequest(`/api/lobbies/${lobby.id}/progress`, {
-        method: "POST",
-        token,
-        body: JSON.stringify({
-          stage,
-          submission,
-        }),
-      });
+      void supabaseApi
+        .submitProgress(lobby.id, stage, submission)
+        .then((response) => setLobby(response.lobby))
+        .catch((error) => {
+          console.error("Failed to submit progress", error);
+        });
     }, 180);
   }
 
   function handleLiveSolve() {
-    if (!token || !lobby || !lastSubmissionRef.current) return;
+    if (!lobby || !lastSubmissionRef.current) return;
 
-    void apiRequest(`/api/lobbies/${lobby.id}/solve`, {
-      method: "POST",
-      token,
-      body: JSON.stringify({
-        stage: "live",
-        submission: lastSubmissionRef.current,
-      }),
-    });
+    void supabaseApi
+      .submitSolve(lobby.id, "live", lastSubmissionRef.current)
+      .then((response) => setLobby(response.lobby))
+      .catch((error) => {
+        console.error("Failed to submit solve", error);
+      });
   }
 
   async function submitNextRoundVote(vote: "continue" | "exit") {
-    if (!token || !lobby) return;
+    if (!lobby) return;
     setVotePending(vote);
 
     try {
-      await apiRequest(`/api/lobbies/${lobby.id}/next-round-vote`, {
-        method: "POST",
-        token,
-        body: JSON.stringify({ vote }),
-      });
+      const response = await supabaseApi.voteNextRound(lobby.id, vote);
+      setLobby(response.lobby);
 
       if (vote === "exit") {
         navigate("/play");

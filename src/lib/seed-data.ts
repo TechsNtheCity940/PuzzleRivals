@@ -39,35 +39,35 @@ export const RANK_BANDS: RankBand[] = [
 // ---------- Current User ----------
 export const CURRENT_USER: UserProfile = {
   id: "u_self",
-  username: "NeonSolver",
-  elo: 1650,
-  rank: "gold",
-  level: 27,
-  xp: 3400,
+  username: "New Challenger",
+  elo: 0,
+  rank: "bronze",
+  level: 1,
+  xp: 0,
   xpToNext: 5000,
-  coins: 12450,
-  gems: 85,
-  wins: 142,
-  losses: 89,
-  winStreak: 5,
-  bestStreak: 12,
-  matchesPlayed: 231,
-  joinedAt: "2025-09-15",
+  coins: 0,
+  gems: 0,
+  wins: 0,
+  losses: 0,
+  winStreak: 0,
+  bestStreak: 0,
+  matchesPlayed: 0,
+  joinedAt: "2026-03-12",
   isVip: false,
   socialLinks: {},
   puzzleSkills: {
-    rotate_pipes: 78,
-    number_grid: 65,
-    pattern_match: 82,
-    word_scramble: 55,
-    tile_slide: 70,
-    sudoku_mini: 60,
-    word_search: 45,
-    maze: 72,
-    memory_grid: 68,
+    rotate_pipes: 0,
+    number_grid: 0,
+    pattern_match: 0,
+    word_scramble: 0,
+    tile_slide: 0,
+    sudoku_mini: 0,
+    word_search: 0,
+    maze: 0,
+    memory_grid: 0,
   },
-  nemeses: ["u_2", "u_5"],
-  friends: ["u_3", "u_4", "u_7"],
+  nemeses: [],
+  friends: [],
 };
 
 // ---------- Fake Players ----------
@@ -84,7 +84,6 @@ export const PLAYERS: UserProfile[] = [
 // ---------- Leaderboard ----------
 export const LEADERBOARD: LeaderboardEntry[] = PLAYERS
   .filter(p => p.id !== "u_self")
-  .concat(CURRENT_USER)
   .sort((a, b) => b.elo - a.elo)
   .map((p, i) => ({
     rank: i + 1,

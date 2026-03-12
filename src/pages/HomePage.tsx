@@ -14,35 +14,35 @@ import {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const topPlayer = PLAYERS.find((p) => p.id === "u_6")!;
-  const { user: authenticatedUser } = useAuth();
-  const user = authenticatedUser ?? PLAYERS[0];
-  const rankBand = getRankBand(user.elo);
-  const unreadNotifs = NOTIFICATIONS.filter((n) => !n.isRead).length;
+  const topPlayer = PLAYERS.find((player) => player.id === "u_6")!;
+  const { user } = useAuth();
+  const rankBand = getRankBand(user?.elo ?? 0);
+  const unreadNotifs = NOTIFICATIONS.filter((notification) => !notification.isRead).length;
   const featuredPlayers = LEADERBOARD.slice(0, 3);
+  const winRate = user && user.matchesPlayed > 0 ? Math.round((user.wins / user.matchesPlayed) * 100) : 0;
 
   return (
     <div className="space-y-4 px-4 pt-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-prestige text-lg font-black text-white shadow-[0_16px_40px_rgba(127,72,255,0.4)]">
-            {user.username[0]}
+            {user?.username?.[0] ?? "?"}
           </div>
           <div>
-            <p className="text-sm font-bold leading-none">{user.username}</p>
-            <p className={`mt-1 text-[11px] font-hud font-semibold uppercase tracking-[0.2em] ${getRankColor(user.rank)}`}>
+            <p className="text-sm font-bold leading-none">{user?.username ?? "Fresh Account"}</p>
+            <p className={`mt-1 text-[11px] font-hud font-semibold uppercase tracking-[0.2em] ${getRankColor(user?.rank ?? "bronze")}`}>
               {rankBand.label}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="currency-chip">
-            <span>🪙</span>
-            <span className="text-coin">{user.coins.toLocaleString()}</span>
+            <span>Coins</span>
+            <span className="text-coin">{(user?.coins ?? 0).toLocaleString()}</span>
           </div>
           <div className="currency-chip">
-            <span>💎</span>
-            <span>{user.gems}</span>
+            <span>Gems</span>
+            <span>{user?.gems ?? 0}</span>
           </div>
           <button
             onClick={() => navigate("/profile")}
@@ -66,12 +66,12 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(191,255,0,0.18),_transparent_35%),linear-gradient(180deg,rgba(255,255,255,0.04),transparent)]" />
         <div className="absolute inset-0 flex items-center justify-center opacity-20">
           <div className="grid grid-cols-5 gap-2 p-8">
-            {Array.from({ length: 25 }).map((_, i) => (
+            {Array.from({ length: 25 }).map((_, index) => (
               <motion.div
-                key={i}
+                key={index}
                 className="h-8 w-8 rounded-lg border border-border"
                 animate={{ opacity: [0.2, 0.6, 0.2] }}
-                transition={{ duration: 2, delay: i * 0.15, repeat: Infinity }}
+                transition={{ duration: 2, delay: index * 0.15, repeat: Infinity }}
               />
             ))}
           </div>
@@ -91,7 +91,7 @@ export default function HomePage() {
           <div>
             <p className="text-3xl font-black tracking-tight">PUZZLE RIVALS</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Keep the current game systems, but present them with the sharper arena-style dashboard from the alternate build.
+              New accounts now start clean. Build your own rank, streak, and profile history from zero.
             </p>
           </div>
 
@@ -102,10 +102,10 @@ export default function HomePage() {
             <div>
               <p className="text-sm font-bold">{topPlayer.username}</p>
               <p className={`text-[11px] font-hud font-semibold uppercase tracking-[0.18em] ${getRankColor(topPlayer.rank)}`}>
-                Master · ELO {topPlayer.elo}
+                Master | ELO {topPlayer.elo}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Solved a Difficulty V Pipe Flow in 23.4s. Replay the run or queue into your own duel.
+                Study a top run, then queue into your own 4-player lobby and start building real stats.
               </p>
             </div>
           </div>
@@ -132,7 +132,7 @@ export default function HomePage() {
             </div>
             <div className="rounded-2xl bg-background/40 p-3">
               <p className="hud-label">Season</p>
-              <p className="mt-1 text-sm font-black">XI</p>
+              <p className="mt-1 text-sm font-black">Launch</p>
             </div>
           </div>
         </div>
@@ -140,20 +140,20 @@ export default function HomePage() {
 
       <div className="grid grid-cols-3 gap-3">
         <div className="panel text-center">
-          <p className="stat-value text-primary">{user.winStreak}</p>
+          <p className="stat-value text-primary">{user?.winStreak ?? 0}</p>
           <p className="stat-label">Streak</p>
         </div>
         <div className="panel text-center">
-          <p className="stat-value">{Math.round((user.wins / user.matchesPlayed) * 100)}%</p>
+          <p className="stat-value">{winRate}%</p>
           <p className="stat-label">Win Rate</p>
         </div>
         <div className="panel text-center">
-          <p className="stat-value">{user.matchesPlayed}</p>
+          <p className="stat-value">{user?.matchesPlayed ?? 0}</p>
           <p className="stat-label">Matches</p>
         </div>
       </div>
 
-      {DAILY_CHALLENGES.filter((d) => !d.isCompleted).map((challenge) => (
+      {DAILY_CHALLENGES.filter((challenge) => !challenge.isCompleted).map((challenge) => (
         <button
           key={challenge.id}
           onClick={() => navigate("/match?mode=daily")}
@@ -222,7 +222,7 @@ export default function HomePage() {
         </div>
         <div className="mt-4 flex items-center justify-between rounded-2xl bg-background/35 px-4 py-3">
           <div>
-            <p className="text-sm font-bold">{user.winStreak} Day Run</p>
+            <p className="text-sm font-bold">{user?.winStreak ?? 0} Day Run</p>
             <p className="text-sm text-muted-foreground">Keep winning to unlock higher streak rewards.</p>
           </div>
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-prestige text-lg text-white">
@@ -234,7 +234,7 @@ export default function HomePage() {
             <div
               key={day}
               className={`flex h-12 items-center justify-center rounded-2xl border text-sm font-black ${
-                day <= user.winStreak
+                day <= (user?.winStreak ?? 0)
                   ? "border-primary/30 bg-primary/10 text-primary"
                   : "border-border bg-background/25 text-muted-foreground"
               }`}

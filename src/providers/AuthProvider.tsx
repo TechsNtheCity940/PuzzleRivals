@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { CURRENT_USER } from "@/lib/seed-data";
-import { apiRequest, getStoredAuthToken, setStoredAuthToken } from "@/lib/api-client";
+import { supabase } from "@/lib/supabase-client";
 import type { UserProfile } from "@/lib/types";
 
 interface AuthContextValue {
@@ -19,18 +19,62 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-async function createGuestSession() {
-  return apiRequest<{ token: string; user: UserProfile }>("/api/auth/guest", {
-    method: "POST",
-    body: JSON.stringify({ username: CURRENT_USER.username }),
-  });
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-async function fetchCurrentUser(token: string) {
-  return apiRequest<{ user: UserProfile }>("/api/auth/me", {
-    method: "GET",
-    token,
-  });
+async function fetchCurrentUser(): Promise<{ token: string | null; user: UserProfile | null }> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData.session;
+
+  if (!session?.user) {
+    return { token: null, user: null };
+  }
+
+  const [{ data: profile }, { data: stats }] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", session.user.id).single(),
+    supabase.from("player_stats").select("*").eq("user_id", session.user.id).single(),
+  ]);
+
+  if (!profile) {
+    return { token: session.access_token, user: null };
+  }
+
+  return {
+    token: session.access_token,
+    user: {
+      ...CURRENT_USER,
+      id: profile.id,
+      username: profile.username,
+      elo: profile.elo,
+      rank: profile.rank,
+      level: profile.level,
+      xp: profile.xp,
+      xpToNext: profile.xp_to_next,
+      coins: profile.coins,
+      gems: profile.gems,
+      isVip: profile.is_vip,
+      wins: stats?.wins ?? CURRENT_USER.wins,
+      losses: stats?.losses ?? CURRENT_USER.losses,
+      matchesPlayed: stats?.matches_played ?? CURRENT_USER.matchesPlayed,
+      winStreak: stats?.win_streak ?? CURRENT_USER.winStreak,
+      bestStreak: stats?.best_streak ?? CURRENT_USER.bestStreak,
+      joinedAt: profile.created_at,
+    },
+  };
+}
+
+async function loadCurrentUserWithRetry(retries = 5) {
+  let attempt = 0;
+  let current = await fetchCurrentUser();
+
+  while (attempt < retries && current.token && !current.user) {
+    attempt += 1;
+    await sleep(250 * attempt);
+    current = await fetchCurrentUser();
+  }
+
+  return current;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -43,23 +87,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function bootstrap() {
       try {
-        const storedToken = getStoredAuthToken();
-        if (storedToken) {
-          try {
-            const me = await fetchCurrentUser(storedToken);
-            if (!mounted) return;
-            setToken(storedToken);
-            setUser(me.user);
-            setIsReady(true);
-            return;
-          } catch {
-            setStoredAuthToken(null);
-          }
+        const current = await loadCurrentUserWithRetry();
+        if (current.user) {
+          if (!mounted) return;
+          setToken(current.token);
+          setUser(current.user);
+          return;
         }
 
-        const session = await createGuestSession();
+        const { data, error } = await supabase.auth.signInAnonymously({
+          options: {},
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (!data.session) {
+          throw new Error("Supabase session was not created.");
+        }
+
+        const session = await loadCurrentUserWithRetry();
         if (!mounted) return;
-        setStoredAuthToken(session.token);
         setToken(session.token);
         setUser(session.user);
       } finally {
@@ -76,11 +125,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function refreshUser() {
-    const currentToken = token ?? getStoredAuthToken();
-    if (!currentToken) return;
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setToken(session?.access_token ?? null);
+      void loadCurrentUserWithRetry(2).then((current) => {
+        setUser(current.user);
+      });
+    });
 
-    const me = await fetchCurrentUser(currentToken);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  async function refreshUser() {
+    const me = await loadCurrentUserWithRetry(2);
+    setToken(me.token);
     setUser(me.user);
   }
 

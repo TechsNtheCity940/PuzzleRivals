@@ -1,56 +1,48 @@
-const AUTH_TOKEN_STORAGE_KEY = "puzzle-rivals-auth-token";
+import type { BackendLobby, MatchMode, PuzzleSubmission } from "@/lib/backend";
+import { supabase } from "@/lib/supabase-client";
 
-type RequestOptions = RequestInit & {
-  token?: string | null;
-};
-
-function getDefaultApiBaseUrl() {
-  return import.meta.env.VITE_API_BASE_URL ?? "";
-}
-
-export function getWebSocketUrl(token?: string | null) {
-  if (import.meta.env.VITE_WS_BASE_URL) {
-    const url = new URL("/ws", import.meta.env.VITE_WS_BASE_URL);
-    if (token) url.searchParams.set("token", token);
-    return url.toString();
+async function invoke<T>(functionName: string, body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke(functionName, { body });
+  if (error) {
+    throw new Error(error.message);
   }
-
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const url = new URL(`${protocol}//${window.location.host}/ws`);
-  if (token) url.searchParams.set("token", token);
-  return url.toString();
+  return data as T;
 }
 
-export function getStoredAuthToken() {
-  return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-}
+export function subscribeToLobby(lobbyId: string, onSnapshot: (lobby: BackendLobby) => void) {
+  const channel = supabase.channel(`lobby:${lobbyId}`);
 
-export function setStoredAuthToken(token: string | null) {
-  if (token) {
-    window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
-    return;
-  }
-
-  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
-}
-
-export async function apiRequest<T>(path: string, options: RequestOptions = {}) {
-  const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
-
-  if (options.token) {
-    headers.set("Authorization", `Bearer ${options.token}`);
-  }
-
-  const response = await fetch(`${getDefaultApiBaseUrl()}${path}`, {
-    ...options,
-    headers,
+  channel.on("broadcast", { event: "lobby.snapshot" }, (payload) => {
+    const nextLobby = payload.payload?.lobby ?? payload.payload;
+    if (nextLobby?.id === lobbyId) {
+      onSnapshot(nextLobby as BackendLobby);
+    }
   });
 
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(payload?.message ?? "API request failed.");
-  }
+  channel.subscribe();
 
-  return payload as T;
+  return () => {
+    void supabase.removeChannel(channel);
+  };
 }
+
+export const supabaseApi = {
+  joinLobby(mode: MatchMode) {
+    return invoke<{ lobby: BackendLobby }>("join-lobby", { mode });
+  },
+  readyLobby(lobbyId: string) {
+    return invoke<{ lobby: BackendLobby }>("ready-lobby", { lobbyId });
+  },
+  syncLobby(lobbyId: string) {
+    return invoke<{ lobby: BackendLobby }>("sync-lobby", { lobbyId });
+  },
+  submitProgress(lobbyId: string, stage: "practice" | "live", submission: PuzzleSubmission) {
+    return invoke<{ lobby: BackendLobby; progress: number }>("submit-progress", { lobbyId, stage, submission });
+  },
+  submitSolve(lobbyId: string, stage: "practice" | "live", submission: PuzzleSubmission) {
+    return invoke<{ lobby: BackendLobby }>("submit-solve", { lobbyId, stage, submission });
+  },
+  voteNextRound(lobbyId: string, vote: "continue" | "exit") {
+    return invoke<{ lobby: BackendLobby }>("vote-next-round", { lobbyId, vote });
+  },
+};

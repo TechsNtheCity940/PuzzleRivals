@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Crown, Sparkles, Swords, Target, Users, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/AuthProvider";
-import { DAILY_CHALLENGES, CURRENT_USER, getRankBand, getRankColor } from "@/lib/seed-data";
+import { DAILY_CHALLENGES, getRankBand, getRankColor } from "@/lib/seed-data";
 
 type PlayMode = "ranked" | "casual" | "royale" | "challenge" | "daily";
 
@@ -19,9 +19,8 @@ const MODES = [
 export default function PlayPage() {
   const navigate = useNavigate();
   const [selectedMode, setSelectedMode] = useState<PlayMode>("ranked");
-  const { user: authenticatedUser } = useAuth();
-  const user = authenticatedUser ?? CURRENT_USER;
-  const rankBand = getRankBand(user.elo);
+  const { user } = useAuth();
+  const rankBand = getRankBand(user?.elo ?? 0);
 
   return (
     <div className="space-y-4 px-4 pb-4 pt-6">
@@ -30,7 +29,7 @@ export default function PlayPage() {
           <p className="hud-label">Standard Match Flow</p>
           <h1 className="mt-1 text-3xl font-black tracking-tight">Play Now</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            <span className={getRankColor(user.rank)}>{rankBand.label}</span> - ELO {user.elo}
+            <span className={getRankColor(user?.rank ?? "bronze")}>{rankBand.label}</span> - ELO {user?.elo ?? 0}
           </p>
         </div>
         <div className="rounded-2xl border border-primary/20 bg-primary/10 px-3 py-2 text-right">
