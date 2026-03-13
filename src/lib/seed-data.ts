@@ -114,6 +114,12 @@ export const CURRENT_USER: UserProfile = {
   isVip: false,
   isGuest: true,
   authMethod: "guest",
+  linkedProviders: {
+    email: false,
+    facebook: false,
+    tiktok: false,
+  },
+  securityQuestionsConfigured: false,
   bestPuzzleType: null,
   worstPuzzleType: null,
   rivalUserId: null,

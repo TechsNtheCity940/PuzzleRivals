@@ -12,7 +12,7 @@ import { useAuth } from "@/providers/AuthProvider";
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { user, isGuest, canSave } = useAuth();
+  const { user, isGuest, canSave, isReady } = useAuth();
   const rankBand = getRankBand(user?.elo ?? 0);
   const [featuredPlayers, setFeaturedPlayers] = useState<LeaderboardEntry[]>([]);
   const winRate = user && user.matchesPlayed > 0 ? Math.round((user.wins / user.matchesPlayed) * 100) : 0;
@@ -92,8 +92,9 @@ export default function HomePage() {
               variant="play"
               size="xl"
               className="flex-1"
+              disabled={!isReady || !user}
             >
-              {canSave ? "Play Now" : "Create Account"}
+              {!isReady || !user ? "Syncing Account..." : canSave ? "Play Now" : "Create Account"}
             </Button>
             <Button onClick={() => navigate("/profile")} variant="outline" size="xl" className="px-5">
               <Eye size={16} />
@@ -138,6 +139,7 @@ export default function HomePage() {
           key={challenge.id}
           onClick={() => navigate(canSave ? "/match?mode=daily" : "/profile")}
           className="panel-interactive w-full text-left"
+          disabled={!isReady || !user}
         >
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">

@@ -89,7 +89,13 @@ export interface UserProfile {
   joinedAt: string;
   isVip: boolean;
   isGuest?: boolean;
-  authMethod?: "guest" | "email" | "facebook";
+  authMethod?: "guest" | "email" | "facebook" | "tiktok";
+  linkedProviders?: {
+    email: boolean;
+    facebook: boolean;
+    tiktok: boolean;
+  };
+  securityQuestionsConfigured?: boolean;
   clanId?: string;
   bestPuzzleType?: PuzzleType | null;
   worstPuzzleType?: PuzzleType | null;

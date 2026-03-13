@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { Provider } from "@supabase/supabase-js";
 import { buildGuestUser, loadCurrentUserFromSession, saveProfileToSupabase } from "@/lib/player-data";
 import { isSupabaseConfigured, supabase, supabaseConfigErrorMessage } from "@/lib/supabase-client";
 import type { UserProfile } from "@/lib/types";
@@ -17,8 +18,12 @@ interface AuthContextValue {
   isGuest: boolean;
   canSave: boolean;
   saveProfile: (updates: Partial<UserProfile>) => Promise<void>;
-  signInWithEmail: (email: string) => Promise<string>;
+  signUpWithEmail: (email: string, password: string) => Promise<string>;
+  signInWithEmail: (email: string, password: string) => Promise<string>;
   signInWithFacebook: () => Promise<void>;
+  signInWithTikTok: () => Promise<void>;
+  linkFacebook: () => Promise<void>;
+  linkTikTok: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -28,6 +33,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
+
+const TIKTOK_PROVIDER = (import.meta.env.VITE_SUPABASE_TIKTOK_PROVIDER ?? "custom:tiktok") as Provider;
 
 async function fetchCurrentUser(): Promise<{ token: string | null; user: UserProfile | null }> {
   if (!supabase) {
@@ -44,7 +51,7 @@ async function fetchCurrentUser(): Promise<{ token: string | null; user: UserPro
   const user = await loadCurrentUserFromSession(session);
   return {
     token: session.access_token,
-    user: user ?? buildGuestUser(),
+    user,
   };
 }
 
@@ -56,6 +63,13 @@ async function loadCurrentUserWithRetry(retries = 5) {
     attempt += 1;
     await sleep(250 * attempt);
     current = await fetchCurrentUser();
+  }
+
+  if (current.token && !current.user) {
+    return {
+      token: current.token,
+      user: null,
+    };
   }
 
   return current;
@@ -81,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const current = await loadCurrentUserWithRetry();
         if (!mounted) return;
         setToken(current.token);
-        setUser(current.user);
+        setUser(current.user ?? (current.token ? null : buildGuestUser()));
       } finally {
         if (mounted) {
           setIsReady(true);
@@ -106,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setToken(session?.access_token ?? null);
       void loadCurrentUserWithRetry(2).then((current) => {
-        setUser(current.user);
+        setUser(current.user ?? (current.token ? null : buildGuestUser()));
       });
     });
 
@@ -124,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const me = await loadCurrentUserWithRetry(2);
     setToken(me.token);
-    setUser(me.user);
+    setUser(me.user ?? (me.token ? null : buildGuestUser()));
   }
 
   async function saveProfile(updates: Partial<UserProfile>) {
@@ -138,15 +152,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const currentUser = user;
-    if (!currentUser || currentUser.isGuest) {
+    let persistedUser = currentUser && !currentUser.isGuest ? currentUser : null;
+
+    if (!persistedUser && supabase) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      persistedUser = await loadCurrentUserFromSession(sessionData.session);
+    }
+
+    if (!persistedUser || persistedUser.isGuest) {
       return;
     }
 
     const nextUser: UserProfile = {
-      ...currentUser,
+      ...persistedUser,
       ...updates,
       socialLinks: {
-        ...currentUser.socialLinks,
+        ...persistedUser.socialLinks,
         ...(updates.socialLinks ?? {}),
       },
     };
@@ -155,15 +176,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await refreshUser();
   }
 
-  async function signInWithEmail(email: string) {
+  async function signUpWithEmail(email: string, password: string) {
     if (!supabase) {
       throw new Error(supabaseConfigErrorMessage);
     }
 
-    const { error } = await supabase.auth.signInWithOtp({
+    const { data, error } = await supabase.auth.signUp({
       email,
+      password,
       options: {
-        emailRedirectTo: `${window.location.origin}/profile`,
         data: {
           username: user?.username ?? buildGuestUser().username,
         },
@@ -174,7 +195,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw error;
     }
 
-    return "Check your inbox for the Puzzle Rivals sign-in link.";
+    if (data.session) {
+      await refreshUser();
+      return "Account created. You are now signed in.";
+    }
+
+    return "Account created. Confirm your email if your Supabase project requires email confirmation, then sign in with your password.";
+  }
+
+  async function signInWithEmail(email: string, password: string) {
+    if (!supabase) {
+      throw new Error(supabaseConfigErrorMessage);
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    await refreshUser();
+    return "Signed in successfully.";
   }
 
   async function signInWithFacebook() {
@@ -192,6 +236,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) {
       throw error;
     }
+  }
+
+  async function signInWithTikTok() {
+    if (!supabase) {
+      throw new Error(supabaseConfigErrorMessage);
+    }
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: TIKTOK_PROVIDER,
+      options: {
+        redirectTo: `${window.location.origin}/profile`,
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async function linkIdentity(provider: Provider) {
+    if (!supabase) {
+      throw new Error(supabaseConfigErrorMessage);
+    }
+
+    const { error } = await supabase.auth.linkIdentity({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/profile`,
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async function linkFacebook() {
+    await linkIdentity("facebook");
+  }
+
+  async function linkTikTok() {
+    await linkIdentity(TIKTOK_PROVIDER);
   }
 
   async function signOut() {
@@ -214,8 +300,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isGuest: user?.isGuest ?? true,
       canSave: !user?.isGuest,
       saveProfile,
+      signUpWithEmail,
       signInWithEmail,
       signInWithFacebook,
+      signInWithTikTok,
+      linkFacebook,
+      linkTikTok,
       signOut,
       refreshUser,
     }),

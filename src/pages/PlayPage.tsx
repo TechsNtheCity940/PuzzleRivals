@@ -20,7 +20,7 @@ const MODES = [
 export default function PlayPage() {
   const navigate = useNavigate();
   const [selectedMode, setSelectedMode] = useState<PlayMode>("ranked");
-  const { user, canSave } = useAuth();
+  const { user, canSave, isReady } = useAuth();
   const rankBand = getRankBand(user?.elo ?? 0);
   const isRevengeMode = selectedMode === "revenge";
   const lobbySizeLabel = isRevengeMode ? "2 Players" : "4 Players";
@@ -160,9 +160,10 @@ export default function PlayPage() {
         variant="play"
         size="xl"
         className="w-full"
+        disabled={!isReady || !user}
       >
         <Swords size={20} />
-        {canSave ? "Play Now" : "Create Account To Compete"}
+        {!isReady || !user ? "Syncing Account..." : canSave ? "Play Now" : "Create Account To Compete"}
       </Button>
     </div>
   );

@@ -59,6 +59,68 @@ type SocialDirectoryEntry = {
   tiktok_handle: string | null;
 };
 
+type SecurityQuestionsRow = {
+  user_id: string;
+};
+
+function defaultUsernameForSession(session: Session) {
+  const metadataUsername =
+    typeof session.user.user_metadata?.username === "string" ? session.user.user_metadata.username.trim() : "";
+  if (metadataUsername) {
+    return metadataUsername;
+  }
+
+  const emailPrefix = session.user.email?.split("@")[0]?.replace(/[^a-zA-Z0-9_-]/g, "") ?? "Player";
+  const suffix = session.user.id.replace(/-/g, "").slice(0, 6);
+  return `${emailPrefix || "Player"}-${suffix}`;
+}
+
+async function ensureProfileAndStats(session: Session) {
+  if (!supabase) return;
+
+  const { data: existingProfile, error: profileLookupError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", session.user.id)
+    .maybeSingle<{ id: string }>();
+
+  if (profileLookupError) {
+    throw profileLookupError;
+  }
+
+  if (!existingProfile) {
+    const { error: insertProfileError } = await supabase.from("profiles").insert({
+      id: session.user.id,
+      username: defaultUsernameForSession(session),
+      avatar_id: DEFAULT_AVATAR_ID,
+    });
+
+    if (insertProfileError) {
+      throw insertProfileError;
+    }
+  }
+
+  const { data: existingStats, error: statsLookupError } = await supabase
+    .from("player_stats")
+    .select("user_id")
+    .eq("user_id", session.user.id)
+    .maybeSingle<{ user_id: string }>();
+
+  if (statsLookupError) {
+    throw statsLookupError;
+  }
+
+  if (!existingStats) {
+    const { error: insertStatsError } = await supabase.from("player_stats").insert({
+      user_id: session.user.id,
+    });
+
+    if (insertStatsError) {
+      throw insertStatsError;
+    }
+  }
+}
+
 function emptyPuzzleSkills() {
   return { ...CURRENT_USER.puzzleSkills };
 }
@@ -85,11 +147,41 @@ export function buildGuestUser(overrides: Partial<UserProfile> = {}): UserProfil
     isGuest: true,
     authMethod: "guest",
     email: null,
+    linkedProviders: {
+      email: false,
+      facebook: false,
+      tiktok: false,
+    },
+    securityQuestionsConfigured: false,
     bestPuzzleType: null,
     worstPuzzleType: null,
     rivalUserId: null,
     ...overrides,
   };
+}
+
+function buildLinkedProviders(session: Session) {
+  const identityProviders = new Set(
+    (session.user.identities ?? [])
+      .map((identity) => identity.provider?.toLowerCase())
+      .filter((provider): provider is string => Boolean(provider)),
+  );
+
+  return {
+    email: Boolean(session.user.email),
+    facebook: identityProviders.has("facebook"),
+    tiktok:
+      identityProviders.has("tiktok") ||
+      identityProviders.has("custom:tiktok") ||
+      identityProviders.has("puzzle-rivals-tiktok"),
+  };
+}
+
+function resolvePrimaryAuthMethod(linkedProviders: ReturnType<typeof buildLinkedProviders>): UserProfile["authMethod"] {
+  if (linkedProviders.facebook) return "facebook";
+  if (linkedProviders.tiktok) return "tiktok";
+  if (linkedProviders.email) return "email";
+  return "guest";
 }
 
 function computePuzzleSnapshot(rows: PuzzleStatsRow[]) {
@@ -118,10 +210,13 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
     return null;
   }
 
-  const [{ data: profile }, { data: stats }, { data: puzzleStats }] = await Promise.all([
+  await ensureProfileAndStats(session);
+
+  const [{ data: profile }, { data: stats }, { data: puzzleStats }, { data: securityQuestions }] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", session.user.id).single<ProfileRow>(),
     supabase.from("player_stats").select("*").eq("user_id", session.user.id).single<PlayerStatsRow>(),
     supabase.from("player_puzzle_stats").select("puzzle_type, matches_played, wins, total_progress").eq("user_id", session.user.id),
+    supabase.from("user_security_questions").select("user_id").eq("user_id", session.user.id).maybeSingle<SecurityQuestionsRow>(),
   ]);
 
   if (!profile) {
@@ -129,7 +224,7 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
   }
 
   const computed = computePuzzleSnapshot((puzzleStats ?? []) as PuzzleStatsRow[]);
-  const provider = session.user.app_metadata?.provider === "facebook" ? "facebook" : "email";
+  const linkedProviders = buildLinkedProviders(session);
 
   return {
     ...CURRENT_USER,
@@ -157,7 +252,9 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
     bestStreak: stats?.best_streak ?? 0,
     joinedAt: profile.created_at,
     isGuest: false,
-    authMethod: provider,
+    authMethod: resolvePrimaryAuthMethod(linkedProviders),
+    linkedProviders,
+    securityQuestionsConfigured: Boolean(securityQuestions),
     bestPuzzleType: (profile.best_puzzle_type as PuzzleType | null) ?? null,
     worstPuzzleType: (profile.worst_puzzle_type as PuzzleType | null) ?? computed.worstPuzzleType,
     rivalUserId: profile.rival_user_id,
