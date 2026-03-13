@@ -1,0 +1,105 @@
+function getPayPalBaseUrl() {
+  return (Deno.env.get("PAYPAL_ENV") ?? "live") === "live"
+    ? "https://api-m.paypal.com"
+    : "https://api-m.sandbox.paypal.com";
+}
+
+async function parseResponse(response: Response) {
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.message ?? "PayPal request failed.");
+  }
+  return payload;
+}
+
+async function getAccessToken() {
+  const clientId = Deno.env.get("PAYPAL_CLIENT_ID");
+  const clientSecret = Deno.env.get("PAYPAL_CLIENT_SECRET");
+
+  if (!clientId || !clientSecret) {
+    throw new Error("PayPal is not configured. Set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET.");
+  }
+
+  const credentials = btoa(`${clientId}:${clientSecret}`);
+  const response = await fetch(`${getPayPalBaseUrl()}/v1/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${credentials}`,
+    },
+    body: "grant_type=client_credentials",
+  });
+
+  const payload = await parseResponse(response) as { access_token: string };
+  return payload.access_token;
+}
+
+export async function createPayPalOrder(input: {
+  name: string;
+  description: string;
+  orderId: string;
+  amountUsd: number;
+  returnUrl: string;
+  cancelUrl: string;
+}) {
+  const accessToken = await getAccessToken();
+  const response = await fetch(`${getPayPalBaseUrl()}/v2/checkout/orders`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      Prefer: "return=representation",
+      "PayPal-Request-Id": crypto.randomUUID(),
+    },
+    body: JSON.stringify({
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          reference_id: input.orderId,
+          description: input.description,
+          amount: {
+            currency_code: "USD",
+            value: input.amountUsd.toFixed(2),
+            breakdown: {
+              item_total: {
+                currency_code: "USD",
+                value: input.amountUsd.toFixed(2),
+              },
+            },
+          },
+          items: [
+            {
+              name: input.name,
+              quantity: "1",
+              unit_amount: {
+                currency_code: "USD",
+                value: input.amountUsd.toFixed(2),
+              },
+            },
+          ],
+        },
+      ],
+      application_context: {
+        return_url: input.returnUrl,
+        cancel_url: input.cancelUrl,
+      },
+    }),
+  });
+
+  return parseResponse(response);
+}
+
+export async function capturePayPalOrder(orderId: string) {
+  const accessToken = await getAccessToken();
+  const response = await fetch(`${getPayPalBaseUrl()}/v2/checkout/orders/${orderId}/capture`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      Prefer: "return=representation",
+      "PayPal-Request-Id": crypto.randomUUID(),
+    },
+  });
+
+  return parseResponse(response);
+}

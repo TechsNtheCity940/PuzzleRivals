@@ -1,0 +1,36 @@
+Original prompt: for the store, i want both types of transactions, however we need to make it work, make it work and then commit and push to git repo
+
+- Added live storefront and season-pass checkout via Supabase edge functions and PayPal.
+- Current task: expand the playable puzzle pool by 10-15 new types, including chess scenarios, and push to main.
+- Plan: add deterministic multi-choice puzzle families first so backend validation and frontend boards stay aligned.
+- Added 12 new puzzle types centered on logic, trivia, geography, science, math, vocabulary, and three extra chess categories.
+- Validation status: `npm run build` and `npm run build:server` both pass after the expansion.
+- Browser smoke attempt was blocked by an unstable preview process in this shell; fallback validation was the full production build.
+- Current task: replace OTP-only auth with real email/password login, security-question recovery, and real provider link state for Facebook/TikTok.
+- Added migration `20260312000007_auth_security_and_profile_bootstrap.sql` for owner profile bootstrap inserts and `user_security_questions`.
+- Added Supabase edge functions for `set-security-questions`, `get-security-questions`, and `reset-password-with-security-questions`.
+- Auth provider and profile UI are mid-refactor; next step is to compile/fix types and smoke-test the new account flow.
+- `npm run build` and `npm run build:server` now pass with the auth refactor.
+- Browser smoke fallback used local Playwright instead of the bundled skill client because the client could not resolve `playwright` from its own install path in this shell.
+- Smoke result: `/profile` renders, no console errors, and the new signup/login/security-question UI is visible.
+- Fixed a stale-auth bug in `saveProfile` so the first save immediately after signup/login uses the authenticated session instead of the previous guest snapshot.
+- Corrected a migration version collision: auth/security bootstrap is now `20260312000008_auth_security_and_profile_bootstrap.sql` because `20260312000007` is already used by storefront/entitlements on the remote.
+- Current task: major frontend UI redesign for compact no-scroll screens using the frontend-ui-designer skill.
+- Direction chosen: compact arcade command-deck with floating command panels, puzzle-cut action tiles, and persistent logo presence on every route.
+- Added shared compact layout system in `src/index.css`, plus reusable `PageHeader` and `PuzzleTileButton` components.
+- Refactored Home, Play, Tournaments, Store, Season, Profile, and NotFound into single-screen layouts designed to fit within the viewport without page scrolling.
+- Updated the app shell so the content area is constrained to the viewport and the fixed header/nav work with the compact layouts.
+- Validation: `npm run build` and `npm run build:server` pass after the redesign.
+- Browser smoke: mobile viewport checks on `/`, `/play`, `/tournaments`, `/store`, `/season`, and `/profile` all reported no vertical scrolling and no console errors.
+- Screenshots were captured under `tmp/ui-smoke/` for manual review during this pass.
+- Follow-up idea: the match route still uses its older layout language; if visual consistency matters, refactor match HUD/panels into the same command-deck system next.
+- Current task: refactor the `/match` route into the compact command-deck style without changing matchmaking or gameplay logic.
+- Rebuilt `src/pages/MatchPage.tsx` around shared `PageHeader`, puzzle-cut tiles, command panels, timer clusters, and compact HUD metrics for all visible match states.
+- Added reusable match HUD helpers in `src/index.css` and removed the unused bottom-nav spacing from `AppShell` on match routes so the arena can use the full viewport height.
+- Validation: `npm run build`, `npm run build:server`, and `npx vitest run src/test/match-page-states.test.tsx` all pass after the match-screen refactor.
+- Browser smoke: `/match?mode=ranked` renders the backend-unavailable state at a 390x844 viewport with no console errors and no page scrolling in this shell; other match states were covered by the new render test because Supabase is not configured locally here.
+- Current task: debug email/password auth plus security-question recovery against the linked Supabase project.
+- Reproduced the real backend issue with disposable accounts: signup/signin worked, but all three recovery functions returned non-2xx because the deployed endpoints were still gated by JWT verification before their code ran.
+- Deployed `set-security-questions`, `get-security-questions`, and `reset-password-with-security-questions` again with JWT verification disabled at the gateway, relying on the function code to validate auth where required.
+- Added client-side function error parsing in `src/lib/auth-security.ts` so future edge-function failures surface the backend message instead of only `non-2xx status code`.
+- Retest against the linked project now passes end-to-end for signup, security-question save/load, password reset, and sign-in with the new password.

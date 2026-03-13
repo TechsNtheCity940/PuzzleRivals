@@ -1,0 +1,334 @@
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import type { Provider } from "@supabase/supabase-js";
+import { buildGuestUser, loadCurrentUserFromSession, saveProfileToSupabase } from "@/lib/player-data";
+import { isSupabaseConfigured, supabase, supabaseConfigErrorMessage } from "@/lib/supabase-client";
+import type { UserProfile } from "@/lib/types";
+
+interface AuthContextValue {
+  isReady: boolean;
+  token: string | null;
+  user: UserProfile | null;
+  isGuest: boolean;
+  canSave: boolean;
+  saveProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  signUpWithEmail: (
+    email: string,
+    password: string,
+  ) => Promise<{ message: string; signedIn: boolean }>;
+  signInWithEmail: (email: string, password: string) => Promise<string>;
+  signInWithFacebook: () => Promise<void>;
+  signInWithTikTok: () => Promise<void>;
+  linkFacebook: () => Promise<void>;
+  linkTikTok: () => Promise<void>;
+  signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+const TIKTOK_PROVIDER = (import.meta.env.VITE_SUPABASE_TIKTOK_PROVIDER ?? "custom:tiktok") as Provider;
+
+async function fetchCurrentUser(): Promise<{ token: string | null; user: UserProfile | null }> {
+  if (!supabase) {
+    return { token: null, user: buildGuestUser() };
+  }
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData.session;
+
+  if (!session?.user) {
+    return { token: null, user: buildGuestUser() };
+  }
+
+  const user = await loadCurrentUserFromSession(session);
+  return {
+    token: session.access_token,
+    user,
+  };
+}
+
+async function loadCurrentUserWithRetry(retries = 5) {
+  let attempt = 0;
+  let current = await fetchCurrentUser();
+
+  while (attempt < retries && current.token && !current.user) {
+    attempt += 1;
+    await sleep(250 * attempt);
+    current = await fetchCurrentUser();
+  }
+
+  if (current.token && !current.user) {
+    return {
+      token: current.token,
+      user: null,
+    };
+  }
+
+  return current;
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [isReady, setIsReady] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function bootstrap() {
+      try {
+        if (!isSupabaseConfigured) {
+          if (!mounted) return;
+          setToken(null);
+          setUser(buildGuestUser());
+          return;
+        }
+
+        const current = await loadCurrentUserWithRetry();
+        if (!mounted) return;
+        setToken(current.token);
+        setUser(current.user ?? (current.token ? null : buildGuestUser()));
+      } finally {
+        if (mounted) {
+          setIsReady(true);
+        }
+      }
+    }
+
+    void bootstrap();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setToken(session?.access_token ?? null);
+      void loadCurrentUserWithRetry(2).then((current) => {
+        setUser(current.user ?? (current.token ? null : buildGuestUser()));
+      });
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  async function refreshUser() {
+    if (!isSupabaseConfigured) {
+      setToken(null);
+      setUser(buildGuestUser());
+      return;
+    }
+
+    const me = await loadCurrentUserWithRetry(2);
+    setToken(me.token);
+    setUser(me.user ?? (me.token ? null : buildGuestUser()));
+  }
+
+  async function saveProfile(updates: Partial<UserProfile>) {
+    setUser((current) => {
+      const next = { ...(current ?? buildGuestUser()), ...updates } as UserProfile;
+      next.socialLinks = {
+        ...(current?.socialLinks ?? {}),
+        ...(updates.socialLinks ?? {}),
+      };
+      return next;
+    });
+
+    const currentUser = user;
+    let persistedUser = currentUser && !currentUser.isGuest ? currentUser : null;
+
+    if (!persistedUser && supabase) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      persistedUser = await loadCurrentUserFromSession(sessionData.session);
+    }
+
+    if (!persistedUser || persistedUser.isGuest) {
+      return;
+    }
+
+    const nextUser: UserProfile = {
+      ...persistedUser,
+      ...updates,
+      socialLinks: {
+        ...persistedUser.socialLinks,
+        ...(updates.socialLinks ?? {}),
+      },
+    };
+
+    await saveProfileToSupabase(nextUser);
+    await refreshUser();
+  }
+
+  async function signUpWithEmail(email: string, password: string) {
+    if (!supabase) {
+      throw new Error(supabaseConfigErrorMessage);
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username: user?.username ?? buildGuestUser().username,
+        },
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (data.session) {
+      await refreshUser();
+      return {
+        message: "Account created. You are now signed in.",
+        signedIn: true,
+      };
+    }
+
+    return {
+      message:
+        "Account created. Confirm your email if your Supabase project requires email confirmation, then sign in with your password.",
+      signedIn: false,
+    };
+  }
+
+  async function signInWithEmail(email: string, password: string) {
+    if (!supabase) {
+      throw new Error(supabaseConfigErrorMessage);
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    await refreshUser();
+    return "Signed in successfully.";
+  }
+
+  async function signInWithFacebook() {
+    if (!supabase) {
+      throw new Error(supabaseConfigErrorMessage);
+    }
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "facebook",
+      options: {
+        redirectTo: `${window.location.origin}/profile`,
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async function signInWithTikTok() {
+    if (!supabase) {
+      throw new Error(supabaseConfigErrorMessage);
+    }
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: TIKTOK_PROVIDER,
+      options: {
+        redirectTo: `${window.location.origin}/profile`,
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async function linkIdentity(provider: Provider) {
+    if (!supabase) {
+      throw new Error(supabaseConfigErrorMessage);
+    }
+
+    const { error } = await supabase.auth.linkIdentity({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/profile`,
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async function linkFacebook() {
+    await linkIdentity("facebook");
+  }
+
+  async function linkTikTok() {
+    await linkIdentity(TIKTOK_PROVIDER);
+  }
+
+  async function signOut() {
+    if (!supabase) {
+      setToken(null);
+      setUser(buildGuestUser());
+      return;
+    }
+
+    await supabase.auth.signOut();
+    setToken(null);
+    setUser(buildGuestUser());
+  }
+
+  const value = useMemo(
+    () => ({
+      isReady,
+      token,
+      user,
+      isGuest: user?.isGuest ?? true,
+      canSave: !user?.isGuest,
+      saveProfile,
+      signUpWithEmail,
+      signInWithEmail,
+      signInWithFacebook,
+      signInWithTikTok,
+      linkFacebook,
+      linkTikTok,
+      signOut,
+      refreshUser,
+    }),
+    [isReady, token, user],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider.");
+  }
+  return context;
+}

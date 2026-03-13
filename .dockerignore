@@ -1,0 +1,7 @@
+node_modules
+dist
+server/dist
+.git
+.github
+server/data/*.sqlite
+npm-debug.log*

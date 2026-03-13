@@ -1,0 +1,30 @@
+project_id = "puzzle-rivals-arena-51"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[edge_runtime]
+enabled = true
+policy = "per_worker"
+
+[functions.set-security-questions]
+verify_jwt = false
+
+[functions.get-security-questions]
+verify_jwt = false
+
+[functions.reset-password-with-security-questions]
+verify_jwt = false
