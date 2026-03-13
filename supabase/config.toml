@@ -19,3 +19,12 @@ port = 54323
 [edge_runtime]
 enabled = true
 policy = "per_worker"
+
+[functions.set-security-questions]
+verify_jwt = false
+
+[functions.get-security-questions]
+verify_jwt = false
+
+[functions.reset-password-with-security-questions]
+verify_jwt = false

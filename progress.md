@@ -29,3 +29,8 @@ Original prompt: for the store, i want both types of transactions, however we ne
 - Added reusable match HUD helpers in `src/index.css` and removed the unused bottom-nav spacing from `AppShell` on match routes so the arena can use the full viewport height.
 - Validation: `npm run build`, `npm run build:server`, and `npx vitest run src/test/match-page-states.test.tsx` all pass after the match-screen refactor.
 - Browser smoke: `/match?mode=ranked` renders the backend-unavailable state at a 390x844 viewport with no console errors and no page scrolling in this shell; other match states were covered by the new render test because Supabase is not configured locally here.
+- Current task: debug email/password auth plus security-question recovery against the linked Supabase project.
+- Reproduced the real backend issue with disposable accounts: signup/signin worked, but all three recovery functions returned non-2xx because the deployed endpoints were still gated by JWT verification before their code ran.
+- Deployed `set-security-questions`, `get-security-questions`, and `reset-password-with-security-questions` again with JWT verification disabled at the gateway, relying on the function code to validate auth where required.
+- Added client-side function error parsing in `src/lib/auth-security.ts` so future edge-function failures surface the backend message instead of only `non-2xx status code`.
+- Retest against the linked project now passes end-to-end for signup, security-question save/load, password reset, and sign-in with the new password.

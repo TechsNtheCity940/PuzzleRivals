@@ -24,6 +24,31 @@ function requireSupabase() {
   return supabase;
 }
 
+async function extractFunctionErrorMessage(error: unknown) {
+  if (error && typeof error === "object" && "context" in error) {
+    const response = (error as { context?: unknown }).context;
+    if (response instanceof Response) {
+      try {
+        const payload = await response.clone().json() as { message?: string };
+        if (payload.message) {
+          return payload.message;
+        }
+      } catch {
+        const text = await response.clone().text();
+        if (text) {
+          return text;
+        }
+      }
+    }
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Edge function request failed.";
+}
+
 export async function saveSecurityQuestions(payload: SecurityQuestionPair) {
   const client = requireSupabase();
   const { data, error } = await client.functions.invoke("set-security-questions", {
@@ -31,7 +56,7 @@ export async function saveSecurityQuestions(payload: SecurityQuestionPair) {
   });
 
   if (error) {
-    throw new Error((data as { message?: string } | null)?.message ?? error.message);
+    throw new Error((data as { message?: string } | null)?.message ?? await extractFunctionErrorMessage(error));
   }
 }
 
@@ -42,7 +67,7 @@ export async function fetchSecurityQuestions(email: string) {
   });
 
   if (error) {
-    throw new Error((data as { message?: string } | null)?.message ?? error.message);
+    throw new Error((data as { message?: string } | null)?.message ?? await extractFunctionErrorMessage(error));
   }
 
   return data as { questionOne: string; questionTwo: string };
@@ -60,6 +85,6 @@ export async function resetPasswordWithSecurityQuestions(email: string, payload:
   });
 
   if (error) {
-    throw new Error((data as { message?: string } | null)?.message ?? error.message);
+    throw new Error((data as { message?: string } | null)?.message ?? await extractFunctionErrorMessage(error));
   }
 }
