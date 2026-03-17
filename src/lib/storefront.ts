@@ -19,6 +19,9 @@ type InventoryRow = {
 type WalletRow = {
   coins: number;
   gems: number;
+  puzzle_shards: number;
+  rank_points: number;
+  pass_xp: number;
   hint_balance: number;
   has_season_pass: boolean;
   is_vip: boolean;
@@ -30,6 +33,9 @@ type WalletRow = {
 export interface StorefrontWallet {
   coins: number;
   gems: number;
+  puzzleShards: number;
+  rankPoints: number;
+  passXp: number;
   hintBalance: number;
   hasSeasonPass: boolean;
   isVip: boolean;
@@ -65,6 +71,10 @@ function asCategory(value: unknown): ItemCategory {
     value === "theme" ||
     value === "avatar" ||
     value === "frame" ||
+    value === "player_card" ||
+    value === "banner" ||
+    value === "emblem" ||
+    value === "title" ||
     value === "bundle" ||
     value === "hint_pack" ||
     value === "battle_pass"
@@ -79,6 +89,9 @@ function toWallet(profile?: UserProfile | null): StorefrontWallet | null {
   return {
     coins: profile.coins,
     gems: profile.gems,
+    puzzleShards: profile.puzzleShards,
+    rankPoints: profile.rankPoints,
+    passXp: profile.passXp,
     hintBalance: profile.hintBalance ?? 0,
     hasSeasonPass: profile.hasSeasonPass ?? false,
     isVip: profile.isVip,
@@ -136,12 +149,13 @@ function mapProduct(
     name: asString(metadata.name, product.id),
     description: asString(metadata.description),
     category,
-    rarity: Math.max(1, Math.min(4, asNumber(metadata.rarity, 1))) as ItemRarity,
+    rarity: Math.max(1, Math.min(6, asNumber(metadata.rarity, 1))) as ItemRarity,
     priceUsd: product.price_usd ?? undefined,
     priceCoins: product.price_coins ?? undefined,
     priceGems: product.price_gems ?? undefined,
     isOwned: owned,
     isFeatured: asBoolean(metadata.featured, false),
+    collection: asString(metadata.collection) || undefined,
   };
 }
 
@@ -176,7 +190,7 @@ export async function fetchStorefront(profile?: UserProfile | null): Promise<Sto
         .eq("user_id", profile.id),
       supabase
         .from("profiles")
-        .select("coins, gems, hint_balance, has_season_pass, is_vip, vip_expires_at, theme_id, frame_id")
+        .select("coins, gems, puzzle_shards, rank_points, pass_xp, hint_balance, has_season_pass, is_vip, vip_expires_at, theme_id, frame_id")
         .eq("id", profile.id)
         .single<WalletRow>(),
     ]);
@@ -200,6 +214,9 @@ export async function fetchStorefront(profile?: UserProfile | null): Promise<Sto
       ? {
           coins: wallet.coins,
           gems: wallet.gems,
+          puzzleShards: wallet.puzzle_shards,
+          rankPoints: wallet.rank_points,
+          passXp: wallet.pass_xp,
           hintBalance: wallet.hint_balance,
           hasSeasonPass: wallet.has_season_pass,
           isVip: wallet.is_vip,

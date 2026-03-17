@@ -208,6 +208,18 @@ export default function ProfilePage() {
                   <p className="stat-value">{user?.level ?? 1}</p>
                 </div>
                 <div className="rich-stat">
+                  <p className="hud-label">Pass XP</p>
+                  <p className="stat-value text-xp">{user?.passXp ?? 0}</p>
+                </div>
+                <div className="rich-stat">
+                  <p className="hud-label">Rank Points</p>
+                  <p className="stat-value text-gradient-prestige">{user?.rankPoints ?? 0}</p>
+                </div>
+                <div className="rich-stat">
+                  <p className="hud-label">Shards</p>
+                  <p className="stat-value text-primary">{user?.puzzleShards ?? 0}</p>
+                </div>
+                <div className="rich-stat">
                   <p className="hud-label">XP Bank</p>
                   <p className="stat-value text-xp">{user?.xp ?? 0}</p>
                 </div>
@@ -215,10 +227,12 @@ export default function ProfilePage() {
                   <p className="hud-label">Best Streak</p>
                   <p className="stat-value">{user?.bestStreak ?? 0}</p>
                 </div>
-                <div className="rich-stat">
-                  <p className="hud-label">Mode</p>
-                  <p className="text-lg font-black text-primary">{isGuest ? "Guest" : "Saved"}</p>
-                </div>
+              </div>
+              <div className="command-panel-soft p-4">
+                <p className="hud-label">Economy Readout</p>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                  Coins and gems handle broad progression and premium cosmetics. Shards protect against duplicate frustration. Rank points and pass XP now separate season pressure from raw account growth.
+                </p>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {tabs.map((entry) => (

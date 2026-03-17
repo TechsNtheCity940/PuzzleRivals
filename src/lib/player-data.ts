@@ -24,6 +24,9 @@ type ProfileRow = {
   xp_to_next: number;
   coins: number;
   gems: number;
+  puzzle_shards: number;
+  rank_points: number;
+  pass_xp: number;
   is_vip: boolean;
   vip_expires_at: string | null;
   has_season_pass: boolean;
@@ -140,6 +143,9 @@ export function buildGuestUser(overrides: Partial<UserProfile> = {}): UserProfil
     hintBalance: overrides.hintBalance ?? 0,
     hasSeasonPass: overrides.hasSeasonPass ?? false,
     vipExpiresAt: overrides.vipExpiresAt ?? null,
+    puzzleShards: overrides.puzzleShards ?? 0,
+    rankPoints: overrides.rankPoints ?? 0,
+    passXp: overrides.passXp ?? 0,
     socialLinks: {
       ...CURRENT_USER.socialLinks,
       ...overrides.socialLinks,
@@ -278,6 +284,9 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
     xpToNext: profile.xp_to_next,
     coins: profile.coins,
     gems: profile.gems,
+    puzzleShards: profile.puzzle_shards,
+    rankPoints: profile.rank_points,
+    passXp: profile.pass_xp,
     isVip: profile.is_vip,
     wins: stats?.wins ?? 0,
     losses: stats?.losses ?? 0,

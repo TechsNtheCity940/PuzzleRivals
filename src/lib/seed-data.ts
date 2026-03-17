@@ -105,6 +105,9 @@ export const CURRENT_USER: UserProfile = {
   xpToNext: 5000,
   coins: 0,
   gems: 0,
+  puzzleShards: 0,
+  rankPoints: 0,
+  passXp: 0,
   wins: 0,
   losses: 0,
   winStreak: 0,
@@ -135,12 +138,12 @@ function withSkills(skills: Partial<Record<PuzzleType, number>>) {
 
 export const PLAYERS: UserProfile[] = [
   { ...CURRENT_USER },
-  { id: "u_2", username: "CipherKing", elo: 2850, rank: "diamond", level: 54, xp: 8200, xpToNext: 10000, coins: 34000, gems: 230, wins: 412, losses: 123, winStreak: 8, bestStreak: 21, matchesPlayed: 535, joinedAt: "2025-06-01", isVip: true, socialLinks: { tiktok: "@cipherking" }, puzzleSkills: withSkills({ rotate_pipes: 92, number_grid: 88, pattern_match: 95, word_scramble: 80, tile_slide: 85, sudoku_mini: 78, word_search: 72, maze: 90, memory_grid: 87, chess_tactic: 91, trivia_blitz: 84 }) , nemeses: ["u_self"], friends: ["u_3"] },
-  { id: "u_3", username: "QuickMind", elo: 1420, rank: "gold", level: 22, xp: 2100, xpToNext: 4000, coins: 8200, gems: 45, wins: 98, losses: 76, winStreak: 3, bestStreak: 9, matchesPlayed: 174, joinedAt: "2025-10-20", isVip: false, socialLinks: {}, puzzleSkills: withSkills({ rotate_pipes: 62, number_grid: 70, pattern_match: 58, word_scramble: 75, tile_slide: 55, sudoku_mini: 68, word_search: 80, maze: 50, memory_grid: 60, geography_quiz: 73, vocabulary_duel: 76 }), nemeses: [], friends: ["u_self", "u_2"] },
-  { id: "u_4", username: "GridWitch", elo: 2100, rank: "platinum", level: 38, xp: 5600, xpToNext: 7000, coins: 22000, gems: 150, wins: 267, losses: 145, winStreak: 2, bestStreak: 15, matchesPlayed: 412, joinedAt: "2025-07-10", isVip: true, socialLinks: { facebook: "gridwitch" }, puzzleSkills: withSkills({ rotate_pipes: 85, number_grid: 90, pattern_match: 78, word_scramble: 65, tile_slide: 88, sudoku_mini: 92, word_search: 60, maze: 75, memory_grid: 82, deduction_grid: 89, logic_sequence: 87 }), nemeses: ["u_5"], friends: ["u_self"] },
-  { id: "u_5", username: "BlazeLogic", elo: 1850, rank: "gold", level: 31, xp: 4200, xpToNext: 6000, coins: 15600, gems: 95, wins: 178, losses: 110, winStreak: 0, bestStreak: 11, matchesPlayed: 288, joinedAt: "2025-08-05", isVip: false, socialLinks: { tiktok: "@blazelogic" }, puzzleSkills: withSkills({ rotate_pipes: 72, number_grid: 75, pattern_match: 80, word_scramble: 82, tile_slide: 65, sudoku_mini: 70, word_search: 78, maze: 85, memory_grid: 73, code_breaker: 81, math_race: 79 }), nemeses: ["u_self", "u_4"], friends: [] },
-  { id: "u_6", username: "MasterVex", elo: 3350, rank: "master", level: 72, xp: 12000, xpToNext: 15000, coins: 58000, gems: 420, wins: 623, losses: 87, winStreak: 14, bestStreak: 31, matchesPlayed: 710, joinedAt: "2025-03-15", isVip: true, socialLinks: { tiktok: "@mastervex", facebook: "mastervex" }, puzzleSkills: withSkills({ rotate_pipes: 98, number_grid: 96, pattern_match: 99, word_scramble: 90, tile_slide: 94, sudoku_mini: 95, word_search: 88, maze: 97, memory_grid: 96, chess_tactic: 99, chess_endgame: 98, chess_opening: 94, chess_mate_net: 97 }), nemeses: [], friends: ["u_2"] },
-  { id: "u_7", username: "PuzzlePawn", elo: 620, rank: "bronze", level: 8, xp: 800, xpToNext: 1500, coins: 2400, gems: 10, wins: 23, losses: 34, winStreak: 1, bestStreak: 4, matchesPlayed: 57, joinedAt: "2026-01-20", isVip: false, socialLinks: {}, puzzleSkills: withSkills({ rotate_pipes: 30, number_grid: 35, pattern_match: 28, word_scramble: 40, tile_slide: 25, sudoku_mini: 32, word_search: 38, maze: 22, memory_grid: 27, trivia_blitz: 41, analogies: 44 }), nemeses: [], friends: ["u_self"] },
+  { id: "u_2", username: "CipherKing", elo: 2850, rank: "diamond", level: 54, xp: 8200, xpToNext: 10000, coins: 34000, gems: 230, puzzleShards: 410, rankPoints: 2960, passXp: 8900, wins: 412, losses: 123, winStreak: 8, bestStreak: 21, matchesPlayed: 535, joinedAt: "2025-06-01", isVip: true, socialLinks: { tiktok: "@cipherking" }, puzzleSkills: withSkills({ rotate_pipes: 92, number_grid: 88, pattern_match: 95, word_scramble: 80, tile_slide: 85, sudoku_mini: 78, word_search: 72, maze: 90, memory_grid: 87, chess_tactic: 91, trivia_blitz: 84 }) , nemeses: ["u_self"], friends: ["u_3"] },
+  { id: "u_3", username: "QuickMind", elo: 1420, rank: "gold", level: 22, xp: 2100, xpToNext: 4000, coins: 8200, gems: 45, puzzleShards: 95, rankPoints: 1325, passXp: 3200, wins: 98, losses: 76, winStreak: 3, bestStreak: 9, matchesPlayed: 174, joinedAt: "2025-10-20", isVip: false, socialLinks: {}, puzzleSkills: withSkills({ rotate_pipes: 62, number_grid: 70, pattern_match: 58, word_scramble: 75, tile_slide: 55, sudoku_mini: 68, word_search: 80, maze: 50, memory_grid: 60, geography_quiz: 73, vocabulary_duel: 76 }), nemeses: [], friends: ["u_self", "u_2"] },
+  { id: "u_4", username: "GridWitch", elo: 2100, rank: "platinum", level: 38, xp: 5600, xpToNext: 7000, coins: 22000, gems: 150, puzzleShards: 260, rankPoints: 2240, passXp: 6100, wins: 267, losses: 145, winStreak: 2, bestStreak: 15, matchesPlayed: 412, joinedAt: "2025-07-10", isVip: true, socialLinks: { facebook: "gridwitch" }, puzzleSkills: withSkills({ rotate_pipes: 85, number_grid: 90, pattern_match: 78, word_scramble: 65, tile_slide: 88, sudoku_mini: 92, word_search: 60, maze: 75, memory_grid: 82, deduction_grid: 89, logic_sequence: 87 }), nemeses: ["u_5"], friends: ["u_self"] },
+  { id: "u_5", username: "BlazeLogic", elo: 1850, rank: "gold", level: 31, xp: 4200, xpToNext: 6000, coins: 15600, gems: 95, puzzleShards: 180, rankPoints: 1765, passXp: 4700, wins: 178, losses: 110, winStreak: 0, bestStreak: 11, matchesPlayed: 288, joinedAt: "2025-08-05", isVip: false, socialLinks: { tiktok: "@blazelogic" }, puzzleSkills: withSkills({ rotate_pipes: 72, number_grid: 75, pattern_match: 80, word_scramble: 82, tile_slide: 65, sudoku_mini: 70, word_search: 78, maze: 85, memory_grid: 73, code_breaker: 81, math_race: 79 }), nemeses: ["u_self", "u_4"], friends: [] },
+  { id: "u_6", username: "MasterVex", elo: 3350, rank: "master", level: 72, xp: 12000, xpToNext: 15000, coins: 58000, gems: 420, puzzleShards: 860, rankPoints: 3510, passXp: 12400, wins: 623, losses: 87, winStreak: 14, bestStreak: 31, matchesPlayed: 710, joinedAt: "2025-03-15", isVip: true, socialLinks: { tiktok: "@mastervex", facebook: "mastervex" }, puzzleSkills: withSkills({ rotate_pipes: 98, number_grid: 96, pattern_match: 99, word_scramble: 90, tile_slide: 94, sudoku_mini: 95, word_search: 88, maze: 97, memory_grid: 96, chess_tactic: 99, chess_endgame: 98, chess_opening: 94, chess_mate_net: 97 }), nemeses: [], friends: ["u_2"] },
+  { id: "u_7", username: "PuzzlePawn", elo: 620, rank: "bronze", level: 8, xp: 800, xpToNext: 1500, coins: 2400, gems: 10, puzzleShards: 24, rankPoints: 540, passXp: 950, wins: 23, losses: 34, winStreak: 1, bestStreak: 4, matchesPlayed: 57, joinedAt: "2026-01-20", isVip: false, socialLinks: {}, puzzleSkills: withSkills({ rotate_pipes: 30, number_grid: 35, pattern_match: 28, word_scramble: 40, tile_slide: 25, sudoku_mini: 32, word_search: 38, maze: 22, memory_grid: 27, trivia_blitz: 41, analogies: 44 }), nemeses: [], friends: ["u_self"] },
 ];
 
 export const LEADERBOARD: LeaderboardEntry[] = PLAYERS
@@ -168,16 +171,26 @@ export const DAILY_CHALLENGES: DailyChallenge[] = [
 ];
 
 export const STORE_ITEMS: StoreItem[] = [
-  { id: "s_1", name: "Neon Circuit", description: "Electrified puzzle theme with glowing grid lines", category: "theme", rarity: 3, priceGems: 120, isFeatured: true },
-  { id: "s_2", name: "Void Frame", description: "A frame forged in the absence of light", category: "frame", rarity: 4, priceGems: 250 },
-  { id: "s_3", name: "Geometric Avatar Pack", description: "6 abstract geometric avatars", category: "avatar", rarity: 2, priceCoins: 5000 },
+  { id: "s_1", name: "Neon Circuit", description: "Electrified puzzle theme with glowing grid lines", category: "theme", rarity: 3, priceGems: 120, isFeatured: true, collection: "Neon Rivals" },
+  { id: "s_2", name: "Void Frame", description: "A frame forged in the absence of light", category: "frame", rarity: 4, priceGems: 250, collection: "Void Logic" },
+  { id: "s_3", name: "Geometric Avatar Pack", description: "6 abstract geometric avatars", category: "avatar", rarity: 2, priceCoins: 5000, collection: "Launch Core" },
   { id: "s_4", name: "Hint Pack x10", description: "10 puzzle hints for when you need an edge", category: "hint_pack", rarity: 1, priceCoins: 2000 },
-  { id: "s_5", name: "Starter Bundle", description: "5000 Coins + 50 Gems + Rare Frame", category: "bundle", rarity: 2, priceUsd: 4.99 },
-  { id: "s_6", name: "Season XI Battle Pass", description: "Unlock 40 tiers of exclusive rewards", category: "battle_pass", rarity: 3, priceUsd: 9.99 },
-  { id: "s_7", name: "Obsidian Skin", description: "Dark-on-dark puzzle board aesthetic", category: "theme", rarity: 2, priceGems: 80 },
-  { id: "s_8", name: "Minimalist Lines", description: "Ultra-clean wireframe theme", category: "theme", rarity: 1, priceCoins: 3000 },
-  { id: "s_9", name: "Diamond Edge Frame", description: "Cut with precision, earned with skill", category: "frame", rarity: 3, priceGems: 180, isOwned: true },
-  { id: "s_10", name: "Pro Hint Pack x25", description: "25 hints + bonus solve time", category: "hint_pack", rarity: 2, priceGems: 60 },
+  { id: "s_5", name: "Starter Bundle", description: "5000 Coins + 50 Gems + Rare Frame", category: "bundle", rarity: 2, priceUsd: 4.99, isFeatured: true, collection: "Launch Core" },
+  { id: "s_6", name: "Season XI Battle Pass", description: "Unlock 40 tiers of exclusive rewards", category: "battle_pass", rarity: 3, priceUsd: 9.99, isFeatured: true, collection: "Echoes of Logic" },
+  { id: "s_7", name: "Obsidian Skin", description: "Dark-on-dark puzzle board aesthetic", category: "theme", rarity: 2, priceGems: 80, collection: "Obsidian" },
+  { id: "s_8", name: "Minimalist Lines", description: "Ultra-clean wireframe theme", category: "theme", rarity: 1, priceCoins: 3000, collection: "Core Deck" },
+  { id: "s_9", name: "Diamond Edge Frame", description: "Cut with precision, earned with skill", category: "frame", rarity: 3, priceGems: 180, isOwned: true, collection: "Ranked Vault" },
+  { id: "s_10", name: "Pro Hint Pack x25", description: "25 hints for casual and solo modes", category: "hint_pack", rarity: 2, priceGems: 60 },
+  { id: "s_11", name: "Static Shock Card", description: "Animated neon player card for leaderboard intros.", category: "player_card", rarity: 4, priceGems: 200, collection: "Neon Rivals" },
+  { id: "s_12", name: "Aurora Grid Banner", description: "Lobby banner with aurora streaks and puzzle lattice cuts.", category: "banner", rarity: 3, priceCoins: 4200, collection: "Neon Rivals" },
+  { id: "s_13", name: "Word Master Emblem", description: "Equip a mastery emblem for vocabulary and riddle specialists.", category: "emblem", rarity: 2, priceCoins: 2400, collection: "Mastery" },
+  { id: "s_14", name: "Founder Title", description: "A prestige profile title reserved for early rivals.", category: "title", rarity: 5, priceGems: 320, collection: "Legacy" },
+  { id: "s_15", name: "Inferno Collection", description: "Avatar, banner, frame, and card from the Inferno identity line.", category: "bundle", rarity: 4, priceUsd: 12.99, collection: "Inferno" },
+  { id: "s_16", name: "Storm Solver Avatar", description: "Static 2D rival portrait built around a charged puzzle spinner.", category: "avatar", rarity: 3, priceGems: 140, collection: "Storm Matrix" },
+  { id: "s_17", name: "Puzzle Vault Banner", description: "Premium profile banner styled like a sealed puzzle archive.", category: "banner", rarity: 4, priceGems: 160, collection: "Puzzle Vault" },
+  { id: "s_18", name: "Season Victor Emblem", description: "Exclusive rank-chase emblem with seasonal prestige polish.", category: "emblem", rarity: 5, priceGems: 260, collection: "Season Rewards" },
+  { id: "s_19", name: "Voltage Pulse Frame", description: "Animated electric frame with charge arcs around the portrait.", category: "frame", rarity: 5, priceGems: 300, collection: "Neon Rivals" },
+  { id: "s_20", name: "Holograph Grid Card", description: "Reactive player card that sharpens during intro reveals.", category: "player_card", rarity: 5, priceGems: 340, collection: "Holograph" },
 ];
 
 export const CURRENT_SEASON: SeasonPass = {
@@ -195,13 +208,15 @@ export const CURRENT_SEASON: SeasonPass = {
       index % 3 === 0
         ? { type: "coins" as const, amount: 500 * (index + 1), label: `${500 * (index + 1)} Coins` }
         : index % 3 === 1
-          ? { type: "xp" as const, amount: 200 * (index + 1), label: `${200 * (index + 1)} XP` }
+          ? { type: "pass_xp" as const, amount: 180 * (index + 1), label: `${180 * (index + 1)} Pass XP` }
+          : index % 5 === 0
+            ? { type: "shards" as const, amount: 30 * (index + 1), label: `${30 * (index + 1)} Shards` }
           : undefined,
     premiumReward: {
-      type: index % 5 === 0 ? "item" as const : index % 2 === 0 ? "gems" as const : "coins" as const,
-      amount: index % 5 === 0 ? undefined : (index + 1) * 100,
-      itemId: index % 5 === 0 ? `s_${(index % 10) + 1}` : undefined,
-      label: index % 5 === 0 ? "Exclusive Item" : `${(index + 1) * 100} ${index % 2 === 0 ? "Gems" : "Coins"}`,
+      type: index % 5 === 0 ? "item" as const : index % 4 === 0 ? "shards" as const : index % 2 === 0 ? "gems" as const : "coins" as const,
+      amount: index % 5 === 0 ? undefined : index % 4 === 0 ? (index + 1) * 20 : (index + 1) * 100,
+      itemId: index % 5 === 0 ? `s_${((index + 10) % 20) + 1}` : undefined,
+      label: index % 5 === 0 ? "Exclusive Item" : index % 4 === 0 ? `${(index + 1) * 20} Shards` : `${(index + 1) * 100} ${index % 2 === 0 ? "Gems" : "Coins"}`,
     },
     isUnlocked: index < 14,
   })),

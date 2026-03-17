@@ -14,6 +14,9 @@ type ProfileWalletRow = {
   id: string;
   coins: number;
   gems: number;
+  puzzle_shards: number;
+  rank_points: number;
+  pass_xp: number;
   is_vip: boolean;
   vip_expires_at: string | null;
   has_season_pass: boolean;
@@ -31,7 +34,16 @@ function asStringArray(value: unknown) {
 }
 
 function isNonConsumable(product: ProductRow) {
-  return product.kind === "theme" || product.kind === "frame" || product.kind === "avatar" || product.kind === "battle_pass";
+  return (
+    product.kind === "theme" ||
+    product.kind === "frame" ||
+    product.kind === "avatar" ||
+    product.kind === "player_card" ||
+    product.kind === "banner" ||
+    product.kind === "emblem" ||
+    product.kind === "title" ||
+    product.kind === "battle_pass"
+  );
 }
 
 export async function getActiveProduct(admin: SupabaseClient, productId: string) {
@@ -53,7 +65,7 @@ export async function getActiveProduct(admin: SupabaseClient, productId: string)
 export async function getProfileWallet(admin: SupabaseClient, userId: string) {
   const { data, error } = await admin
     .from("profiles")
-    .select("id, coins, gems, is_vip, vip_expires_at, has_season_pass, theme_id, frame_id, hint_balance")
+    .select("id, coins, gems, puzzle_shards, rank_points, pass_xp, is_vip, vip_expires_at, has_season_pass, theme_id, frame_id, hint_balance")
     .eq("id", userId)
     .single();
 
@@ -112,6 +124,9 @@ export async function applyProductGrant(
 
   let coins = profile.coins;
   let gems = profile.gems;
+  let puzzleShards = profile.puzzle_shards;
+  let rankPoints = profile.rank_points;
+  let passXp = profile.pass_xp;
   let hintBalance = profile.hint_balance;
   let themeId = profile.theme_id;
   let frameId = profile.frame_id;
@@ -119,7 +134,15 @@ export async function applyProductGrant(
   let isVip = profile.is_vip;
   let vipExpiresAt = profile.vip_expires_at ? new Date(profile.vip_expires_at) : null;
 
-  if (product.kind === "theme" || product.kind === "frame" || product.kind === "avatar") {
+  if (
+    product.kind === "theme" ||
+    product.kind === "frame" ||
+    product.kind === "avatar" ||
+    product.kind === "player_card" ||
+    product.kind === "banner" ||
+    product.kind === "emblem" ||
+    product.kind === "title"
+  ) {
     await insertInventoryItem(admin, userId, product.id, source);
     if (product.kind === "theme" && !themeId) themeId = product.id;
     if (product.kind === "frame" && !frameId) frameId = product.id;
@@ -132,9 +155,10 @@ export async function applyProductGrant(
   if (product.kind === "bundle") {
     coins += asNumber(metadata.bundle_coins, 0);
     gems += asNumber(metadata.bundle_gems, 0);
+    puzzleShards += asNumber(metadata.bundle_shards, 0);
+    passXp += asNumber(metadata.bundle_pass_xp, 0);
     for (const itemId of asStringArray(metadata.included_item_ids)) {
       await insertInventoryItem(admin, userId, itemId, source);
-      if (!frameId) frameId = itemId;
     }
   }
 
@@ -155,6 +179,9 @@ export async function applyProductGrant(
   const { error } = await admin.from("profiles").update({
     coins,
     gems,
+    puzzle_shards: puzzleShards,
+    rank_points: rankPoints,
+    pass_xp: passXp,
     hint_balance: hintBalance,
     theme_id: themeId,
     frame_id: frameId,

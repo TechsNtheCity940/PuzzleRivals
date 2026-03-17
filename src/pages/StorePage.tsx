@@ -5,6 +5,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
+import { STORE_TABS } from "@/lib/economy";
 import { useAuth } from "@/providers/AuthProvider";
 import { VIP_MEMBERSHIP, romanNumeral } from "@/lib/seed-data";
 import {
@@ -18,16 +19,6 @@ import {
 import type { ItemCategory } from "@/lib/types";
 
 type Tab = "all" | ItemCategory;
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "theme", label: "Themes" },
-  { id: "frame", label: "Frames" },
-  { id: "avatar", label: "Avatars" },
-  { id: "bundle", label: "Bundles" },
-  { id: "hint_pack", label: "Hints" },
-  { id: "battle_pass", label: "Pass" },
-];
 
 function formatPrice(item: StorefrontItem) {
   if (item.priceUsd) return `$${item.priceUsd.toFixed(2)}`;
@@ -175,6 +166,14 @@ export default function StorePage() {
                   <p className="hud-label">Gems</p>
                   <p className="mt-2 text-2xl font-black text-primary">{snapshot.wallet?.gems ?? 0}</p>
                 </div>
+                <div>
+                  <p className="hud-label">Shards</p>
+                  <p className="mt-2 text-2xl font-black text-gradient-prestige">{snapshot.wallet?.puzzleShards ?? 0}</p>
+                </div>
+                <div>
+                  <p className="hud-label">Pass XP</p>
+                  <p className="mt-2 text-2xl font-black text-xp">{snapshot.wallet?.passXp ?? 0}</p>
+                </div>
               </div>
             </div>
           }
@@ -242,7 +241,7 @@ export default function StorePage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            {TABS.map((entry) => (
+            {STORE_TABS.map((entry) => (
               <button
                 key={entry.id}
                 type="button"
@@ -278,7 +277,7 @@ export default function StorePage() {
                     ) : (
                       <div>
                         <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                          Tier {romanNumeral(item.rarity)}
+                          {item.collection ? `${item.collection} - ` : ""}Tier {romanNumeral(item.rarity)}
                         </p>
                         <p className="mt-1 text-xs font-black text-primary">{formatPrice(item)}</p>
                       </div>

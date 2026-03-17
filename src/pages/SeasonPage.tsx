@@ -6,11 +6,10 @@ import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
+import { DAILY_QUESTS, getPassTierProgress, SEASONAL_CHALLENGES, WEEKLY_QUESTS } from "@/lib/economy";
 import { CURRENT_SEASON } from "@/lib/seed-data";
 import { capturePayPalCheckout, createPayPalCheckout, fetchStorefront } from "@/lib/storefront";
 import { useAuth } from "@/providers/AuthProvider";
-
-const TIER_XP = 500;
 const BATTLE_PASS_PRODUCT_ID = "s_6";
 
 function clearCheckoutParams(params: URLSearchParams, setParams: ReturnType<typeof useSearchParams>[1]) {
@@ -84,14 +83,10 @@ export default function SeasonPage() {
     };
   }, [params, refreshUser, setParams, user]);
 
-  const currentTier = useMemo(() => {
-    const xp = user?.xp ?? 0;
-    return Math.max(1, Math.min(CURRENT_SEASON.maxTier, Math.floor(xp / TIER_XP) + 1));
-  }, [user?.xp]);
-  const progressWithinTier = useMemo(() => {
-    const xp = user?.xp ?? 0;
-    return Math.round(((xp % TIER_XP) / TIER_XP) * 100);
-  }, [user?.xp]);
+  const { currentTier, nextTierXp, progressWithinTier } = useMemo(
+    () => getPassTierProgress(user?.passXp ?? 0, CURRENT_SEASON.maxTier),
+    [user?.passXp],
+  );
   const focusedTracks = useMemo(() => {
     const start = Math.max(0, currentTier - 2);
     return CURRENT_SEASON.tracks.slice(start, start + 6).map((track) => ({
@@ -152,7 +147,7 @@ export default function SeasonPage() {
                 />
               </div>
               <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                Season rewards stay readable, reachable, and worth exploring. No hidden panels below the fold, no clipped tier ladder.
+                Pass XP, rank points, and quest cadence now drive the season lane instead of generic account XP alone.
               </p>
             </div>
 
@@ -194,16 +189,20 @@ export default function SeasonPage() {
             </div>
             <div className="metric-grid">
               <div className="rich-stat">
-                <p className="hud-label">XP Bank</p>
-                <p className="stat-value">{user?.xp ?? 0}</p>
+                <p className="hud-label">Pass XP</p>
+                <p className="stat-value">{user?.passXp ?? 0}</p>
               </div>
               <div className="rich-stat">
                 <p className="hud-label">Next Tier</p>
-                <p className="stat-value text-primary">{TIER_XP - ((user?.xp ?? 0) % TIER_XP)} XP</p>
+                <p className="stat-value text-primary">{nextTierXp} XP</p>
               </div>
               <div className="rich-stat">
                 <p className="hud-label">Track State</p>
                 <p className="stat-value">{hasSeasonPass ? "Premium" : "Free"}</p>
+              </div>
+              <div className="rich-stat">
+                <p className="hud-label">Rank Points</p>
+                <p className="stat-value text-gradient-prestige">{user?.rankPoints ?? 0}</p>
               </div>
             </div>
           </section>
@@ -228,6 +227,62 @@ export default function SeasonPage() {
                       <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Premium</p>
                       <p className={`mt-1 text-xs font-black ${hasSeasonPass ? "text-primary" : "text-muted-foreground"}`}>
                         {track.premiumReward?.label ?? "-"}
+                      </p>
+                    </div>
+                  }
+                />
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <div className="page-grid">
+          <section className="section-panel">
+            <div className="section-header">
+              <div>
+                <p className="section-kicker">Daily + Weekly</p>
+                <h2 className="section-title">Mission cadence</h2>
+              </div>
+            </div>
+            <div className="section-stack">
+              {[...DAILY_QUESTS, ...WEEKLY_QUESTS].slice(0, 4).map((quest) => (
+                <PuzzleTileButton
+                  key={quest.id}
+                  icon={Gift}
+                  title={quest.title}
+                  description={`${quest.description} ${quest.progress}/${quest.target}`}
+                  right={
+                    <div className="text-right">
+                      <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{quest.track}</p>
+                      <p className="mt-1 text-xs font-black text-primary">
+                        +{quest.reward.passXp ?? 0} PX / +{quest.reward.coins ?? 0}C
+                      </p>
+                    </div>
+                  }
+                />
+              ))}
+            </div>
+          </section>
+
+          <section className="section-panel">
+            <div className="section-header">
+              <div>
+                <p className="section-kicker">Season Chase</p>
+                <h2 className="section-title">Prestige objectives</h2>
+              </div>
+            </div>
+            <div className="section-stack">
+              {SEASONAL_CHALLENGES.map((quest) => (
+                <PuzzleTileButton
+                  key={quest.id}
+                  icon={Lock}
+                  title={quest.title}
+                  description={`${quest.description} ${quest.progress}/${quest.target}`}
+                  right={
+                    <div className="text-right">
+                      <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Season</p>
+                      <p className="mt-1 text-xs font-black text-primary">
+                        {quest.reward.itemId ? "Prestige item" : `${quest.reward.gems ?? 0} Gems`}
                       </p>
                     </div>
                   }

@@ -81,6 +81,9 @@ export interface UserProfile {
   xpToNext: number;
   coins: number;
   gems: number;
+  puzzleShards: number;
+  rankPoints: number;
+  passXp: number;
   wins: number;
   losses: number;
   winStreak: number;
@@ -173,8 +176,18 @@ export interface ReplayMove {
 }
 
 // ---------- Economy / Store ----------
-export type ItemCategory = "theme" | "avatar" | "frame" | "bundle" | "hint_pack" | "battle_pass";
-export type ItemRarity = 1 | 2 | 3 | 4; // I, II, III, IV
+export type ItemCategory =
+  | "theme"
+  | "avatar"
+  | "frame"
+  | "player_card"
+  | "banner"
+  | "emblem"
+  | "title"
+  | "bundle"
+  | "hint_pack"
+  | "battle_pass";
+export type ItemRarity = 1 | 2 | 3 | 4 | 5 | 6; // common -> mythic
 
 export interface StoreItem {
   id: string;
@@ -188,6 +201,7 @@ export interface StoreItem {
   imageUrl?: string;
   isOwned?: boolean;
   isFeatured?: boolean;
+  collection?: string;
 }
 
 export interface InventoryItem {
@@ -217,10 +231,29 @@ export interface SeasonTrack {
 }
 
 export interface SeasonReward {
-  type: "coins" | "gems" | "xp" | "item";
+  type: "coins" | "gems" | "xp" | "shards" | "pass_xp" | "item" | "title";
   amount?: number;
   itemId?: string;
   label: string;
+}
+
+export interface QuestReward {
+  coins?: number;
+  gems?: number;
+  shards?: number;
+  passXp?: number;
+  itemId?: string;
+}
+
+export interface QuestDefinition {
+  id: string;
+  title: string;
+  description: string;
+  track: "daily" | "weekly" | "seasonal";
+  target: number;
+  progress: number;
+  reward: QuestReward;
+  isCompleted: boolean;
 }
 
 // ---------- VIP ----------

@@ -51,3 +51,12 @@ Original prompt: for the store, i want both types of transactions, however we ne
 - Added regression coverage in `src/test/match-quiz-content.test.ts` and `src/test/match-page-states.test.tsx` for expanded quiz rounds and pinned leaderboard rendering.
 - Verification: `npm run build`, `npm run build:server`, and `npm test` pass after the quiz/leaderboard fixes.
 - Constraint: this pass improves on-demand seeded generation and puzzle-family variety, but there is still no live LLM provider wired into the repo; true model-generated puzzle content would need a configured AI service plus server-side generation/cache/validation rules.
+- Current task: start the larger economy update using the full design doc as the implementation target.
+- Added Phase 1 economy foundations in `src/lib/types.ts`, `src/lib/economy.ts`, `src/lib/player-data.ts`, `src/lib/storefront.ts`, and `supabase/migrations/20260317000015_economy_foundation.sql`.
+- Profiles now include `puzzle_shards`, `rank_points`, and `pass_xp` in both the app model and Supabase schema; existing users backfill `rank_points` from current `elo`.
+- Store/catalog support now includes `player_card`, `banner`, `emblem`, and `title` categories plus collection metadata and bundle grants for shards/pass XP in `supabase/functions/_shared/store.ts`.
+- Seeded storefront content was expanded with new identity items and themed collections in `src/lib/seed-data.ts`, keeping guest/fallback mode aligned with the richer catalog.
+- Store, Season, and Profile pages now surface shards, pass XP, rank points, and quest-driven progression hooks in `src/pages/StorePage.tsx`, `src/pages/SeasonPage.tsx`, and `src/pages/ProfilePage.tsx`.
+- Verification: `npm run build`, `npm run build:server`, and `npm test` all pass after the Phase 1 economy pass.
+- Important next step: deploy migration `20260317000015_economy_foundation.sql` and redeploy store functions before expecting hosted Supabase wallets/storefront reads to include the new resources.
+- Recommended Phase 2: move live match reward logic to a shared economy config and start persisting daily/weekly/seasonal quest progress plus pass XP/match payouts from actual results.
