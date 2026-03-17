@@ -9,7 +9,7 @@ import BottomNav from "./BottomNav";
 export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isGuest, isReady } = useAuth();
+  const { user, isGuest, isReady, backendWarning } = useAuth();
   const { openSignIn, openSignUp } = useAuthDialog();
   const isMatchRoute = location.pathname.startsWith("/match");
   const hideHeader = isMatchRoute;
@@ -70,6 +70,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
       )}
 
       <main className={`relative mx-auto flex h-[100dvh] w-full max-w-md flex-col overflow-hidden ${isMatchRoute ? "pb-0" : "pb-24"} ${hideHeader ? "" : "pt-20"}`}>
+        {backendWarning && !hideHeader ? (
+          <div className="px-3 pb-3 pt-3">
+            <div className="rounded-[24px] border border-amber-300/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-50 shadow-[0_12px_30px_rgba(0,0,0,0.2)]">
+              {backendWarning}
+            </div>
+          </div>
+        ) : null}
         {children}
       </main>
       <BottomNav />

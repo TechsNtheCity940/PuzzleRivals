@@ -1,7 +1,11 @@
 import type { Session } from "@supabase/supabase-js";
 import { CURRENT_USER, getRankBand } from "@/lib/seed-data";
 import { DEFAULT_AVATAR_ID } from "@/lib/profile-customization";
-import { supabase } from "@/lib/supabase-client";
+import {
+  isSupabaseSchemaSetupIssue,
+  supabase,
+  toSupabaseSchemaSetupError,
+} from "@/lib/supabase-client";
 import type {
   LeaderboardEntry,
   PuzzleType,
@@ -75,6 +79,14 @@ function defaultUsernameForSession(session: Session) {
   return `${emailPrefix || "Player"}-${suffix}`;
 }
 
+function throwIfUnexpected(error: unknown, resource: string) {
+  if (!error) return;
+  if (isSupabaseSchemaSetupIssue(error)) {
+    throw toSupabaseSchemaSetupError(error, resource);
+  }
+  throw error;
+}
+
 async function ensureProfileAndStats(session: Session) {
   if (!supabase) return;
 
@@ -84,9 +96,7 @@ async function ensureProfileAndStats(session: Session) {
     .eq("id", session.user.id)
     .maybeSingle<{ id: string }>();
 
-  if (profileLookupError) {
-    throw profileLookupError;
-  }
+  throwIfUnexpected(profileLookupError, "public.profiles");
 
   if (!existingProfile) {
     const { error: insertProfileError } = await supabase.from("profiles").insert({
@@ -95,9 +105,7 @@ async function ensureProfileAndStats(session: Session) {
       avatar_id: DEFAULT_AVATAR_ID,
     });
 
-    if (insertProfileError) {
-      throw insertProfileError;
-    }
+    throwIfUnexpected(insertProfileError, "public.profiles");
   }
 
   const { data: existingStats, error: statsLookupError } = await supabase
@@ -106,18 +114,14 @@ async function ensureProfileAndStats(session: Session) {
     .eq("user_id", session.user.id)
     .maybeSingle<{ user_id: string }>();
 
-  if (statsLookupError) {
-    throw statsLookupError;
-  }
+  throwIfUnexpected(statsLookupError, "public.player_stats");
 
   if (!existingStats) {
     const { error: insertStatsError } = await supabase.from("player_stats").insert({
       user_id: session.user.id,
     });
 
-    if (insertStatsError) {
-      throw insertStatsError;
-    }
+    throwIfUnexpected(insertStatsError, "public.player_stats");
   }
 }
 
@@ -158,6 +162,20 @@ export function buildGuestUser(overrides: Partial<UserProfile> = {}): UserProfil
     rivalUserId: null,
     ...overrides,
   };
+}
+
+export function buildAuthenticatedFallbackUser(session: Session, overrides: Partial<UserProfile> = {}): UserProfile {
+  const linkedProviders = buildLinkedProviders(session);
+  return buildGuestUser({
+    id: session.user.id,
+    username: defaultUsernameForSession(session),
+    email: session.user.email ?? null,
+    joinedAt: session.user.created_at ?? new Date().toISOString(),
+    isGuest: false,
+    authMethod: resolvePrimaryAuthMethod(linkedProviders),
+    linkedProviders,
+    ...overrides,
+  });
 }
 
 function buildLinkedProviders(session: Session) {
@@ -212,18 +230,34 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
 
   await ensureProfileAndStats(session);
 
-  const [{ data: profile }, { data: stats }, { data: puzzleStats }, { data: securityQuestions }] = await Promise.all([
+  const [
+    { data: profile, error: profileError },
+    { data: stats, error: statsError },
+    { data: puzzleStats, error: puzzleStatsError },
+    { data: securityQuestions, error: securityQuestionsError },
+  ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", session.user.id).single<ProfileRow>(),
     supabase.from("player_stats").select("*").eq("user_id", session.user.id).single<PlayerStatsRow>(),
     supabase.from("player_puzzle_stats").select("puzzle_type, matches_played, wins, total_progress").eq("user_id", session.user.id),
     supabase.from("user_security_questions").select("user_id").eq("user_id", session.user.id).maybeSingle<SecurityQuestionsRow>(),
   ]);
 
-  if (!profile) {
-    return null;
+  throwIfUnexpected(profileError, "public.profiles");
+  throwIfUnexpected(statsError, "public.player_stats");
+
+  if (puzzleStatsError && !isSupabaseSchemaSetupIssue(puzzleStatsError)) {
+    throw puzzleStatsError;
   }
 
-  const computed = computePuzzleSnapshot((puzzleStats ?? []) as PuzzleStatsRow[]);
+  if (securityQuestionsError && !isSupabaseSchemaSetupIssue(securityQuestionsError)) {
+    throw securityQuestionsError;
+  }
+
+  if (!profile) {
+    return buildAuthenticatedFallbackUser(session);
+  }
+
+  const computed = computePuzzleSnapshot((puzzleStatsError ? [] : puzzleStats ?? []) as PuzzleStatsRow[]);
   const linkedProviders = buildLinkedProviders(session);
 
   return {
@@ -254,7 +288,7 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
     isGuest: false,
     authMethod: resolvePrimaryAuthMethod(linkedProviders),
     linkedProviders,
-    securityQuestionsConfigured: Boolean(securityQuestions),
+    securityQuestionsConfigured: Boolean(securityQuestionsError ? null : securityQuestions),
     bestPuzzleType: (profile.best_puzzle_type as PuzzleType | null) ?? null,
     worstPuzzleType: (profile.worst_puzzle_type as PuzzleType | null) ?? computed.worstPuzzleType,
     rivalUserId: profile.rival_user_id,

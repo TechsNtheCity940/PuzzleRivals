@@ -7,12 +7,23 @@ import {
   type ReactNode,
 } from "react";
 import type { Provider } from "@supabase/supabase-js";
-import { buildGuestUser, loadCurrentUserFromSession, saveProfileToSupabase } from "@/lib/player-data";
-import { isSupabaseConfigured, supabase, supabaseConfigErrorMessage } from "@/lib/supabase-client";
+import {
+  buildAuthenticatedFallbackUser,
+  buildGuestUser,
+  loadCurrentUserFromSession,
+  saveProfileToSupabase,
+} from "@/lib/player-data";
+import {
+  isSupabaseConfigured,
+  SupabaseSchemaSetupError,
+  supabase,
+  supabaseConfigErrorMessage,
+} from "@/lib/supabase-client";
 import type { UserProfile } from "@/lib/types";
 
 interface AuthContextValue {
   isReady: boolean;
+  backendWarning: string | null;
   token: string | null;
   user: UserProfile | null;
   isGuest: boolean;
@@ -21,14 +32,14 @@ interface AuthContextValue {
   signUpWithEmail: (
     email: string,
     password: string,
-  ) => Promise<{ message: string; signedIn: boolean }>;
+  ) => Promise<{ message: string; signedIn: boolean; backendWarning: string | null }>;
   signInWithEmail: (email: string, password: string) => Promise<string>;
   signInWithFacebook: () => Promise<void>;
   signInWithTikTok: () => Promise<void>;
   linkFacebook: () => Promise<void>;
   linkTikTok: () => Promise<void>;
   signOut: () => Promise<void>;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -39,30 +50,43 @@ function sleep(ms: number) {
 
 const TIKTOK_PROVIDER = (import.meta.env.VITE_SUPABASE_TIKTOK_PROVIDER ?? "custom:tiktok") as Provider;
 
-async function fetchCurrentUser(): Promise<{ token: string | null; user: UserProfile | null }> {
+async function fetchCurrentUser(): Promise<{ token: string | null; user: UserProfile | null; backendWarning: string | null }> {
   if (!supabase) {
-    return { token: null, user: buildGuestUser() };
+    return { token: null, user: buildGuestUser(), backendWarning: null };
   }
 
   const { data: sessionData } = await supabase.auth.getSession();
   const session = sessionData.session;
 
   if (!session?.user) {
-    return { token: null, user: buildGuestUser() };
+    return { token: null, user: buildGuestUser(), backendWarning: null };
   }
 
-  const user = await loadCurrentUserFromSession(session);
-  return {
-    token: session.access_token,
-    user,
-  };
+  try {
+    const user = await loadCurrentUserFromSession(session);
+    return {
+      token: session.access_token,
+      user,
+      backendWarning: null,
+    };
+  } catch (error) {
+    if (error instanceof SupabaseSchemaSetupError) {
+      return {
+        token: session.access_token,
+        user: buildAuthenticatedFallbackUser(session),
+        backendWarning: error.message,
+      };
+    }
+
+    throw error;
+  }
 }
 
 async function loadCurrentUserWithRetry(retries = 5) {
   let attempt = 0;
   let current = await fetchCurrentUser();
 
-  while (attempt < retries && current.token && !current.user) {
+  while (attempt < retries && current.token && !current.user && !current.backendWarning) {
     attempt += 1;
     await sleep(250 * attempt);
     current = await fetchCurrentUser();
@@ -72,6 +96,7 @@ async function loadCurrentUserWithRetry(retries = 5) {
     return {
       token: current.token,
       user: null,
+      backendWarning: current.backendWarning,
     };
   }
 
@@ -80,6 +105,7 @@ async function loadCurrentUserWithRetry(retries = 5) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
+  const [backendWarning, setBackendWarning] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
 
@@ -92,12 +118,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!mounted) return;
           setToken(null);
           setUser(buildGuestUser());
+          setBackendWarning(null);
           return;
         }
 
         const current = await loadCurrentUserWithRetry();
         if (!mounted) return;
         setToken(current.token);
+        setBackendWarning(current.backendWarning ?? null);
         setUser(current.user ?? (current.token ? null : buildGuestUser()));
       } finally {
         if (mounted) {
@@ -123,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setToken(session?.access_token ?? null);
       void loadCurrentUserWithRetry(2).then((current) => {
+        setBackendWarning(current.backendWarning ?? null);
         setUser(current.user ?? (current.token ? null : buildGuestUser()));
       });
     });
@@ -136,12 +165,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isSupabaseConfigured) {
       setToken(null);
       setUser(buildGuestUser());
-      return;
+      setBackendWarning(null);
+      return null;
     }
 
     const me = await loadCurrentUserWithRetry(2);
     setToken(me.token);
+    setBackendWarning(me.backendWarning ?? null);
     setUser(me.user ?? (me.token ? null : buildGuestUser()));
+    return me.backendWarning ?? null;
   }
 
   async function saveProfile(updates: Partial<UserProfile>) {
@@ -199,10 +231,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (data.session) {
-      await refreshUser();
+      const warning = await refreshUser();
       return {
-        message: "Account created. You are now signed in.",
+        message: warning ?? "Account created. You are now signed in.",
         signedIn: true,
+        backendWarning: warning,
       };
     }
 
@@ -210,6 +243,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       message:
         "Account created. Confirm your email if your Supabase project requires email confirmation, then sign in with your password.",
       signedIn: false,
+      backendWarning: null,
     };
   }
 
@@ -227,8 +261,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw error;
     }
 
-    await refreshUser();
-    return "Signed in successfully.";
+    const warning = await refreshUser();
+    return warning ?? "Signed in successfully.";
   }
 
   async function signInWithFacebook() {
@@ -294,17 +328,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) {
       setToken(null);
       setUser(buildGuestUser());
+      setBackendWarning(null);
       return;
     }
 
     await supabase.auth.signOut();
     setToken(null);
     setUser(buildGuestUser());
+    setBackendWarning(null);
   }
 
   const value = useMemo(
     () => ({
       isReady,
+      backendWarning,
       token,
       user,
       isGuest: user?.isGuest ?? true,
@@ -319,7 +356,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       refreshUser,
     }),
-    [isReady, token, user],
+    [backendWarning, isReady, token, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

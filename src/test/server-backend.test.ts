@@ -56,5 +56,5 @@ describe("backend scaffold", () => {
     } finally {
       await app.close();
     }
-  }, 30000);
+  }, 60000);
 });

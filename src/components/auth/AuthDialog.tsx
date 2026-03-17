@@ -103,6 +103,12 @@ export default function AuthDialog({ open, mode, onOpenChange, onModeChange }: A
     try {
       const signup = await signUpWithEmail(email.trim(), password);
       if (signup.signedIn) {
+        if (signup.backendWarning) {
+          setStatus(signup.message);
+          onOpenChange(false);
+          return;
+        }
+
         if (puzzleTag.trim()) {
           await saveProfile({ username: puzzleTag.trim() });
         }
