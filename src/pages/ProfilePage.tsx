@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, KeyRound, Link2, Shield, Trophy, Users } from "lucide-react";
-import { motion } from "framer-motion";
-import { useAuthDialog } from "@/components/auth/AuthDialogContext";
+import { Bell, KeyRound, Link2, Shield, Users } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import StockAvatar from "@/components/profile/StockAvatar";
@@ -13,6 +11,7 @@ import { getRankBand, getRankColor, PUZZLE_TYPES } from "@/lib/seed-data";
 import { isSupabaseConfigured, supabaseConfigErrorMessage } from "@/lib/supabase-client";
 import type { LeaderboardEntry } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
+import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 
 type Tab = "stats" | "social" | "security" | "inbox";
 type SocialDirectoryEntry = Awaited<ReturnType<typeof fetchSocialDirectory>>[number];
@@ -143,129 +142,196 @@ export default function ProfilePage() {
         <PageHeader
           eyebrow="Identity Deck"
           title={puzzleTag}
-          subtitle={`${rankBand.label} • ELO ${user?.elo ?? 0}`}
+          subtitle={`${rankBand.label} - ELO ${user?.elo ?? 0}`}
           right={
-            <div className="command-panel-soft flex items-center gap-3 px-3 py-2">
-              <StockAvatar avatarId={avatarId} size="sm" />
-              <div className="text-right">
-                <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">{isGuest ? "Guest" : "Saved"}</p>
-                <p className="text-xs font-bold">{user?.email ?? "Local mode"}</p>
+            <div className="spotlight-panel flex items-center gap-4">
+              <StockAvatar avatarId={avatarId} size="md" />
+              <div className="min-w-0">
+                <p className="section-kicker">{isGuest ? "Guest" : "Saved"}</p>
+                <p className="truncate text-lg font-black">{user?.email ?? "Local mode"}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {user?.securityQuestionsConfigured ? "Recovery ready" : "Recovery not configured"}
+                </p>
               </div>
             </div>
           }
         />
 
-        <section className="command-panel grid min-h-0 flex-1 grid-rows-[auto_auto_1fr] gap-3 overflow-hidden p-3">
-          <div className="grid grid-cols-[0.95fr_1.05fr] gap-3">
-            <div className="command-panel-soft grid grid-cols-[auto_1fr] gap-3 p-3">
-              <StockAvatar avatarId={avatarId} size="lg" />
-              <div className="min-w-0">
-                <p className="hud-label">Live Identity</p>
-                <p className="truncate text-lg font-black">{user?.username ?? "Guest Player"}</p>
-                <p className={`mt-1 font-hud text-[10px] uppercase tracking-[0.18em] ${getRankColor(user?.rank ?? "bronze")}`}>
-                  {rankBand.label}
-                </p>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <div className="rounded-2xl bg-black/20 px-2 py-2 text-center">
-                    <p className="font-hud text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Wins</p>
-                    <p className="text-sm font-black">{user?.wins ?? 0}</p>
+        <section className="hero-panel">
+          <div className="hero-grid">
+            <div className="command-panel-soft p-5">
+              <div className="section-header">
+                <div>
+                  <p className="section-kicker">Live Identity</p>
+                  <h2 className="section-title">Your command profile</h2>
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-[140px_1fr]">
+                <div className="command-panel-soft flex items-center justify-center p-4">
+                  <StockAvatar avatarId={avatarId} size="lg" />
+                </div>
+                <div className="section-stack">
+                  <div>
+                    <p className="text-3xl font-black tracking-tight">{user?.username ?? "Guest Player"}</p>
+                    <p className={`mt-2 font-hud text-[10px] uppercase tracking-[0.2em] ${getRankColor(user?.rank ?? "bronze")}`}>
+                      {rankBand.label}
+                    </p>
                   </div>
-                  <div className="rounded-2xl bg-black/20 px-2 py-2 text-center">
-                    <p className="font-hud text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Losses</p>
-                    <p className="text-sm font-black">{user?.losses ?? 0}</p>
-                  </div>
-                  <div className="rounded-2xl bg-black/20 px-2 py-2 text-center">
-                    <p className="font-hud text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Weakest</p>
-                    <p className="truncate text-sm font-black text-primary">{worstPuzzleLabel}</p>
+                  <div className="metric-grid">
+                    <div className="rich-stat">
+                      <p className="hud-label">Wins</p>
+                      <p className="stat-value">{user?.wins ?? 0}</p>
+                    </div>
+                    <div className="rich-stat">
+                      <p className="hud-label">Losses</p>
+                      <p className="stat-value">{user?.losses ?? 0}</p>
+                    </div>
+                    <div className="rich-stat">
+                      <p className="hud-label">Weak Spot</p>
+                      <p className="text-lg font-black text-primary">{worstPuzzleLabel}</p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              {tabs.map((entry) => (
-                <button
-                  key={entry.id}
-                  type="button"
-                  onClick={() => setTab(entry.id)}
-                  className={`segment-chip h-full ${tab === entry.id ? "segment-chip-active" : ""}`}
-                >
-                  {entry.label}
-                </button>
-              ))}
+            <div className="spotlight-panel profile-spotlight">
+              <div className="section-header">
+                <div>
+                  <p className="section-kicker">Control Surface</p>
+                  <h2 className="section-title">Everything reachable</h2>
+                </div>
+              </div>
+              <div className="metric-grid">
+                <div className="rich-stat">
+                  <p className="hud-label">Level</p>
+                  <p className="stat-value">{user?.level ?? 1}</p>
+                </div>
+                <div className="rich-stat">
+                  <p className="hud-label">XP Bank</p>
+                  <p className="stat-value text-xp">{user?.xp ?? 0}</p>
+                </div>
+                <div className="rich-stat">
+                  <p className="hud-label">Best Streak</p>
+                  <p className="stat-value">{user?.bestStreak ?? 0}</p>
+                </div>
+                <div className="rich-stat">
+                  <p className="hud-label">Mode</p>
+                  <p className="text-lg font-black text-primary">{isGuest ? "Guest" : "Saved"}</p>
+                </div>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {tabs.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => setTab(entry.id)}
+                    className={`segment-chip justify-center py-3 ${tab === entry.id ? "segment-chip-active" : ""}`}
+                  >
+                    {entry.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
+        </section>
 
-          <div className="grid min-h-0 grid-cols-[0.95fr_1.05fr] gap-3">
-            <div className="command-panel-soft min-h-0 p-3">
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <p className="hud-label">Customization</p>
-                  <p className="text-sm font-black">Compact avatar and PuzzleTag edits</p>
-                </div>
-                <img src="/brand/puzzle-rivals-logo.png" alt="Puzzle Rivals" className="h-8 w-8 rounded-full object-cover" draggable={false} />
-              </div>
-              <div className="grid gap-3">
-                <input
-                  value={puzzleTag}
-                  onChange={(event) => setPuzzleTag(event.target.value.slice(0, 24))}
-                  className="h-11 w-full rounded-2xl border border-border bg-background/35 px-4 text-sm font-semibold outline-none focus:border-primary"
-                  placeholder="PuzzleTag"
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  {STOCK_AVATARS.map((avatar) => (
-                    <button
-                      key={avatar.id}
-                      type="button"
-                      onClick={() => setAvatarId(avatar.id)}
-                      className={`rounded-[22px] border p-2 ${avatarId === avatar.id ? "border-primary bg-primary/10" : "border-white/10 bg-black/15"}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <StockAvatar avatarId={avatar.id} size="sm" />
-                        <span className="truncate text-xs font-bold">{avatar.label}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                <Button onClick={() => void handleSaveProfile()} variant="play" size="lg" className="w-full" disabled={isWorking}>
-                  {canSave ? "Save Identity" : "Apply Guest Style"}
-                </Button>
-                {profileStatus ? <p className="text-xs text-muted-foreground">{profileStatus}</p> : null}
+        <div className="page-grid">
+          <section className="section-panel">
+            <div className="section-header">
+              <div>
+                <p className="section-kicker">Customization</p>
+                <h2 className="section-title">Edit identity without digging</h2>
               </div>
             </div>
+            <div className="section-stack">
+              <div className="command-panel-soft p-4">
+                <label className="hud-label" htmlFor="puzzleTag">
+                  PuzzleTag
+                </label>
+                <input
+                  id="puzzleTag"
+                  value={puzzleTag}
+                  onChange={(event) => setPuzzleTag(event.target.value.slice(0, 24))}
+                  className="mt-3 h-12 w-full rounded-2xl border border-border bg-background/35 px-4 text-base font-semibold outline-none focus:border-primary"
+                  placeholder="PuzzleTag"
+                />
+              </div>
 
-            <div className="min-h-0">
-              {tab === "stats" && (
-                <div className="grid h-full gap-3">
-                  {leaderboard.slice(0, 3).map((entry, index) => (
+              <div className="deck-grid">
+                {STOCK_AVATARS.map((avatar) => (
+                  <button
+                    key={avatar.id}
+                    type="button"
+                    onClick={() => setAvatarId(avatar.id)}
+                    className={`command-panel-soft avatar-option p-3 text-left transition-colors ${
+                      avatarId === avatar.id ? "border-primary bg-primary/10" : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <StockAvatar avatarId={avatar.id} size="sm" />
+                      <div>
+                        <p className="text-sm font-black">{avatar.label}</p>
+                        <p className="text-xs text-muted-foreground">Identity card</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <Button onClick={() => void handleSaveProfile()} variant="play" size="xl" className="w-full" disabled={isWorking}>
+                {canSave ? "Save Identity" : "Apply Guest Style"}
+              </Button>
+              {profileStatus ? <p className="text-sm text-muted-foreground">{profileStatus}</p> : null}
+            </div>
+          </section>
+
+          <section className="section-panel">
+            {tab === "stats" && (
+              <>
+                <div className="section-header">
+                  <div>
+                    <p className="section-kicker">Stats Board</p>
+                    <h2 className="section-title">Current ladder pressure</h2>
+                  </div>
+                </div>
+                <div className="section-stack">
+                  {leaderboard.slice(0, 5).map((entry, index) => (
                     <PuzzleTileButton
                       key={entry.userId}
                       title={entry.username}
-                      description={`${entry.rankTier} • ${entry.wins} wins`}
+                      description={`${entry.rankTier} - ${entry.wins} wins`}
                       active={entry.userId === user?.id}
                       right={<span className="text-sm font-black text-primary">#{index + 1}</span>}
                     />
                   ))}
                 </div>
-              )}
+              </>
+            )}
 
-              {tab === "social" && (
-                <div className="grid h-full grid-rows-[auto_auto_1fr] gap-3">
+            {tab === "social" && (
+              <>
+                <div className="section-header">
+                  <div>
+                    <p className="section-kicker">Social Links</p>
+                    <h2 className="section-title">Connected identities</h2>
+                  </div>
+                </div>
+                <div className="section-stack">
                   {!isSupabaseConfigured ? (
                     <div className="command-panel-soft px-4 py-3 text-sm text-destructive">{supabaseConfigErrorMessage}</div>
                   ) : null}
                   {isGuest ? (
-                    <div className="command-panel-soft p-4 text-sm text-muted-foreground">
-                      Use the top-right sign-in or sign-up buttons first. Facebook and TikTok linking only unlock after you
-                      are signed in.
-                      <div className="mt-4 flex gap-3">
-                        <Button onClick={openSignUp} variant="play" size="lg" className="flex-1">Sign Up</Button>
-                        <Button onClick={openSignIn} variant="outline" size="lg" className="flex-1">Sign In</Button>
+                    <div className="command-panel-soft p-4 text-sm leading-6 text-muted-foreground">
+                      Use the sign-in or sign-up flow first. Facebook and TikTok linking unlock once the account is live.
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <Button onClick={openSignUp} variant="play" size="lg">Sign Up</Button>
+                        <Button onClick={openSignIn} variant="outline" size="lg">Sign In</Button>
                       </div>
                     </div>
                   ) : (
                     <>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="action-grid">
                         <PuzzleTileButton
                           icon={Link2}
                           title={user?.linkedProviders?.facebook ? "Facebook linked" : "Link Facebook"}
@@ -281,28 +347,31 @@ export default function ProfilePage() {
                           disabled={isWorking || user?.linkedProviders?.tiktok}
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="action-grid">
                         <input
                           value={facebookHandle}
                           onChange={(event) => setFacebookHandle(event.target.value)}
-                          className="h-11 rounded-2xl border border-border bg-background/35 px-4 text-sm outline-none focus:border-primary"
+                          className="h-12 rounded-2xl border border-border bg-background/35 px-4 text-sm outline-none focus:border-primary"
                           placeholder="facebook.com/you"
                         />
                         <input
                           value={tiktokHandle}
                           onChange={(event) => setTiktokHandle(event.target.value)}
-                          className="h-11 rounded-2xl border border-border bg-background/35 px-4 text-sm outline-none focus:border-primary"
+                          className="h-12 rounded-2xl border border-border bg-background/35 px-4 text-sm outline-none focus:border-primary"
                           placeholder="tiktok.com/@you"
                         />
                       </div>
+                      <Button onClick={() => void handleSaveProfile()} variant="outline" size="lg" className="w-full" disabled={isWorking}>
+                        Save Social Links
+                      </Button>
                     </>
                   )}
-                  <div className="grid min-h-0 grid-cols-2 gap-3">
+                  <div className="deck-grid">
                     {[...linkedFacebookPlayers, ...linkedTikTokPlayers].slice(0, 4).map((entry) => (
-                      <div key={entry.id} className="command-panel-soft flex items-center gap-3 p-3">
+                      <div key={entry.id} className="command-panel-soft flex items-center gap-3 p-4">
                         <StockAvatar avatarId={entry.avatar_id ?? DEFAULT_AVATAR_ID} size="sm" />
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-bold">{entry.username}</p>
+                          <p className="truncate text-sm font-black">{entry.username}</p>
                           <p className="truncate text-[10px] font-hud uppercase tracking-[0.16em] text-muted-foreground">
                             {entry.facebook_handle ?? entry.tiktok_handle}
                           </p>
@@ -311,17 +380,26 @@ export default function ProfilePage() {
                     ))}
                   </div>
                 </div>
-              )}
+              </>
+            )}
 
-              {tab === "security" && (
-                <div className="grid h-full gap-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="command-panel-soft p-3">
+            {tab === "security" && (
+              <>
+                <div className="section-header">
+                  <div>
+                    <p className="section-kicker">Security Deck</p>
+                    <h2 className="section-title">Password recovery setup</h2>
+                  </div>
+                  <Shield size={18} className="text-primary" />
+                </div>
+                <div className="section-stack">
+                  <div className="deck-grid">
+                    <div className="command-panel-soft p-4">
                       <p className="hud-label">Question 1</p>
                       <select
                         value={securityQuestionOne}
                         onChange={(event) => setSecurityQuestionOne(event.target.value)}
-                        className="mt-2 h-11 w-full rounded-2xl border border-border bg-background/35 px-4 text-sm outline-none focus:border-primary"
+                        className="mt-3 h-12 w-full rounded-2xl border border-border bg-background/35 px-4 text-sm outline-none focus:border-primary"
                       >
                         {SECURITY_QUESTION_OPTIONS.map((question) => (
                           <option key={question} value={question}>
@@ -332,17 +410,17 @@ export default function ProfilePage() {
                       <input
                         value={securityAnswerOne}
                         onChange={(event) => setSecurityAnswerOne(event.target.value)}
-                        className="mt-2 h-11 w-full rounded-2xl border border-border bg-background/35 px-4 text-sm outline-none focus:border-primary"
+                        className="mt-3 h-12 w-full rounded-2xl border border-border bg-background/35 px-4 text-sm outline-none focus:border-primary"
                         placeholder="Answer"
                         type="password"
                       />
                     </div>
-                    <div className="command-panel-soft p-3">
+                    <div className="command-panel-soft p-4">
                       <p className="hud-label">Question 2</p>
                       <select
                         value={securityQuestionTwo}
                         onChange={(event) => setSecurityQuestionTwo(event.target.value)}
-                        className="mt-2 h-11 w-full rounded-2xl border border-border bg-background/35 px-4 text-sm outline-none focus:border-primary"
+                        className="mt-3 h-12 w-full rounded-2xl border border-border bg-background/35 px-4 text-sm outline-none focus:border-primary"
                       >
                         {SECURITY_QUESTION_OPTIONS.map((question) => (
                           <option key={question} value={question}>
@@ -353,7 +431,7 @@ export default function ProfilePage() {
                       <input
                         value={securityAnswerTwo}
                         onChange={(event) => setSecurityAnswerTwo(event.target.value)}
-                        className="mt-2 h-11 w-full rounded-2xl border border-border bg-background/35 px-4 text-sm outline-none focus:border-primary"
+                        className="mt-3 h-12 w-full rounded-2xl border border-border bg-background/35 px-4 text-sm outline-none focus:border-primary"
                         placeholder="Answer"
                         type="password"
                       />
@@ -365,28 +443,40 @@ export default function ProfilePage() {
                   </Button>
                   {securityStatus ? <p className="text-sm text-muted-foreground">{securityStatus}</p> : null}
                 </div>
-              )}
+              </>
+            )}
 
-              {tab === "inbox" && (
-                <div className="command-panel-soft flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-                  <Bell size={24} className="text-primary" />
+            {tab === "inbox" && (
+              <>
+                <div className="section-header">
                   <div>
-                    <p className="text-sm font-black">Inbox cleared</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Real notifications will appear here after live matches, purchases, and social activity.
-                    </p>
+                    <p className="section-kicker">Inbox</p>
+                    <h2 className="section-title">Signals and notices</h2>
                   </div>
-                  {!isGuest ? (
-                    <Button onClick={() => void signOut()} variant="outline" size="lg">
-                      Sign Out
-                    </Button>
-                  ) : null}
+                  <Bell size={18} className="text-primary" />
                 </div>
-              )}
-            </div>
-          </div>
-        </section>
-        {accountStatus ? <p className="px-2 text-xs text-muted-foreground">{accountStatus}</p> : null}
+                <div className="section-stack">
+                  <div className="command-panel-soft flex min-h-[220px] flex-col items-center justify-center gap-4 p-6 text-center">
+                    <Users size={24} className="text-primary" />
+                    <div>
+                      <p className="text-base font-black">Inbox cleared</p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        Real notifications will appear here after live matches, purchases, and social activity.
+                      </p>
+                    </div>
+                    {!isGuest ? (
+                      <Button onClick={() => void signOut()} variant="outline" size="lg">
+                        Sign Out
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+
+        {accountStatus ? <p className="px-1 text-sm text-muted-foreground">{accountStatus}</p> : null}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Radar, Trophy, Users, Zap } from "lucide-react";
+import { Trophy, Users, Zap } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import { TOURNAMENTS, PUZZLE_TYPES } from "@/lib/seed-data";
@@ -16,7 +16,7 @@ export default function TournamentsPage() {
     { id: "completed", label: "Completed" },
   ];
   const liveTournament = TOURNAMENTS.find((tournament) => tournament.status === "live");
-  const visible = filtered.slice(0, 3);
+  const visible = filtered.slice(0, 6);
 
   return (
     <div className="page-screen">
@@ -26,15 +26,54 @@ export default function TournamentsPage() {
           title="Tournaments"
           subtitle="Fast snapshots of active, upcoming, and finished events."
           right={
-            <div className="command-panel-soft px-4 py-3 text-center">
-              <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">Events</p>
-              <p className="text-sm font-black">{TOURNAMENTS.length}</p>
+            <div className="spotlight-panel text-center">
+              <p className="section-kicker">Events</p>
+              <p className="mt-2 text-3xl font-black">{TOURNAMENTS.length}</p>
             </div>
           }
         />
 
-        <section className="command-panel grid min-h-0 flex-1 grid-rows-[auto_auto_1fr] gap-3 overflow-hidden p-3">
-          <div className="grid grid-cols-3 gap-2">
+        {liveTournament ? (
+          <section className="hero-panel">
+            <div className="hero-grid">
+              <div className="command-panel-soft p-5">
+                <div className="section-header">
+                  <div>
+                    <p className="section-kicker">Featured Event</p>
+                    <h2 className="section-title">{liveTournament.name}</h2>
+                  </div>
+                  <Trophy size={18} className="text-primary" />
+                </div>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Live bracket, compact watchlist, rapid entry lock.
+                </p>
+              </div>
+              <div className="metric-grid">
+                <div className="rich-stat">
+                  <p className="hud-label">Prize</p>
+                  <p className="stat-value text-primary">{liveTournament.prizePool.toLocaleString()}</p>
+                </div>
+                <div className="rich-stat">
+                  <p className="hud-label">Entry</p>
+                  <p className="stat-value">{liveTournament.entryFee || "Free"}</p>
+                </div>
+                <div className="rich-stat">
+                  <p className="hud-label">Players</p>
+                  <p className="stat-value">{liveTournament.currentPlayers}</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        <section className="section-panel">
+          <div className="section-header">
+            <div>
+              <p className="section-kicker">Status Filter</p>
+              <h2 className="section-title">Switch boards instantly</h2>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
             {tabs.map((entry) => (
               <button
                 key={entry.id}
@@ -46,44 +85,19 @@ export default function TournamentsPage() {
               </button>
             ))}
           </div>
+        </section>
 
-          {liveTournament ? (
-            <div className="command-panel-soft grid grid-cols-[1fr_auto] gap-3 p-3">
-              <div>
-                <div className="mb-2 flex items-center gap-2">
-                  <img
-                    src="/brand/puzzle-rivals-logo.png"
-                    alt="Puzzle Rivals"
-                    className="h-8 w-8 rounded-full object-cover"
-                    draggable={false}
-                  />
-                  <div>
-                    <p className="hud-label text-primary">Featured Event</p>
-                    <p className="text-base font-black">{liveTournament.name}</p>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">Live bracket, compact watchlist, rapid entry lock.</p>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="compact-metric min-w-[78px] text-center">
-                  <span className="hud-label">Prize</span>
-                  <span className="text-sm font-black text-primary">{liveTournament.prizePool.toLocaleString()}</span>
-                </div>
-                <div className="compact-metric min-w-[78px] text-center">
-                  <span className="hud-label">Entry</span>
-                  <span className="text-sm font-black">{liveTournament.entryFee || "Free"}</span>
-                </div>
-                <div className="compact-metric min-w-[78px] text-center">
-                  <span className="hud-label">Players</span>
-                  <span className="text-sm font-black">{liveTournament.currentPlayers}</span>
-                </div>
-              </div>
+        <section className="section-panel">
+          <div className="section-header">
+            <div>
+              <p className="section-kicker">Tournament Feed</p>
+              <h2 className="section-title">{tab === "live" ? "Broadcast-ready events" : `All ${tab} events`}</h2>
             </div>
-          ) : null}
+          </div>
 
-          <div className="grid min-h-0 gap-3">
+          <div className="deck-grid">
             {visible.length === 0 ? (
-              <div className="command-panel-soft flex min-h-[120px] items-center justify-center p-6 text-sm text-muted-foreground">
+              <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
                 No {tab} tournaments.
               </div>
             ) : (
@@ -93,10 +107,10 @@ export default function TournamentsPage() {
                   <PuzzleTileButton
                     key={tournament.id}
                     title={tournament.name}
-                    description={`${puzzle?.label ?? "Puzzle"} • ${tournament.status}`}
+                    description={`${puzzle?.label ?? "Puzzle"} - ${tournament.status}`}
                     emoji={puzzle?.icon}
                     right={
-                      <div className="space-y-1 text-right">
+                      <div className="space-y-1">
                         <div className="flex items-center justify-end gap-1 text-[10px] font-hud uppercase tracking-[0.16em] text-muted-foreground">
                           <Users size={10} />
                           {tournament.currentPlayers}/{tournament.maxPlayers}

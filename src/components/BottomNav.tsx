@@ -17,8 +17,8 @@ export default function BottomNav() {
   if (location.pathname.startsWith("/match")) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-3 safe-bottom">
-      <div className="mx-auto flex h-20 max-w-md items-center justify-around rounded-[28px] border border-border bg-card/90 px-2 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 safe-bottom md:px-6">
+      <div className="nav-dock mx-auto grid w-full max-w-4xl grid-cols-6 items-center gap-1 p-2">
         {tabs.map(({ to, icon: Icon, label }) => {
           const isActive = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
           return (

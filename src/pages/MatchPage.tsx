@@ -148,7 +148,7 @@ function QueuePlayerTile({
     <PuzzleTileButton
       icon={player ? Users : ScanSearch}
       title={player ? `${player.username}${isSelf ? " (You)" : ""}` : "Searching..."}
-      description={player ? `${player.rank.toUpperCase()} • ${player.elo} ELO` : "Open slot waiting for a rival"}
+      description={player ? `${player.isBot ? "Easy bot - " : ""}${player.rank.toUpperCase()} - ${player.elo} ELO` : "Open slot waiting for a rival"}
       active={Boolean(player)}
       disabled
       right={
@@ -177,6 +177,7 @@ export default function MatchPage() {
   const [optimisticProgress, setOptimisticProgress] = useState(0);
   const [rematchKey, setRematchKey] = useState(0);
   const [votePending, setVotePending] = useState<"continue" | "exit" | null>(null);
+  const [lobbyError, setLobbyError] = useState<string | null>(null);
 
   const readyTimeoutRef = useRef<number | null>(null);
   const progressTimeoutRef = useRef<number | null>(null);
@@ -189,6 +190,7 @@ export default function MatchPage() {
 
     let cancelled = false;
     setLobby(null);
+    setLobbyError(null);
     setPracticeSolved(false);
     setOptimisticProgress(0);
     readySentLobbyIdRef.current = null;
@@ -199,10 +201,14 @@ export default function MatchPage() {
       .then((response) => {
         if (!cancelled) {
           setLobby(response.lobby);
+          setLobbyError(null);
         }
       })
       .catch((error) => {
         console.error("Failed to join lobby", error);
+        if (!cancelled) {
+          setLobbyError(error instanceof Error ? error.message : "Could not join matchmaking.");
+        }
       });
 
     return () => {
@@ -473,15 +479,36 @@ export default function MatchPage() {
           />
 
           <section className="command-panel flex min-h-0 flex-1 flex-col justify-center gap-3 p-3">
-            <div className="command-panel-soft flex flex-col items-center gap-3 p-6 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary glow-primary">
-                <LoaderCircle size={24} className="animate-spin" />
+            {lobbyError ? (
+              <div className="command-panel-soft flex flex-col gap-4 p-6 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-destructive/25 bg-destructive/10 text-destructive glow-threat">
+                  <WifiOff size={22} />
+                </div>
+                <div>
+                  <p className="text-lg font-black">Arena sync failed</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{lobbyError}</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Button onClick={() => setRematchKey((current) => current + 1)} variant="play" size="lg" className="w-full">
+                    Retry Matchmaking
+                  </Button>
+                  <Button onClick={() => navigate("/play")} variant="outline" size="lg" className="w-full">
+                    <Home size={16} />
+                    Back to Play
+                  </Button>
+                </div>
               </div>
-              <div>
-                <p className="text-lg font-black">Command deck booting</p>
-                <p className="mt-1 text-sm text-muted-foreground">Reserving your seat in the {formatMode(mode)} arena.</p>
+            ) : (
+              <div className="command-panel-soft flex flex-col items-center gap-3 p-6 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary glow-primary">
+                  <LoaderCircle size={24} className="animate-spin" />
+                </div>
+                <div>
+                  <p className="text-lg font-black">Command deck booting</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Reserving your seat in the {formatMode(mode)} arena.</p>
+                </div>
               </div>
-            </div>
+            )}
           </section>
         </div>
       </div>
@@ -611,7 +638,7 @@ export default function MatchPage() {
               ? "Warm-up locked"
               : "Practice telemetry"
             : selfPlayer.solvedAtMs !== null
-              ? `Solved • ${formatSolveTime(selfPlayer.solvedAtMs)}`
+              ? `Solved - ${formatSolveTime(selfPlayer.solvedAtMs)}`
               : "Live telemetry",
         progress: selfProgress,
         tone: isPractice ? ("practice" as const) : ("self" as const),
@@ -624,7 +651,7 @@ export default function MatchPage() {
           stage === "practice"
             ? `${rival.rank.toUpperCase()} warm-up`
             : rival.solvedAtMs !== null
-              ? `Solved • ${formatSolveTime(rival.solvedAtMs)}`
+              ? `Solved - ${formatSolveTime(rival.solvedAtMs)}`
               : `${rival.rank.toUpperCase()} live`,
         progress: isPractice ? rival.practiceProgress : rival.progress,
         tone: isPractice ? ("practice" as const) : ("rival" as const),
@@ -784,7 +811,7 @@ export default function MatchPage() {
                     key={entry.playerId}
                     icon={entry.rank === 1 ? Trophy : Sparkles}
                     title={`${entry.username}${entry.playerId === user.id ? " (You)" : ""}`}
-                    description={`${entry.progress}% complete • ${formatSolveTime(entry.solvedAtMs)}`}
+                    description={`${entry.progress}% complete - ${formatSolveTime(entry.solvedAtMs)}${entry.isBot ? " - easy bot" : ""}`}
                     active={entry.playerId === user.id}
                     disabled
                     right={<span className="text-sm font-black text-primary">#{entry.rank}</span>}

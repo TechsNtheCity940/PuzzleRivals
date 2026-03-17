@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, ChevronRight, Crown, Eye, Flame, Swords } from "lucide-react";
+import { Bell, ChevronRight, Eye, Flame, Swords, TimerReset, Trophy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import PageHeader from "@/components/layout/PageHeader";
@@ -15,14 +15,14 @@ import { useAuth } from "@/providers/AuthProvider";
 export default function HomePage() {
   const navigate = useNavigate();
   const { openSignUp } = useAuthDialog();
-  const { user, canSave, isReady } = useAuth();
+  const { user, canSave } = useAuth();
   const rankBand = getRankBand(user?.elo ?? 0);
   const [featuredPlayers, setFeaturedPlayers] = useState<LeaderboardEntry[]>([]);
   const winRate = user && user.matchesPlayed > 0 ? Math.round((user.wins / user.matchesPlayed) * 100) : 0;
 
   useEffect(() => {
     let cancelled = false;
-    void fetchLeaderboard(3).then((entries) => {
+    void fetchLeaderboard(4).then((entries) => {
       if (!cancelled) {
         setFeaturedPlayers(entries);
       }
@@ -40,167 +40,196 @@ export default function HomePage() {
         <PageHeader
           eyebrow="Command Deck"
           title={canSave ? `Welcome back, ${user?.username ?? "Player"}` : "Welcome to the Arena"}
-          subtitle={canSave ? `${rankBand.label} rank with live stats active` : "Guests can explore. Sign up to lock in progress."}
+          subtitle={
+            canSave
+              ? `${rankBand.label} rank with live stats active`
+              : "Guests can explore every room. Sign up when you are ready to lock in progress."
+          }
           right={
-            <button
-              type="button"
-              onClick={() => navigate("/profile")}
-              className="command-panel-soft flex items-center gap-2 px-3 py-2"
-            >
-              <StockAvatar avatarId={user?.avatarId} size="sm" />
-              <Bell size={16} className="text-muted-foreground" />
-            </button>
+            <div className="spotlight-panel flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="section-kicker">Identity Deck</p>
+                <p className="truncate text-lg font-black">{user?.username ?? "Guest Player"}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{canSave ? "Account synced" : "Guest sandbox active"}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/profile")}
+                className="profile-badge shrink-0"
+              >
+                <StockAvatar avatarId={user?.avatarId} size="sm" />
+                <Bell size={16} className="text-white/55" />
+              </button>
+            </div>
           }
         />
 
-        <section className="command-panel grid min-h-0 flex-1 grid-rows-[auto_auto_1fr] gap-3 overflow-hidden p-3">
-          <div className="grid grid-cols-[1.3fr_0.7fr] gap-3">
-            <div className="command-panel-soft overflow-hidden p-2">
-              <PuzzleRivalsLogo />
-            </div>
-            <div className="grid grid-rows-3 gap-3">
-              <div className="compact-metric">
-                <span className="hud-label">Coins</span>
-                <span className="text-lg font-black text-coin">{(user?.coins ?? 0).toLocaleString()}</span>
-              </div>
-              <div className="compact-metric">
-                <span className="hud-label">Gems</span>
-                <span className="text-lg font-black text-primary">{user?.gems ?? 0}</span>
-              </div>
-              <div className="compact-metric">
-                <span className="hud-label">Win Rate</span>
-                <span className="text-lg font-black">{winRate}%</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div className="compact-metric">
-              <span className="hud-label">Streak</span>
-              <span className="text-xl font-black text-primary">{user?.winStreak ?? 0}</span>
-            </div>
-            <div className="compact-metric">
-              <span className="hud-label">Matches</span>
-              <span className="text-xl font-black">{user?.matchesPlayed ?? 0}</span>
-            </div>
-            <div className="compact-metric">
-              <span className="hud-label">Focus</span>
-              <span className={`text-sm font-black ${getRankColor(user?.rank ?? "bronze")}`}>{rankBand.label}</span>
-            </div>
-          </div>
-
-          <div className="grid min-h-0 grid-cols-[1fr_1fr] gap-3">
-            <div className="grid min-h-0 grid-rows-[auto_auto_1fr] gap-3">
-              <PuzzleTileButton
-                icon={Swords}
-                title={canSave ? "Ranked Match" : "Create Account"}
-                description={
-                  canSave
-                    ? "Queue live and start building your stats."
-                    : "Unlock saved progress, ranks, and matchmaking."
-                }
-                active
-                onClick={() => {
-                  if (canSave) {
-                    navigate("/match?mode=ranked");
-                    return;
-                  }
-                  openSignUp();
-                }}
-                right={<ChevronRight size={16} className="text-primary" />}
-              />
-              <PuzzleTileButton
-                icon={Flame}
-                title={challenge?.title ?? "Daily Challenge"}
-                description={challenge?.description ?? "A fresh daily puzzle run."}
-                onClick={() => {
-                  if (canSave) {
-                    navigate("/match?mode=daily");
-                    return;
-                  }
-                  openSignUp();
-                }}
-                right={<span className="font-hud text-[10px] uppercase tracking-[0.18em] text-primary">Daily</span>}
-              />
-              <div className="command-panel-soft min-h-0 p-3">
-                <div className="mb-3 flex items-center justify-between">
+        <section className="hero-panel">
+          <div className="hero-grid">
+            <div className="section-stack">
+              <div className="command-panel-soft p-4 md:p-5">
+                <div className="section-header">
                   <div>
-                    <p className="hud-label">Top Ladder</p>
-                    <p className="text-sm font-black">Current standouts</p>
+                    <p className="section-kicker">Arena Feed</p>
+                    <h2 className="section-title">Pick a lane and start a run</h2>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/tournaments")}
-                    className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary"
-                  >
-                    View
-                  </button>
+                  <span className={`font-hud text-[10px] uppercase tracking-[0.2em] ${getRankColor(user?.rank ?? "bronze")}`}>
+                    {rankBand.label}
+                  </span>
                 </div>
-                <div className="grid gap-2">
-                  {featuredPlayers.slice(0, 3).map((entry, index) => (
-                    <div key={entry.userId} className="flex items-center gap-3 rounded-2xl bg-black/20 px-3 py-2">
-                      <div className="w-5 text-center font-hud text-xs text-primary">#{index + 1}</div>
-                      <StockAvatar avatarId={entry.avatarId} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold">{entry.username}</p>
-                        <p className={`text-[10px] font-hud uppercase tracking-[0.16em] ${getRankColor(entry.rankTier)}`}>
-                          {entry.rankTier}
-                        </p>
-                      </div>
-                      <span className="text-sm font-black text-primary">{entry.elo}</span>
-                    </div>
-                  ))}
+                <div className="action-grid">
+                  <PuzzleTileButton
+                    icon={Swords}
+                    title={canSave ? "Ranked Match" : "Create Account"}
+                    description={
+                      canSave
+                        ? "Queue live, climb the ladder, and stack new match history."
+                        : "Unlock saved progress, ranks, matchmaking, and recovery features."
+                    }
+                    active
+                    onClick={() => {
+                      if (canSave) {
+                        navigate("/match?mode=ranked");
+                        return;
+                      }
+                      openSignUp();
+                    }}
+                    right={<ChevronRight size={16} className="text-primary" />}
+                  />
+                  <PuzzleTileButton
+                    icon={Flame}
+                    title={challenge?.title ?? "Daily Challenge"}
+                    description={challenge?.description ?? "A fresh daily puzzle run."}
+                    onClick={() => {
+                      if (canSave) {
+                        navigate("/match?mode=daily");
+                        return;
+                      }
+                      openSignUp();
+                    }}
+                    right={<span className="font-hud text-[10px] uppercase tracking-[0.18em] text-primary">Daily</span>}
+                  />
+                </div>
+              </div>
+
+              <div className="metric-grid">
+                <div className="rich-stat">
+                  <p className="hud-label">Coins</p>
+                  <p className="stat-value text-coin">{(user?.coins ?? 0).toLocaleString()}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Build your loadout through matches and store drops.</p>
+                </div>
+                <div className="rich-stat">
+                  <p className="hud-label">Gems</p>
+                  <p className="stat-value text-primary">{user?.gems ?? 0}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Premium currency for pass, cosmetics, and quick unlocks.</p>
+                </div>
+                <div className="rich-stat">
+                  <p className="hud-label">Win Rate</p>
+                  <p className="stat-value">{winRate}%</p>
+                  <p className="mt-2 text-xs text-muted-foreground">A fast snapshot of how well your puzzle instincts are landing.</p>
+                </div>
+                <div className="rich-stat">
+                  <p className="hud-label">Streak</p>
+                  <p className="stat-value text-primary">{user?.winStreak ?? 0}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Keep the line glowing by chaining clean wins back to back.</p>
                 </div>
               </div>
             </div>
 
-            <div className="grid min-h-0 grid-rows-[auto_1fr_auto] gap-3">
-              <div className="command-panel-soft p-3">
-                <div className="flex items-center gap-2">
-                  <Crown size={16} className="text-primary" />
+            <div className="section-stack">
+              <div className="spotlight-panel p-3">
+                <PuzzleRivalsLogo />
+              </div>
+              <div className="command-panel-soft grid gap-3 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-[18px] border border-white/10 bg-primary/10 text-primary">
+                    <TimerReset size={18} />
+                  </div>
                   <div>
-                    <p className="hud-label">Match of the Day</p>
-                    <p className="text-sm font-black">Puzzle Rivals broadcast</p>
+                    <p className="section-kicker">Match of the Day</p>
+                    <p className="text-lg font-black">Puzzle Rivals broadcast</p>
                   </div>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Featured logo slot stays branded here and acts as the app’s spotlight panel.
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Featured logo slot stays branded here and acts as the app&apos;s spotlight panel.
                 </p>
+                <Button onClick={() => navigate("/play")} variant="outline" size="lg" className="w-full">
+                  <Eye size={16} />
+                  Explore Queue Modes
+                </Button>
               </div>
-
-              <div className="command-panel-soft min-h-0 p-3">
-                <div className="mb-3 flex items-center justify-between">
-                  <div>
-                    <p className="hud-label">Account State</p>
-                    <p className="text-sm font-black">{canSave ? "Live profile synced" : "Guest sandbox active"}</p>
-                  </div>
-                  <StockAvatar avatarId={user?.avatarId} size="sm" />
-                </div>
-                <div className="grid gap-2">
-                  <div className="rounded-2xl bg-black/20 px-3 py-2">
-                    <p className="font-hud text-[10px] uppercase tracking-[0.18em] text-muted-foreground">PuzzleTag</p>
-                    <p className="truncate text-sm font-bold">{user?.username ?? "Guest Player"}</p>
-                  </div>
-                  <div className="rounded-2xl bg-black/20 px-3 py-2">
-                    <p className="font-hud text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Recovery</p>
-                    <p className="text-sm font-bold">
-                      {user?.securityQuestionsConfigured ? "Configured" : "Not configured"}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl bg-black/20 px-3 py-2">
-                    <p className="font-hud text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Weak Spot</p>
-                    <p className="text-sm font-bold">{user?.worstPuzzleType ?? "No data yet"}</p>
-                  </div>
-                </div>
-              </div>
-
-              <Button onClick={() => navigate("/profile")} variant="outline" size="xl" className="w-full">
-                <Eye size={16} />
-                Open Profile
-              </Button>
             </div>
           </div>
         </section>
+
+        <div className="page-grid">
+          <section className="section-panel">
+            <div className="section-header">
+              <div>
+                <p className="section-kicker">Top Ladder</p>
+                <h2 className="section-title">Current standouts</h2>
+              </div>
+              <Button onClick={() => navigate("/tournaments")} variant="ghost" size="sm">
+                <Trophy size={14} />
+                View Circuit
+              </Button>
+            </div>
+            <div className="section-stack">
+              {featuredPlayers.slice(0, 4).map((entry, index) => (
+                <div key={entry.userId} className="command-panel-soft flex items-center gap-4 p-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-[18px] border border-primary/20 bg-primary/10 font-hud text-sm font-semibold text-primary">
+                    #{index + 1}
+                  </div>
+                  <StockAvatar avatarId={entry.avatarId} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-black">{entry.username}</p>
+                    <p className={`font-hud text-[10px] uppercase tracking-[0.16em] ${getRankColor(entry.rankTier)}`}>
+                      {entry.rankTier}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-black text-primary">{entry.elo}</p>
+                    <p className="text-xs text-muted-foreground">{entry.wins} wins</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="section-panel">
+            <div className="section-header">
+              <div>
+                <p className="section-kicker">Account State</p>
+                <h2 className="section-title">{canSave ? "Live profile synced" : "Guest sandbox active"}</h2>
+              </div>
+            </div>
+            <div className="section-stack">
+              <div className="command-panel-soft flex items-center gap-4 p-4">
+                <StockAvatar avatarId={user?.avatarId} size="md" />
+                <div className="min-w-0">
+                  <p className="hud-label">PuzzleTag</p>
+                  <p className="truncate text-xl font-black">{user?.username ?? "Guest Player"}</p>
+                </div>
+              </div>
+              <div className="info-grid">
+                <div className="command-panel-soft p-4">
+                  <p className="hud-label">Recovery</p>
+                  <p className="mt-2 text-base font-black">
+                    {user?.securityQuestionsConfigured ? "Configured" : "Not configured"}
+                  </p>
+                </div>
+                <div className="command-panel-soft p-4">
+                  <p className="hud-label">Weak Spot</p>
+                  <p className="mt-2 text-base font-black">{user?.worstPuzzleType ?? "No data yet"}</p>
+                </div>
+              </div>
+              <Button onClick={() => navigate("/profile")} variant="play" size="xl" className="w-full">
+                <Eye size={16} />
+                Open Profile Deck
+              </Button>
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );

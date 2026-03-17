@@ -11,12 +11,12 @@ import { DAILY_CHALLENGES, getRankBand, getRankColor } from "@/lib/seed-data";
 type PlayMode = "ranked" | "casual" | "royale" | "revenge" | "challenge" | "daily";
 
 const MODES = [
-  { id: "ranked" as PlayMode, label: "Ranked", icon: Swords, desc: "4-player ladder lobby" },
-  { id: "casual" as PlayMode, label: "Casual", icon: Zap, desc: "No-rank generated runs" },
-  { id: "royale" as PlayMode, label: "Royale", icon: Crown, desc: "High stakes elimination" },
-  { id: "revenge" as PlayMode, label: "Revenge", icon: Flame, desc: "2-player rivalry duel" },
-  { id: "challenge" as PlayMode, label: "Challenge", icon: Target, desc: "Train your weak spots" },
-  { id: "daily" as PlayMode, label: "Daily", icon: Users, desc: "Elite daily variant" },
+  { id: "ranked" as PlayMode, label: "Ranked", icon: Swords, desc: "4-player ladder lobby", status: "Armed" },
+  { id: "casual" as PlayMode, label: "Casual", icon: Zap, desc: "No-rank generated runs", status: "Queue" },
+  { id: "royale" as PlayMode, label: "Royale", icon: Crown, desc: "High stakes elimination", status: "Queue" },
+  { id: "revenge" as PlayMode, label: "Revenge", icon: Flame, desc: "2-player rivalry duel", status: "Queue" },
+  { id: "challenge" as PlayMode, label: "Challenge", icon: Target, desc: "Train your weak spots", status: "Queue" },
+  { id: "daily" as PlayMode, label: "Daily", icon: Users, desc: "Elite daily variant", status: "Queue" },
 ];
 
 export default function PlayPage() {
@@ -40,6 +40,8 @@ export default function PlayPage() {
     };
   }, [selectedMode]);
 
+  const selectedModeMeta = MODES.find((mode) => mode.id === selectedMode);
+
   return (
     <div className="page-screen">
       <div className="page-stack">
@@ -48,50 +50,106 @@ export default function PlayPage() {
           title="Play Now"
           subtitle={`${rankBand.label} - ELO ${user?.elo ?? 0}`}
           right={
-            <div className="command-panel-soft px-4 py-3 text-right">
-              <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">Lobby Rule</p>
-              <p className="text-sm font-black">{selectedConfig.lobby}</p>
+            <div className="spotlight-panel">
+              <p className="section-kicker">Lobby Rule</p>
+              <p className="mt-2 text-3xl font-black">{selectedConfig.lobby}</p>
+              <p className="mt-2 text-sm text-muted-foreground">Built for quick access, fast queue reads, and zero hidden tiles.</p>
             </div>
           }
         />
 
-        <section className="command-panel grid min-h-0 flex-1 grid-rows-[auto_auto_1fr_auto] gap-3 overflow-hidden p-3">
-          <div className="grid grid-cols-2 gap-2">
-            {MODES.map((mode) => (
-              <PuzzleTileButton
-                key={mode.id}
-                icon={mode.icon}
-                title={mode.label}
-                description={mode.desc}
-                active={selectedMode === mode.id}
-                onClick={() => setSelectedMode(mode.id)}
-                right={
-                  <span className={`font-hud text-[10px] uppercase tracking-[0.16em] ${selectedMode === mode.id ? "text-primary" : "text-muted-foreground"}`}>
-                    {selectedMode === mode.id ? "Armed" : "Queue"}
-                  </span>
-                }
-              />
-            ))}
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            {selectedConfig.steps.map((step) => (
-              <div key={step} className="command-panel-soft flex items-center justify-center px-3 py-3 text-center">
-                <p className="text-xs font-semibold text-muted-foreground">{step}</p>
+        <section className="hero-panel">
+          <div className="hero-grid">
+            <div className="section-stack">
+              <div>
+                <p className="section-kicker">Queue Select</p>
+                <h2 className="hero-title text-3xl md:text-4xl">
+                  {selectedModeMeta?.label} mode locked in
+                </h2>
+                <p className="hero-subtitle mt-3">
+                  Clean, readable match cards with one dominant action. Choose a mode, scan the rule set, then launch without hunting through stacked panels.
+                </p>
               </div>
-            ))}
-          </div>
+              <Button
+                onClick={() => {
+                  if (canSave) {
+                    navigate(`/match?mode=${selectedMode}`);
+                    return;
+                  }
+                  openSignUp();
+                }}
+                variant="play"
+                size="xl"
+                className="w-full sm:w-auto"
+                disabled={!isReady || !user}
+              >
+                <Swords size={18} />
+                {!isReady || !user ? "Syncing Account..." : canSave ? "Launch Match" : "Sign Up To Compete"}
+              </Button>
+            </div>
 
-          <div className="grid min-h-0 grid-cols-[1.1fr_0.9fr] gap-3">
-            <div className="command-panel-soft min-h-0 p-3">
-              <div className="mb-3 flex items-center gap-2">
-                <Sparkles size={16} className="text-primary" />
+            <div className="spotlight-panel">
+              <div className="section-header">
                 <div>
-                  <p className="hud-label">Procedural Match AI</p>
-                  <p className="text-sm font-black">Deterministic variety, live fairness</p>
+                  <p className="section-kicker">Mode Snapshot</p>
+                  <h3 className="section-title">{selectedModeMeta?.label}</h3>
                 </div>
+                <span className={`font-hud text-[10px] uppercase tracking-[0.18em] ${getRankColor(user?.rank ?? "bronze")}`}>
+                  {rankBand.label}
+                </span>
               </div>
-              <div className="grid gap-2">
+              <div className="section-stack">
+                {selectedConfig.steps.map((step) => (
+                  <div key={step} className="command-panel-soft px-4 py-3 text-sm text-muted-foreground">
+                    {step}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="page-grid">
+          <section className="section-panel">
+            <div className="section-header">
+              <div>
+                <p className="section-kicker">Queue Modes</p>
+                <h2 className="section-title">Every lane stays reachable</h2>
+              </div>
+            </div>
+            <div className="deck-grid">
+              {MODES.map((mode) => (
+                <PuzzleTileButton
+                  key={mode.id}
+                  icon={mode.icon}
+                  title={mode.label}
+                  description={mode.desc}
+                  active={selectedMode === mode.id}
+                  onClick={() => setSelectedMode(mode.id)}
+                  right={
+                    <span
+                      className={`font-hud text-[10px] uppercase tracking-[0.16em] ${
+                        selectedMode === mode.id ? "text-primary" : "text-muted-foreground"
+                      }`}
+                    >
+                      {selectedMode === mode.id ? mode.status : "Queue"}
+                    </span>
+                  }
+                />
+              ))}
+            </div>
+          </section>
+
+          <div className="section-stack">
+            <section className="section-panel">
+              <div className="section-header">
+                <div>
+                  <p className="section-kicker">Procedural Match AI</p>
+                  <h2 className="section-title">Deterministic variety, live fairness</h2>
+                </div>
+                <Sparkles size={18} className="text-primary" />
+              </div>
+              <div className="section-stack">
                 {(selectedMode === "revenge"
                   ? [
                       "Chooses between your worst puzzle type and your rival's best.",
@@ -103,48 +161,26 @@ export default function PlayPage() {
                       "Puzzle type selection is weighted, not random spam.",
                       "Practice and live always share category, never exact layout.",
                     ]).map((item) => (
-                  <div key={item} className="rounded-2xl bg-black/20 px-3 py-2 text-xs text-muted-foreground">
+                  <div key={item} className="command-panel-soft px-4 py-3 text-sm leading-6 text-muted-foreground">
                     {item}
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
 
-            <div className="grid min-h-0 grid-rows-[auto_1fr] gap-3">
-              <div className="command-panel-soft p-3">
-                <p className="hud-label">Today’s Variant</p>
-                <p className="mt-1 text-sm font-black">{DAILY_CHALLENGES[0]?.title ?? "Daily 1%"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {DAILY_CHALLENGES[0]?.description ?? "Generated elite challenge."}
-                </p>
+            <section className="section-panel">
+              <div className="section-header">
+                <div>
+                  <p className="section-kicker">Today&apos;s Variant</p>
+                  <h2 className="section-title">{DAILY_CHALLENGES[0]?.title ?? "Daily 1%"}</h2>
+                </div>
               </div>
-              <div className="command-panel-soft min-h-0 p-3">
-                <p className="hud-label">Selected Mode</p>
-                <p className="mt-1 text-xl font-black">{MODES.find((entry) => entry.id === selectedMode)?.label}</p>
-                <p className={`mt-2 font-hud text-[10px] uppercase tracking-[0.18em] ${getRankColor(user?.rank ?? "bronze")}`}>
-                  Active player band: {rankBand.label}
-                </p>
-              </div>
-            </div>
+              <p className="text-sm leading-6 text-muted-foreground">
+                {DAILY_CHALLENGES[0]?.description ?? "Generated elite challenge."}
+              </p>
+            </section>
           </div>
-
-          <Button
-            onClick={() => {
-              if (canSave) {
-                navigate(`/match?mode=${selectedMode}`);
-                return;
-              }
-              openSignUp();
-            }}
-            variant="play"
-            size="xl"
-            className="w-full"
-            disabled={!isReady || !user}
-          >
-            <Swords size={18} />
-            {!isReady || !user ? "Syncing Account..." : canSave ? "Launch Match" : "Sign Up To Compete"}
-          </Button>
-        </section>
+        </div>
       </div>
     </div>
   );

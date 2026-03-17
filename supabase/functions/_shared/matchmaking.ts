@@ -27,6 +27,14 @@ export async function getLobbySnapshot(lobbyId: string) {
   if (resultsError) throw resultsError;
 
   const resultMap = new Map((results ?? []).map((result) => [String(result.user_id), result]));
+  const playerIds = (players ?? []).map((player) => String(player.user_id));
+  const { data: botRows, error: botError } = playerIds.length > 0
+    ? await admin.from("bot_profiles").select("user_id").in("user_id", playerIds)
+    : { data: [], error: null };
+
+  if (botError) throw botError;
+
+  const botIds = new Set((botRows ?? []).map((entry) => String(entry.user_id)));
 
   const snapshotPlayers = (players ?? []).map((player) => {
     const result = resultMap.get(String(player.user_id));
@@ -35,7 +43,7 @@ export async function getLobbySnapshot(lobbyId: string) {
       username: player.profiles.username,
       elo: player.profiles.elo,
       rank: player.profiles.rank,
-      isBot: false,
+      isBot: botIds.has(String(player.user_id)),
       ready: player.is_ready,
       nextRoundVote: player.next_round_vote,
       joinedAt: player.joined_at,
@@ -94,7 +102,7 @@ export async function getLobbySnapshot(lobbyId: string) {
                 solvedAtMs: player.solvedAtMs,
                 rank: Number(resultMap.get(player.playerId)?.placement ?? index + 1),
                 reward: player.reward!,
-                isBot: false,
+                isBot: botIds.has(player.playerId),
               })),
           }
         : null,

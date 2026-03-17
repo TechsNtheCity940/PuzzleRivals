@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Crown, ExternalLink, ShoppingBag } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Crown, ShoppingBag } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
@@ -127,8 +127,8 @@ export default function StorePage() {
     () => (tab === "all" ? snapshot.items : snapshot.items.filter((item) => item.category === tab)),
     [snapshot.items, tab],
   );
-  const pageCount = Math.max(1, Math.ceil(items.length / 4));
-  const visibleItems = items.slice(page * 4, page * 4 + 4);
+  const pageCount = Math.max(1, Math.ceil(items.length / 6));
+  const visibleItems = items.slice(page * 6, page * 6 + 6);
   const vip = snapshot.vipProduct;
   const vipButtonLabel = snapshot.wallet?.isVip ? "Extend VIP" : "Subscribe";
 
@@ -165,46 +165,83 @@ export default function StorePage() {
           title="Store"
           subtitle={canSave ? "Live purchases and account-bound items." : "Browse as guest. Purchases require sign-in."}
           right={
-            <div className="command-panel-soft grid grid-cols-2 gap-2 px-3 py-3">
-              <div className="text-center">
-                <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Coins</p>
-                <p className="text-sm font-black text-coin">{snapshot.wallet?.coins?.toLocaleString() ?? 0}</p>
-              </div>
-              <div className="text-center">
-                <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Gems</p>
-                <p className="text-sm font-black text-primary">{snapshot.wallet?.gems ?? 0}</p>
+            <div className="spotlight-panel">
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div>
+                  <p className="hud-label">Coins</p>
+                  <p className="mt-2 text-2xl font-black text-coin">{snapshot.wallet?.coins?.toLocaleString() ?? 0}</p>
+                </div>
+                <div>
+                  <p className="hud-label">Gems</p>
+                  <p className="mt-2 text-2xl font-black text-primary">{snapshot.wallet?.gems ?? 0}</p>
+                </div>
               </div>
             </div>
           }
         />
 
-        <section className="command-panel grid min-h-0 flex-1 grid-rows-[auto_auto_1fr] gap-3 overflow-hidden p-3">
-          <div className="command-panel-soft grid grid-cols-[1fr_auto] gap-3 p-3">
-            <div>
-              <div className="mb-2 flex items-center gap-2">
-                <img src="/brand/puzzle-rivals-logo.png" alt="Puzzle Rivals" className="h-8 w-8 rounded-full object-cover" draggable={false} />
+        <section className="hero-panel">
+          <div className="hero-grid">
+            <div className="command-panel-soft store-hero p-5">
+              <div className="section-header">
                 <div>
-                  <p className="hud-label text-primary">VIP Membership</p>
-                  <p className="text-base font-black">{vip?.name ?? "VIP Membership"}</p>
+                  <p className="section-kicker">VIP Membership</p>
+                  <h2 className="section-title">{vip?.name ?? "VIP Membership"}</h2>
+                </div>
+                <Crown size={18} className="text-primary" />
+              </div>
+              <p className="text-sm leading-6 text-muted-foreground">
+                {vip ? formatPrice(vip) : `$${VIP_MEMBERSHIP.priceUsd.toFixed(2)}/month`} - {snapshot.wallet?.hintBalance ?? 0} hints banked
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rich-stat">
+                  <p className="hud-label">Status</p>
+                  <p className="text-lg font-black text-primary">{snapshot.wallet?.isVip ? "VIP Live" : "Free Track"}</p>
+                </div>
+                <div className="rich-stat">
+                  <p className="hud-label">Owned</p>
+                  <p className="stat-value">{snapshot.items.filter((item) => item.isOwned).length}</p>
+                </div>
+                <div className="rich-stat">
+                  <p className="hud-label">Premium</p>
+                  <p className="text-lg font-black text-gradient-prestige">Unlock cosmetics</p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {vip ? formatPrice(vip) : `$${VIP_MEMBERSHIP.priceUsd.toFixed(2)}/month`} • {snapshot.wallet?.hintBalance ?? 0} hints banked
-              </p>
             </div>
-            <Button
-              variant="prestige"
-              size="lg"
-              className="self-center"
-              disabled={!vip || busyProductId === vip.id}
-              onClick={() => vip && handlePurchase(vip)}
-            >
-              <Crown size={14} />
-              {busyProductId === vip?.id ? "Working..." : vipButtonLabel}
-            </Button>
+            <div className="spotlight-panel store-callout flex flex-col justify-between gap-4">
+              <div className="section-stack">
+                <div>
+                  <p className="section-kicker">Featured Drop</p>
+                  <h2 className="section-title">Sharper boards, richer identity cards, cleaner sessions</h2>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="segment-chip">Avatars</span>
+                  <span className="segment-chip">Frames</span>
+                  <span className="segment-chip">Themes</span>
+                </div>
+              </div>
+              <Button
+                variant="prestige"
+                size="xl"
+                className="w-full"
+                disabled={!vip || busyProductId === vip?.id}
+                onClick={() => vip && handlePurchase(vip)}
+              >
+                <Crown size={14} />
+                {busyProductId === vip?.id ? "Working..." : vipButtonLabel}
+              </Button>
+            </div>
           </div>
+        </section>
 
-          <div className="grid grid-cols-4 gap-2">
+        <section className="section-panel">
+          <div className="section-header">
+            <div>
+              <p className="section-kicker">Filter Deck</p>
+              <h2 className="section-title">Browse without dead space</h2>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
             {TABS.map((entry) => (
               <button
                 key={entry.id}
@@ -216,9 +253,17 @@ export default function StorePage() {
               </button>
             ))}
           </div>
+        </section>
 
-          <div className="grid min-h-0 grid-rows-[1fr_auto] gap-3">
-            <div className="grid min-h-0 grid-cols-2 gap-3">
+        <div className="page-grid">
+          <section className="section-panel lg:col-span-2">
+            <div className="section-header">
+              <div>
+                <p className="section-kicker">Inventory Feed</p>
+                <h2 className="section-title">Items worth clicking into</h2>
+              </div>
+            </div>
+            <div className="deck-grid">
               {visibleItems.map((item) => (
                 <PuzzleTileButton
                   key={item.id}
@@ -231,11 +276,11 @@ export default function StorePage() {
                         <Check size={14} />
                       </div>
                     ) : (
-                      <div className="text-right">
+                      <div>
                         <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                           Tier {romanNumeral(item.rarity)}
                         </p>
-                        <p className="text-xs font-black text-primary">{formatPrice(item)}</p>
+                        <p className="mt-1 text-xs font-black text-primary">{formatPrice(item)}</p>
                       </div>
                     )
                   }
@@ -246,9 +291,9 @@ export default function StorePage() {
               ))}
             </div>
 
-            <div className="command-panel-soft flex items-center justify-between px-3 py-2">
-              <p className="text-xs text-muted-foreground">
-                Showing {visibleItems.length ? page * 4 + 1 : 0}-{Math.min((page + 1) * 4, items.length)} of {items.length}
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-sm text-muted-foreground">
+                Showing {visibleItems.length ? page * 6 + 1 : 0}-{Math.min((page + 1) * 6, items.length)} of {items.length}
               </p>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))}>
@@ -267,8 +312,8 @@ export default function StorePage() {
                 </Button>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </div>
   );

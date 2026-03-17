@@ -1,5 +1,3 @@
-drop trigger if exists set_user_security_questions_updated_at on public.user_security_questions;
-
 create table if not exists public.user_security_questions (
   user_id uuid primary key references public.profiles(id) on delete cascade,
   question_one text not null,
@@ -10,6 +8,7 @@ create table if not exists public.user_security_questions (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+drop trigger if exists set_user_security_questions_updated_at on public.user_security_questions;
 create trigger set_user_security_questions_updated_at
 before update on public.user_security_questions
 for each row execute procedure public.handle_updated_at();

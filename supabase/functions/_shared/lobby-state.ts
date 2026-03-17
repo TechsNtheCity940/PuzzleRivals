@@ -5,6 +5,7 @@ import {
   generatePuzzleTemplate,
   type PuzzleGeneratorPlayerProfile,
 } from "./puzzle-generator.ts";
+import { fillLobbyWithEasyBots, hydrateBotRoundProgress } from "./bots.ts";
 
 type LobbyRow = {
   id: string;
@@ -472,6 +473,18 @@ async function finalizeLiveRound(lobby: LobbyRow, activePlayers: PlayerRow[], ro
     next_round_vote: null,
     is_ready: false,
   }).eq("lobby_id", lobby.id).is("left_at", null);
+
+  const { data: botPlayers } = await admin
+    .from("bot_profiles")
+    .select("user_id")
+    .in("user_id", activePlayers.map((player) => player.user_id));
+
+  const botIds = (botPlayers ?? []).map((entry) => entry.user_id);
+  if (botIds.length > 0) {
+    await admin.from("lobby_players").update({
+      next_round_vote: "continue",
+    }).eq("lobby_id", lobby.id).in("user_id", botIds).is("left_at", null);
+  }
   return true;
 }
 
@@ -523,6 +536,8 @@ export async function advanceLobbyState(lobbyId: string) {
     if (!lobby) return null;
 
     const stepChanged =
+      await fillLobbyWithEasyBots(lobby.id) ||
+      await hydrateBotRoundProgress(lobby, players, round, results) ||
       await ensureRoundSelection(lobby, players) ||
       await startPractice(lobby, players) ||
       await startLive(lobby) ||

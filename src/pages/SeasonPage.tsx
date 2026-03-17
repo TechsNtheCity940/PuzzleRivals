@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Gift, Lock, Star } from "lucide-react";
+import { Gift, Lock, Star, TrendingUp } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageHeader from "@/components/layout/PageHeader";
@@ -94,7 +94,7 @@ export default function SeasonPage() {
   }, [user?.xp]);
   const focusedTracks = useMemo(() => {
     const start = Math.max(0, currentTier - 2);
-    return CURRENT_SEASON.tracks.slice(start, start + 5).map((track) => ({
+    return CURRENT_SEASON.tracks.slice(start, start + 6).map((track) => ({
       ...track,
       isUnlocked: track.tier <= currentTier,
     }));
@@ -123,28 +123,27 @@ export default function SeasonPage() {
           title={`Season ${CURRENT_SEASON.seasonNumber}`}
           subtitle={CURRENT_SEASON.name}
           right={
-            <div className="command-panel-soft px-4 py-3 text-center">
-              <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">
-                {hasSeasonPass ? "Premium" : "Free Track"}
-              </p>
-              <p className="text-sm font-black">
-                Tier {currentTier}/{CURRENT_SEASON.maxTier}
+            <div className="spotlight-panel">
+              <p className="section-kicker">{hasSeasonPass ? "Premium Track" : "Free Track"}</p>
+              <p className="mt-2 text-3xl font-black">Tier {currentTier}/{CURRENT_SEASON.maxTier}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {progressWithinTier}% toward the next unlock.
               </p>
             </div>
           }
         />
 
-        <section className="command-panel grid min-h-0 flex-1 grid-rows-[auto_1fr] gap-3 overflow-hidden p-3">
-          <div className="grid grid-cols-[1fr_auto] gap-3">
-            <div className="command-panel-soft p-3">
-              <div className="mb-3 flex items-center gap-2">
-                <img src="/brand/puzzle-rivals-logo.png" alt="Puzzle Rivals" className="h-8 w-8 rounded-full object-cover" draggable={false} />
+        <section className="hero-panel">
+          <div className="hero-grid">
+            <div className="command-panel-soft p-5">
+              <div className="section-header">
                 <div>
-                  <p className="hud-label text-primary">Battle Pass</p>
-                  <p className="text-base font-black">{hasSeasonPass ? "Premium unlocked" : "Upgrade available"}</p>
+                  <p className="section-kicker">Battle Pass</p>
+                  <h2 className="section-title">{hasSeasonPass ? "Premium unlocked" : "Upgrade available"}</h2>
                 </div>
+                <TrendingUp size={18} className="text-primary" />
               </div>
-              <div className="h-3 overflow-hidden rounded-full bg-muted">
+              <div className="h-4 overflow-hidden rounded-full bg-white/10">
                 <motion.div
                   className="h-full rounded-full bg-gradient-prestige"
                   initial={{ width: 0 }}
@@ -152,44 +151,71 @@ export default function SeasonPage() {
                   transition={{ duration: 0.8, ease: "easeOut" }}
                 />
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">{progressWithinTier}% toward next tier.</p>
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                Season rewards stay readable, reachable, and worth exploring. No hidden panels below the fold, no clipped tier ladder.
+              </p>
             </div>
 
             {!hasSeasonPass ? (
-              <Button
-                variant="prestige"
-                size="xl"
-                className="min-w-[168px] self-stretch"
-                disabled={isLoading || isPurchasing}
-                onClick={() => void unlockPremiumTrack()}
-              >
-                <Star size={14} />
-                {isPurchasing ? "Opening..." : "Unlock"}
-              </Button>
+              <div className="spotlight-panel flex flex-col justify-between gap-4">
+                <div>
+                  <p className="section-kicker">Upgrade</p>
+                  <p className="mt-2 text-3xl font-black">Unlock the premium track</p>
+                </div>
+                <Button
+                  variant="prestige"
+                  size="xl"
+                  className="w-full"
+                  disabled={isLoading || isPurchasing}
+                  onClick={() => void unlockPremiumTrack()}
+                >
+                  <Star size={14} />
+                  {isPurchasing ? "Opening..." : "Unlock"}
+                </Button>
+              </div>
             ) : (
-              <div className="command-panel-soft flex min-w-[168px] items-center justify-center px-4 text-center text-sm font-semibold text-primary">
-                Premium rewards active
+              <div className="spotlight-panel flex items-center justify-center text-center">
+                <div>
+                  <p className="section-kicker">Premium Active</p>
+                  <p className="mt-2 text-3xl font-black text-primary">Rewards live</p>
+                </div>
               </div>
             )}
           </div>
+        </section>
 
-          <div className="grid min-h-0 grid-cols-[0.95fr_1.05fr] gap-3">
-            <div className="command-panel-soft grid min-h-0 grid-rows-[repeat(3,minmax(0,1fr))] gap-3 p-3">
-              <div className="compact-metric">
-                <span className="hud-label">XP Bank</span>
-                <span className="text-lg font-black">{user?.xp ?? 0}</span>
-              </div>
-              <div className="compact-metric">
-                <span className="hud-label">Next Tier</span>
-                <span className="text-lg font-black text-primary">{TIER_XP - ((user?.xp ?? 0) % TIER_XP)} XP</span>
-              </div>
-              <div className="compact-metric">
-                <span className="hud-label">Track State</span>
-                <span className="text-sm font-black">{hasSeasonPass ? "Premium" : "Free"}</span>
+        <div className="page-grid">
+          <section className="section-panel">
+            <div className="section-header">
+              <div>
+                <p className="section-kicker">Season Snapshot</p>
+                <h2 className="section-title">Track state at a glance</h2>
               </div>
             </div>
+            <div className="metric-grid">
+              <div className="rich-stat">
+                <p className="hud-label">XP Bank</p>
+                <p className="stat-value">{user?.xp ?? 0}</p>
+              </div>
+              <div className="rich-stat">
+                <p className="hud-label">Next Tier</p>
+                <p className="stat-value text-primary">{TIER_XP - ((user?.xp ?? 0) % TIER_XP)} XP</p>
+              </div>
+              <div className="rich-stat">
+                <p className="hud-label">Track State</p>
+                <p className="stat-value">{hasSeasonPass ? "Premium" : "Free"}</p>
+              </div>
+            </div>
+          </section>
 
-            <div className="grid min-h-0 gap-3">
+          <section className="section-panel">
+            <div className="section-header">
+              <div>
+                <p className="section-kicker">Focused Rewards</p>
+                <h2 className="section-title">Current tier lane</h2>
+              </div>
+            </div>
+            <div className="section-stack">
               {focusedTracks.map((track) => (
                 <PuzzleTileButton
                   key={track.tier}
@@ -198,9 +224,9 @@ export default function SeasonPage() {
                   description={track.freeReward?.label ?? "No free reward"}
                   active={track.tier === currentTier}
                   right={
-                    <div className="text-right">
+                    <div>
                       <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Premium</p>
-                      <p className={`text-xs font-black ${hasSeasonPass ? "text-primary" : "text-muted-foreground"}`}>
+                      <p className={`mt-1 text-xs font-black ${hasSeasonPass ? "text-primary" : "text-muted-foreground"}`}>
                         {track.premiumReward?.label ?? "-"}
                       </p>
                     </div>
@@ -208,8 +234,8 @@ export default function SeasonPage() {
                 />
               ))}
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </div>
   );
