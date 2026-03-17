@@ -109,6 +109,7 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+#variable_conflict use_column
 declare
   v_player_count integer;
   v_ready_count integer;
@@ -149,6 +150,7 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+#variable_conflict use_column
 begin
   insert into public.round_results (
     round_id,
@@ -193,6 +195,7 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+#variable_conflict use_column
 declare
   v_lobby_id uuid;
   v_active_players integer;
@@ -243,6 +246,7 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+#variable_conflict use_column
 declare
   v_active_players integer;
   v_continue_players integer;
