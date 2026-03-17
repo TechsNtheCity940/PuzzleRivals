@@ -61,6 +61,24 @@
     --panel-soft: 244 26% 12%;
     --panel-glow: 72 100% 50%;
     --panel-violet: 272 88% 62%;
+    --shell-backdrop:
+      radial-gradient(circle at top, hsl(272 90% 58% / 0.18), transparent 28%),
+      radial-gradient(circle at 82% 14%, hsl(72 100% 50% / 0.1), transparent 22%),
+      radial-gradient(circle at 22% 110%, hsl(272 90% 58% / 0.12), transparent 30%),
+      linear-gradient(180deg, hsl(248 31% 10%), hsl(232 30% 5%) 42%, hsl(230 32% 4%) 100%);
+    --theme-top-glow: linear-gradient(180deg, rgba(118, 47, 255, 0.36), rgba(118, 47, 255, 0));
+    --theme-orb-primary: rgba(182, 255, 0, 0.18);
+    --theme-orb-accent: rgba(175, 73, 255, 0.16);
+    --theme-orb-tertiary: rgba(34, 211, 238, 0.14);
+    --theme-panel-top: rgba(42, 26, 66, 0.92);
+    --theme-panel-bottom: rgba(13, 17, 30, 0.92);
+    --theme-panel-border: rgba(255, 255, 255, 0.1);
+    --theme-card-top: rgba(29, 19, 47, 0.84);
+    --theme-card-bottom: rgba(10, 14, 24, 0.9);
+    --theme-banner-start: rgba(184, 255, 0, 0.18);
+    --theme-banner-end: rgba(255, 255, 255, 0.04);
+    --theme-shell-art: none;
+    --theme-board-art: none;
   }
 }
 
@@ -75,11 +93,7 @@
     overscroll-behavior: none;
     user-select: none;
     touch-action: manipulation;
-    background-image:
-      radial-gradient(circle at top, hsl(var(--accent) / 0.16), transparent 28%),
-      radial-gradient(circle at 82% 14%, hsl(var(--primary) / 0.1), transparent 22%),
-      radial-gradient(circle at 22% 110%, hsl(var(--accent) / 0.12), transparent 30%),
-      linear-gradient(180deg, hsl(248 31% 10%), hsl(232 30% 5%) 42%, hsl(230 32% 4%) 100%);
+    background-image: var(--shell-backdrop);
   }
 
   ::-webkit-scrollbar {
@@ -127,8 +141,9 @@
   .command-panel {
     @apply rounded-[32px] border border-white/10 backdrop-blur-2xl shadow-[0_26px_80px_rgba(0,0,0,0.42)];
     background:
-      linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)),
-      rgba(8, 10, 20, 0.82);
+      linear-gradient(180deg, var(--theme-banner-end), rgba(255,255,255,0.01)),
+      linear-gradient(180deg, var(--theme-panel-top), var(--theme-panel-bottom));
+    border-color: var(--theme-panel-border);
     transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
   }
 
@@ -136,7 +151,8 @@
     @apply rounded-[26px] border border-white/10 backdrop-blur-xl;
     background:
       linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
-      rgba(11, 14, 25, 0.76);
+      linear-gradient(180deg, var(--theme-card-top), var(--theme-card-bottom));
+    border-color: var(--theme-panel-border);
     transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease, background-color 220ms ease;
   }
 
@@ -349,6 +365,32 @@
 
   .app-shell {
     @apply relative min-h-screen overflow-x-hidden;
+    background-image: var(--shell-backdrop);
+  }
+
+  .app-theme-top-glow {
+    background: var(--theme-top-glow);
+  }
+
+  .app-theme-shell-art {
+    background-image: var(--theme-shell-art);
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-size: cover;
+    mix-blend-mode: screen;
+    mask-image: linear-gradient(180deg, rgba(0,0,0,0.85), rgba(0,0,0,0.2) 56%, transparent 100%);
+  }
+
+  .app-theme-orb-primary {
+    background: var(--theme-orb-primary);
+  }
+
+  .app-theme-orb-accent {
+    background: var(--theme-orb-accent);
+  }
+
+  .app-theme-orb-tertiary {
+    background: var(--theme-orb-tertiary);
   }
 
   .app-noise {
@@ -374,7 +416,7 @@
     @apply flex min-w-0 flex-1 items-center gap-4 rounded-[28px] border border-white/10 px-4 py-3;
     background:
       linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
-      rgba(32, 20, 51, 0.78);
+      linear-gradient(180deg, color-mix(in srgb, var(--theme-panel-top) 88%, rgba(40, 20, 60, 0.82)), color-mix(in srgb, var(--theme-panel-bottom) 92%, rgba(18, 20, 32, 0.86)));
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.24);
     transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
   }
@@ -389,7 +431,7 @@
     @apply flex items-center gap-3 rounded-[28px] border border-white/10 px-3 py-2 text-left transition-colors duration-200 hover:bg-white/10;
     background:
       linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)),
-      rgba(30, 24, 44, 0.86);
+      linear-gradient(180deg, color-mix(in srgb, var(--theme-card-top) 88%, rgba(31, 26, 45, 0.9)), color-mix(in srgb, var(--theme-card-bottom) 92%, rgba(14, 18, 28, 0.92)));
     transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease, background-color 220ms ease;
   }
 
@@ -558,7 +600,9 @@
   }
 
   .match-immersive-copy {
-    @apply rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,rgba(28,18,54,0.88),rgba(13,18,30,0.88))] px-5 py-4;
+    @apply rounded-[28px] border border-white/10 px-5 py-4;
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--theme-panel-top) 94%, rgba(40, 20, 70, 0.9)), color-mix(in srgb, var(--theme-panel-bottom) 94%, rgba(14, 18, 28, 0.92)));
   }
 
   .match-immersive-title,
@@ -601,11 +645,23 @@
   }
 
   .match-immersive-board {
-    @apply relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(34,44,72,0.55),rgba(9,10,16,0.92)_60%)] px-3 py-2 md:px-4 md:py-3;
+    @apply relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[32px] border border-white/10 px-3 py-2 md:px-4 md:py-3;
+    background:
+      radial-gradient(circle at top, color-mix(in srgb, var(--theme-panel-top) 50%, rgba(43, 56, 89, 0.62)), rgba(9,10,16,0.92) 60%);
+  }
+
+  .match-immersive-board::after {
+    content: "";
+    @apply pointer-events-none absolute inset-0 opacity-35;
+    background-image: var(--theme-board-art);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    mix-blend-mode: screen;
   }
 
   .match-immersive-board > div {
-    @apply flex max-h-full w-full max-w-5xl flex-col items-center justify-center;
+    @apply relative z-10 flex max-h-full w-full max-w-5xl flex-col items-center justify-center;
   }
 
   .match-results-table {
@@ -666,6 +722,14 @@
 
   .match-seat-main {
     @apply relative z-10 flex items-center gap-4 px-5 py-4;
+  }
+
+  .match-seat-loadout {
+    @apply min-w-0 flex-1;
+  }
+
+  .match-seat-search-state {
+    @apply flex min-w-0 flex-1 items-center gap-4;
   }
 
   .match-seat-avatar-wrap {
@@ -766,6 +830,451 @@
 
   .match-pattern-option {
     @apply h-14 w-14 sm:h-16 sm:w-16;
+  }
+
+  .cos-theme-default {
+    --theme-top-glow: linear-gradient(180deg, rgba(118, 47, 255, 0.36), rgba(118, 47, 255, 0));
+    --theme-orb-primary: rgba(182, 255, 0, 0.18);
+    --theme-orb-accent: rgba(175, 73, 255, 0.16);
+    --theme-orb-tertiary: rgba(34, 211, 238, 0.14);
+    --theme-panel-top: rgba(42, 26, 66, 0.92);
+    --theme-panel-bottom: rgba(13, 17, 30, 0.92);
+    --theme-card-top: rgba(29, 19, 47, 0.84);
+    --theme-card-bottom: rgba(10, 14, 24, 0.9);
+  }
+
+  .cos-theme-neon-circuit {
+    --theme-top-glow: linear-gradient(180deg, rgba(48, 221, 255, 0.28), rgba(48, 221, 255, 0));
+    --theme-orb-primary: rgba(184, 255, 0, 0.2);
+    --theme-orb-accent: rgba(48, 221, 255, 0.18);
+    --theme-orb-tertiary: rgba(255, 56, 193, 0.14);
+    --theme-panel-top: rgba(8, 34, 59, 0.95);
+    --theme-panel-bottom: rgba(8, 14, 26, 0.94);
+    --theme-card-top: rgba(10, 30, 42, 0.9);
+    --theme-card-bottom: rgba(8, 14, 24, 0.92);
+  }
+
+  .cos-theme-obsidian {
+    --theme-top-glow: linear-gradient(180deg, rgba(126, 95, 255, 0.2), rgba(126, 95, 255, 0));
+    --theme-orb-primary: rgba(133, 148, 175, 0.12);
+    --theme-orb-accent: rgba(98, 102, 241, 0.12);
+    --theme-orb-tertiary: rgba(31, 41, 55, 0.22);
+    --theme-panel-top: rgba(24, 26, 37, 0.95);
+    --theme-panel-bottom: rgba(10, 12, 18, 0.96);
+    --theme-card-top: rgba(26, 28, 38, 0.9);
+    --theme-card-bottom: rgba(11, 13, 20, 0.94);
+  }
+
+  .cos-theme-minimalist {
+    --theme-top-glow: linear-gradient(180deg, rgba(184, 255, 0, 0.16), rgba(184, 255, 0, 0));
+    --theme-orb-primary: rgba(184, 255, 0, 0.12);
+    --theme-orb-accent: rgba(255, 255, 255, 0.08);
+    --theme-orb-tertiary: rgba(14, 165, 233, 0.1);
+    --theme-panel-top: rgba(22, 28, 34, 0.95);
+    --theme-panel-bottom: rgba(9, 11, 18, 0.96);
+    --theme-card-top: rgba(19, 24, 32, 0.9);
+    --theme-card-bottom: rgba(10, 13, 18, 0.92);
+  }
+
+  .cos-frame-default,
+  .cos-frame-void,
+  .cos-frame-diamond,
+  .cos-frame-voltage {
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
+
+  .cos-frame-void {
+    background:
+      radial-gradient(circle at top, rgba(183, 112, 255, 0.34), transparent 42%),
+      linear-gradient(140deg, rgba(37, 18, 74, 0.42), rgba(7, 11, 24, 0.12));
+    box-shadow: inset 0 0 0 1px rgba(188, 111, 255, 0.3), 0 0 26px rgba(131, 66, 255, 0.18);
+  }
+
+  .cos-frame-diamond {
+    background:
+      linear-gradient(135deg, rgba(196, 247, 255, 0.46), transparent 24%, rgba(196, 247, 255, 0.18) 68%, transparent 100%),
+      linear-gradient(135deg, rgba(24, 48, 74, 0.22), rgba(11, 14, 24, 0.08));
+    box-shadow: inset 0 0 0 1px rgba(180, 235, 255, 0.38), 0 0 24px rgba(112, 214, 255, 0.16);
+  }
+
+  .cos-frame-voltage {
+    background:
+      radial-gradient(circle at 20% 25%, rgba(196, 255, 0, 0.34), transparent 26%),
+      radial-gradient(circle at 80% 75%, rgba(54, 214, 255, 0.28), transparent 30%),
+      linear-gradient(145deg, rgba(22, 36, 9, 0.18), rgba(8, 16, 26, 0.12));
+    box-shadow: inset 0 0 0 1px rgba(184, 255, 0, 0.34), 0 0 30px rgba(184, 255, 0, 0.18);
+  }
+
+  .cos-card-default,
+  .cos-card-static-shock,
+  .cos-card-holograph {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cos-card-default {
+    background:
+      linear-gradient(160deg, rgba(20, 24, 36, 0.96), rgba(13, 15, 23, 0.96));
+  }
+
+  .cos-card-static-shock {
+    background:
+      linear-gradient(135deg, rgba(14, 36, 56, 0.96), rgba(10, 18, 32, 0.96) 48%, rgba(35, 9, 66, 0.94));
+  }
+
+  .cos-card-static-shock::before,
+  .cos-card-holograph::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .cos-card-static-shock::before {
+    background:
+      linear-gradient(120deg, transparent 8%, rgba(181, 255, 0, 0.16) 32%, transparent 48%, rgba(60, 225, 255, 0.12) 68%, transparent 82%);
+  }
+
+  .cos-card-holograph {
+    background:
+      linear-gradient(135deg, rgba(31, 10, 55, 0.96), rgba(8, 34, 44, 0.94) 45%, rgba(14, 18, 30, 0.98));
+  }
+
+  .cos-card-holograph::before {
+    background:
+      linear-gradient(125deg, rgba(255,255,255,0.04), transparent 28%, rgba(110, 247, 255, 0.12) 48%, rgba(255, 79, 191, 0.12) 68%, transparent 86%);
+  }
+
+  .cos-banner-default,
+  .cos-banner-aurora,
+  .cos-banner-vault {
+    background-size: cover;
+  }
+
+  .cos-banner-default {
+    background:
+      linear-gradient(90deg, rgba(184,255,0,0.14), rgba(255,255,255,0.04));
+  }
+
+  .cos-banner-aurora {
+    background:
+      linear-gradient(90deg, rgba(38, 224, 255, 0.32), rgba(174, 0, 255, 0.18), rgba(184,255,0,0.2));
+  }
+
+  .cos-banner-vault {
+    background:
+      linear-gradient(90deg, rgba(255, 174, 0, 0.22), rgba(67, 49, 18, 0.26), rgba(184,255,0,0.14));
+  }
+
+  .cos-emblem-default,
+  .cos-emblem-word-master,
+  .cos-emblem-season-victor,
+  .cos-title-default,
+  .cos-title-founder,
+  .cos-chip-default,
+  .cos-chip-void,
+  .cos-chip-diamond,
+  .cos-chip-voltage,
+  .cos-chip-holograph,
+  .cos-chip-aurora,
+  .cos-chip-vault,
+  .cos-chip-word,
+  .cos-chip-victor,
+  .cos-chip-founder {
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .cos-emblem-default,
+  .cos-emblem-word-master,
+  .cos-emblem-season-victor {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.8rem;
+    font-family: "Chakra Petch", monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+  }
+
+  .cos-emblem-word-master,
+  .cos-chip-word {
+    background: rgba(80, 54, 18, 0.45);
+    color: #ffd36c;
+    border-color: rgba(255, 211, 108, 0.2);
+  }
+
+  .cos-emblem-season-victor,
+  .cos-chip-victor {
+    background: rgba(24, 42, 12, 0.5);
+    color: #c8ff4d;
+    border-color: rgba(200, 255, 77, 0.22);
+  }
+
+  .cos-title-default,
+  .cos-title-founder,
+  .cos-chip-default,
+  .cos-chip-founder,
+  .cos-chip-void,
+  .cos-chip-diamond,
+  .cos-chip-voltage,
+  .cos-chip-holograph,
+  .cos-chip-aurora,
+  .cos-chip-vault {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 0.8rem;
+    font-family: "Chakra Petch", monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+  }
+
+  .cos-title-founder,
+  .cos-chip-founder {
+    background: linear-gradient(90deg, rgba(184,255,0,0.12), rgba(255,255,255,0.04));
+    color: #c8ff4d;
+    border-color: rgba(184,255,0,0.18);
+  }
+
+  .cos-chip-void { background: rgba(93, 41, 176, 0.22); color: #d0acff; border-color: rgba(208, 172, 255, 0.18); }
+  .cos-chip-diamond { background: rgba(104, 209, 255, 0.16); color: #b7f0ff; border-color: rgba(183, 240, 255, 0.2); }
+  .cos-chip-voltage { background: rgba(184,255,0,0.16); color: #c8ff4d; border-color: rgba(200, 255, 77, 0.2); }
+  .cos-chip-holograph { background: rgba(255, 74, 210, 0.12); color: #ffc8f2; border-color: rgba(255, 200, 242, 0.18); }
+  .cos-chip-aurora { background: rgba(69, 227, 255, 0.14); color: #a9f9ff; border-color: rgba(169, 249, 255, 0.2); }
+  .cos-chip-vault { background: rgba(255, 182, 63, 0.16); color: #ffd798; border-color: rgba(255, 215, 152, 0.18); }
+
+  .identity-loadout-card {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.9rem;
+    border-radius: 26px;
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 0.9rem;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.24);
+    background-image:
+      var(--identity-card-art, none),
+      linear-gradient(160deg, rgba(20, 24, 36, 0.96), rgba(13, 15, 23, 0.96));
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+
+  .identity-loadout-card-compact {
+    gap: 0.7rem;
+    padding: 0.75rem;
+  }
+
+  .identity-loadout-banner {
+    display: flex;
+    min-height: 34px;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 999px;
+    padding: 0.45rem 0.8rem;
+    font-family: "Chakra Petch", monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: rgba(255,255,255,0.88);
+    background-image:
+      var(--identity-banner-art, none),
+      linear-gradient(90deg, rgba(184,255,0,0.14), rgba(255,255,255,0.04));
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+
+  .identity-loadout-banner-copy {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .identity-loadout-main {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.9rem;
+  }
+
+  .identity-loadout-avatar {
+    flex-shrink: 0;
+  }
+
+  .identity-loadout-copy {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .identity-loadout-row {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem;
+  }
+
+  .identity-loadout-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 1.08rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    color: white;
+  }
+
+  .identity-loadout-subtitle {
+    font-family: "Chakra Petch", monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: rgba(255,255,255,0.56);
+  }
+
+  .identity-loadout-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .identity-loadout-right {
+    flex-shrink: 0;
+  }
+
+  .cosmetic-preview-card,
+  .cosmetic-preview-theme,
+  .cosmetic-preview-banner,
+  .cosmetic-preview-frame,
+  .cosmetic-preview-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.1);
+    min-height: 54px;
+    min-width: 78px;
+    padding: 0.75rem;
+    font-family: "Chakra Petch", monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: rgba(255,255,255,0.88);
+    text-align: center;
+  }
+
+  .cosmetic-preview-card span,
+  .cosmetic-preview-theme span,
+  .cosmetic-preview-banner span {
+    position: relative;
+    z-index: 1;
+  }
+
+  .cosmetic-preview-emblem {
+    display: inline-flex;
+    min-height: 54px;
+    min-width: 54px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.1);
+    font-size: 1rem;
+    font-weight: 900;
+    color: white;
+  }
+
+  .cosmetic-preview-theme {
+    background:
+      var(--cosmetic-art, none),
+      radial-gradient(circle at top, rgba(255,255,255,0.08), transparent 55%),
+      linear-gradient(180deg, var(--theme-card-top), var(--theme-card-bottom));
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+
+  .cosmetic-preview-banner {
+    min-height: 44px;
+    border-radius: 999px;
+    background-image:
+      var(--cosmetic-art, none),
+      linear-gradient(90deg, rgba(184,255,0,0.14), rgba(255,255,255,0.04));
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+
+  .cosmetic-preview-frame {
+    padding: 0.3rem;
+  }
+
+  .cosmetic-preview-frame-shell {
+    position: relative;
+    display: flex;
+    width: 100%;
+    min-height: 72px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+  }
+
+  .cosmetic-preview-frame-core {
+    position: relative;
+    z-index: 1;
+    height: 42px;
+    width: 42px;
+    border-radius: 16px;
+    background:
+      linear-gradient(180deg, rgba(39, 57, 78, 0.72), rgba(8, 11, 18, 0.92));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  .cosmetic-preview-frame-art {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+    mix-blend-mode: screen;
+    opacity: 0.95;
+  }
+
+  .cosmetic-preview-card {
+    background-image:
+      var(--cosmetic-art, none),
+      linear-gradient(160deg, rgba(20, 24, 36, 0.96), rgba(13, 15, 23, 0.96));
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+
+  .store-preview-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+  }
+
+  .store-item-preview {
+    min-width: 84px;
+    min-height: 84px;
+    border-radius: 22px;
+  }
+
+  .store-loadout-preview {
+    min-height: 0;
+  }
+
+  .profile-cosmetic-preview {
+    min-width: 94px;
   }
 }
 

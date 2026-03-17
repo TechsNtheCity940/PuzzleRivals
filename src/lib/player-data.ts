@@ -32,6 +32,10 @@ type ProfileRow = {
   has_season_pass: boolean;
   theme_id: string | null;
   frame_id: string | null;
+  player_card_id: string | null;
+  banner_id: string | null;
+  emblem_id: string | null;
+  title_id: string | null;
   hint_balance: number;
   best_puzzle_type: string | null;
   worst_puzzle_type: string | null;
@@ -274,6 +278,10 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
     avatarId: profile.avatar_id ?? DEFAULT_AVATAR_ID,
     frameId: profile.frame_id ?? undefined,
     themeId: profile.theme_id ?? undefined,
+    playerCardId: profile.player_card_id ?? undefined,
+    bannerId: profile.banner_id ?? undefined,
+    emblemId: profile.emblem_id ?? undefined,
+    titleId: profile.title_id ?? undefined,
     hintBalance: profile.hint_balance,
     hasSeasonPass: profile.has_season_pass,
     vipExpiresAt: profile.vip_expires_at,

@@ -57,6 +57,10 @@ export interface BackendLobbyPlayer {
   rank: UserProfile["rank"];
   avatarId?: UserProfile["avatarId"];
   frameId?: string | null;
+  playerCardId?: string | null;
+  bannerId?: string | null;
+  emblemId?: string | null;
+  titleId?: string | null;
   playerCardName?: string | null;
   bannerName?: string | null;
   emblemName?: string | null;

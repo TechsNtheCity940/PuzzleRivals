@@ -22,6 +22,10 @@ type ProfileWalletRow = {
   has_season_pass: boolean;
   theme_id: string | null;
   frame_id: string | null;
+  player_card_id: string | null;
+  banner_id: string | null;
+  emblem_id: string | null;
+  title_id: string | null;
   hint_balance: number;
 };
 
@@ -65,7 +69,7 @@ export async function getActiveProduct(admin: SupabaseClient, productId: string)
 export async function getProfileWallet(admin: SupabaseClient, userId: string) {
   const { data, error } = await admin
     .from("profiles")
-    .select("id, coins, gems, puzzle_shards, rank_points, pass_xp, is_vip, vip_expires_at, has_season_pass, theme_id, frame_id, hint_balance")
+    .select("id, coins, gems, puzzle_shards, rank_points, pass_xp, is_vip, vip_expires_at, has_season_pass, theme_id, frame_id, player_card_id, banner_id, emblem_id, title_id, hint_balance")
     .eq("id", userId)
     .single();
 
@@ -130,6 +134,10 @@ export async function applyProductGrant(
   let hintBalance = profile.hint_balance;
   let themeId = profile.theme_id;
   let frameId = profile.frame_id;
+  let playerCardId = profile.player_card_id;
+  let bannerId = profile.banner_id;
+  let emblemId = profile.emblem_id;
+  let titleId = profile.title_id;
   let hasSeasonPass = profile.has_season_pass;
   let isVip = profile.is_vip;
   let vipExpiresAt = profile.vip_expires_at ? new Date(profile.vip_expires_at) : null;
@@ -146,6 +154,10 @@ export async function applyProductGrant(
     await insertInventoryItem(admin, userId, product.id, source);
     if (product.kind === "theme" && !themeId) themeId = product.id;
     if (product.kind === "frame" && !frameId) frameId = product.id;
+    if (product.kind === "player_card" && !playerCardId) playerCardId = product.id;
+    if (product.kind === "banner" && !bannerId) bannerId = product.id;
+    if (product.kind === "emblem" && !emblemId) emblemId = product.id;
+    if (product.kind === "title" && !titleId) titleId = product.id;
   }
 
   if (product.kind === "hint_pack") {
@@ -185,6 +197,10 @@ export async function applyProductGrant(
     hint_balance: hintBalance,
     theme_id: themeId,
     frame_id: frameId,
+    player_card_id: playerCardId,
+    banner_id: bannerId,
+    emblem_id: emblemId,
+    title_id: titleId,
     has_season_pass: hasSeasonPass,
     is_vip: isVip,
     vip_expires_at: vipExpiresAt ? vipExpiresAt.toISOString() : null,

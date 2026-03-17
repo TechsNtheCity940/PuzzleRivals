@@ -1,9 +1,11 @@
-import { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Bell, Sparkles } from "lucide-react";
+import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
 import StockAvatar from "@/components/profile/StockAvatar";
 import { Button } from "@/components/ui/button";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
+import { getThemeVisual } from "@/lib/cosmetics";
 import { useAuth } from "@/providers/AuthProvider";
 import BottomNav from "./BottomNav";
 
@@ -14,15 +16,21 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const { openSignIn, openSignUp } = useAuthDialog();
   const isMatchRoute = location.pathname.startsWith("/match");
   const hideHeader = isMatchRoute;
+  const theme = getThemeVisual(user?.themeId);
+  const themeVars = {
+    "--theme-shell-art": theme.shellArt ? `url("${theme.shellArt}")` : "none",
+    "--theme-board-art": theme.boardArt ? `url("${theme.boardArt}")` : "none",
+  } as CSSProperties;
 
   return (
-    <div className="app-shell bg-background">
+    <div className={`app-shell bg-background ${theme.shellClass}`} style={themeVars}>
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute inset-0 app-noise opacity-30" />
-        <div className="absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,_rgba(156,52,255,0.24),_transparent_56%)]" />
-        <div className="absolute right-[-8%] top-24 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute left-[-12%] top-1/3 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
-        <div className="absolute bottom-[-10%] right-[10%] h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
+        <div className="absolute inset-0 app-theme-shell-art opacity-35" />
+        <div className="absolute inset-x-0 top-0 h-72 app-theme-top-glow" />
+        <div className="absolute right-[-8%] top-24 h-80 w-80 rounded-full app-theme-orb-primary blur-3xl" />
+        <div className="absolute left-[-12%] top-1/3 h-96 w-96 rounded-full app-theme-orb-accent blur-3xl" />
+        <div className="absolute bottom-[-10%] right-[10%] h-80 w-80 rounded-full app-theme-orb-tertiary blur-3xl" />
       </div>
       {!hideHeader && (
         <header className="app-header safe-top">
@@ -60,12 +68,24 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   onClick={() => navigate("/profile")}
                   className="profile-badge interactive-halo"
                 >
-                  <StockAvatar avatarId={user?.avatarId} size="sm" />
-                  <div className="hidden min-w-0 sm:block">
-                    <p className="truncate text-sm font-black text-white/90">{user?.username ?? "Profile"}</p>
-                    <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-white/55">Account</p>
+                  <div className="hidden sm:block">
+                    <IdentityLoadoutCard
+                      username={user?.username ?? "Profile"}
+                      subtitle="Account"
+                      avatarId={user?.avatarId}
+                      frameId={user?.frameId}
+                      playerCardId={user?.playerCardId}
+                      bannerId={user?.bannerId}
+                      emblemId={user?.emblemId}
+                      titleId={user?.titleId}
+                      compact
+                      right={<Bell size={16} className="text-white/55" />}
+                      className="min-w-[280px]"
+                    />
                   </div>
-                  <Bell size={16} className="hidden text-white/55 sm:block" />
+                  <div className="sm:hidden">
+                    <StockAvatar avatarId={user?.avatarId} frameId={user?.frameId} size="sm" />
+                  </div>
                 </button>
               )}
             </div>

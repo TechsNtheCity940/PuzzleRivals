@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bell, KeyRound, Link2, Shield, Users } from "lucide-react";
+import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
+import CosmeticPreview from "@/components/cosmetics/CosmeticPreview";
 import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import StockAvatar from "@/components/profile/StockAvatar";
@@ -145,14 +147,17 @@ export default function ProfilePage() {
           subtitle={`${rankBand.label} - ELO ${user?.elo ?? 0}`}
           right={
             <div className="spotlight-panel flex items-center gap-4">
-              <StockAvatar avatarId={avatarId} size="md" />
-              <div className="min-w-0">
-                <p className="section-kicker">{isGuest ? "Guest" : "Saved"}</p>
-                <p className="truncate text-lg font-black">{user?.email ?? "Local mode"}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {user?.securityQuestionsConfigured ? "Recovery ready" : "Recovery not configured"}
-                </p>
-              </div>
+              <IdentityLoadoutCard
+                username={puzzleTag}
+                subtitle={user?.email ?? "Local mode"}
+                avatarId={avatarId}
+                frameId={user?.frameId}
+                playerCardId={user?.playerCardId}
+                bannerId={user?.bannerId}
+                emblemId={user?.emblemId}
+                titleId={user?.titleId}
+                compact
+              />
             </div>
           }
         />
@@ -168,7 +173,7 @@ export default function ProfilePage() {
               </div>
               <div className="grid gap-4 sm:grid-cols-[140px_1fr]">
                 <div className="command-panel-soft flex items-center justify-center p-4">
-                  <StockAvatar avatarId={avatarId} size="lg" />
+                  <StockAvatar avatarId={avatarId} frameId={user?.frameId} size="lg" />
                 </div>
                 <div className="section-stack">
                   <div>
@@ -190,6 +195,13 @@ export default function ProfilePage() {
                       <p className="hud-label">Weak Spot</p>
                       <p className="text-lg font-black text-primary">{worstPuzzleLabel}</p>
                     </div>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <CosmeticPreview kind="theme" productId={user?.themeId} className="profile-cosmetic-preview" />
+                    <CosmeticPreview kind="player_card" productId={user?.playerCardId} className="profile-cosmetic-preview" />
+                    <CosmeticPreview kind="banner" productId={user?.bannerId} className="profile-cosmetic-preview" />
+                    <CosmeticPreview kind="emblem" productId={user?.emblemId} className="profile-cosmetic-preview" />
+                    <CosmeticPreview kind="title" productId={user?.titleId} className="profile-cosmetic-preview" />
                   </div>
                 </div>
               </div>
@@ -283,7 +295,7 @@ export default function ProfilePage() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <StockAvatar avatarId={avatar.id} size="sm" />
+                      <StockAvatar avatarId={avatar.id} frameId={user?.frameId} size="sm" />
                       <div>
                         <p className="text-sm font-black">{avatar.label}</p>
                         <p className="text-xs text-muted-foreground">Identity card</p>

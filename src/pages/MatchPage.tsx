@@ -12,14 +12,14 @@ import {
   WifiOff,
 } from "lucide-react";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
+import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
 import PageHeader from "@/components/layout/PageHeader";
 import MatchPuzzleBoard from "@/components/match/MatchPuzzleBoard";
-import StockAvatar from "@/components/profile/StockAvatar";
 import { Button } from "@/components/ui/button";
 import { subscribeToLobby, supabaseApi } from "@/lib/api-client";
 import type { BackendLobby, BackendLobbyPlayer, MatchMode, PuzzleSubmission } from "@/lib/backend";
 import { getPuzzleHelpText, getPuzzleHintText, isRapidFirePuzzleType } from "@/lib/match-rules";
-import { DEFAULT_AVATAR_ID, getStockAvatar } from "@/lib/profile-customization";
+import { DEFAULT_AVATAR_ID } from "@/lib/profile-customization";
 import { getRankColor } from "@/lib/seed-data";
 import { isSupabaseConfigured, supabaseConfigErrorMessage } from "@/lib/supabase-client";
 import { cn } from "@/lib/utils";
@@ -68,9 +68,7 @@ function LobbySeat({
   seatLabel: string;
   isSelf: boolean;
 }) {
-  const avatar = getStockAvatar(player?.avatarId ?? DEFAULT_AVATAR_ID);
   const title = player?.titleName ?? (player?.isBot ? "Easy Bot" : `${player?.rank} rival`);
-  const cardName = player?.playerCardName ?? `${avatar.label} Card`;
   const bannerName = player?.bannerName ?? (player?.isBot ? "Training Banner" : "Arena Banner");
   const emblemName = player?.emblemName ?? (player?.isBot ? "Practice Emblem" : "Rank Emblem");
 
@@ -90,35 +88,36 @@ function LobbySeat({
       </div>
 
       <div className="match-seat-main">
-        <div className="match-seat-avatar-wrap">
-          {player ? (
-            <>
-              <StockAvatar avatarId={player.avatarId ?? DEFAULT_AVATAR_ID} size="md" className="match-seat-avatar" />
-              <div className="match-seat-avatar-ring" />
-            </>
-          ) : (
+        {player ? (
+          <IdentityLoadoutCard
+            username={`${player.username}${isSelf ? " (You)" : ""}`}
+            subtitle={`${seatLabel} - ${player.isBot ? "training rival" : "live profile synced"}`}
+            avatarId={player.avatarId ?? DEFAULT_AVATAR_ID}
+            frameId={player.frameId}
+            playerCardId={player.playerCardId}
+            bannerId={player.bannerId}
+            emblemId={player.emblemId}
+            titleId={player.titleId}
+            titleLabel={title}
+            bannerLabel={bannerName}
+            emblemLabel={emblemName}
+            className="match-seat-loadout"
+          />
+        ) : (
+          <div className="match-seat-search-state">
             <div className="match-seat-avatar-search">
               <ScanSearch size={24} />
             </div>
-          )}
-        </div>
-
-        <div className="match-seat-copy">
-          <div className="match-seat-name-row">
-            <p className="match-seat-name">
-              {player ? `${player.username}${isSelf ? " (You)" : ""}` : "Searching..."}
-            </p>
-            <span className="match-seat-title">{player ? title : "Open seat"}</span>
+            <div>
+              <p className="match-seat-name">Searching...</p>
+              <p className="match-seat-subtitle">{seatLabel} - waiting for challenger</p>
+              <div className="match-seat-meta">
+                <span className="match-seat-chip">Player card pending</span>
+                <span className="match-seat-chip">Emblem pending</span>
+              </div>
+            </div>
           </div>
-          <p className="match-seat-subtitle">
-            {seatLabel}
-            {player?.isBot ? " • training rival" : player ? " • live profile synced" : " • waiting for challenger"}
-          </p>
-          <div className="match-seat-meta">
-            <span className="match-seat-chip">{player ? cardName : "Player card pending"}</span>
-            <span className="match-seat-chip">{player ? emblemName : "Emblem pending"}</span>
-          </div>
-        </div>
+        )}
 
         <div className="match-seat-rank">
           <p className={cn("text-sm font-black", player ? getRankColor(player.rank) : "text-muted-foreground")}>

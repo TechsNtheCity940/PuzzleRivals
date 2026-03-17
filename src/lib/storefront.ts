@@ -28,6 +28,10 @@ type WalletRow = {
   vip_expires_at: string | null;
   theme_id: string | null;
   frame_id: string | null;
+  player_card_id: string | null;
+  banner_id: string | null;
+  emblem_id: string | null;
+  title_id: string | null;
 };
 
 export interface StorefrontWallet {
@@ -42,6 +46,10 @@ export interface StorefrontWallet {
   vipExpiresAt: string | null;
   themeId: string | null;
   frameId: string | null;
+  playerCardId: string | null;
+  bannerId: string | null;
+  emblemId: string | null;
+  titleId: string | null;
 }
 
 export interface StorefrontItem extends StoreItem {
@@ -98,6 +106,10 @@ function toWallet(profile?: UserProfile | null): StorefrontWallet | null {
     vipExpiresAt: profile.vipExpiresAt ?? null,
     themeId: profile.themeId ?? null,
     frameId: profile.frameId ?? null,
+    playerCardId: profile.playerCardId ?? null,
+    bannerId: profile.bannerId ?? null,
+    emblemId: profile.emblemId ?? null,
+    titleId: profile.titleId ?? null,
   };
 }
 
@@ -109,8 +121,19 @@ function getFallbackSnapshot(profile?: UserProfile | null): StorefrontSnapshot {
     isOwned:
       item.id === profile?.themeId ||
       item.id === profile?.frameId ||
+      item.id === profile?.playerCardId ||
+      item.id === profile?.bannerId ||
+      item.id === profile?.emblemId ||
+      item.id === profile?.titleId ||
       (item.category === "battle_pass" && Boolean(profile?.hasSeasonPass)) ||
       Boolean(item.isOwned),
+    isEquipped:
+      item.id === profile?.themeId ||
+      item.id === profile?.frameId ||
+      item.id === profile?.playerCardId ||
+      item.id === profile?.bannerId ||
+      item.id === profile?.emblemId ||
+      item.id === profile?.titleId,
   }));
 
   return {
@@ -142,6 +165,13 @@ function mapProduct(
     ownedIds.has(product.id) ||
     (kind === "battle_pass" && Boolean(wallet?.has_season_pass)) ||
     (kind === "vip" && Boolean(wallet?.is_vip));
+  const equipped =
+    product.id === wallet?.theme_id ||
+    product.id === wallet?.frame_id ||
+    product.id === wallet?.player_card_id ||
+    product.id === wallet?.banner_id ||
+    product.id === wallet?.emblem_id ||
+    product.id === wallet?.title_id;
 
   return {
     id: product.id,
@@ -154,6 +184,7 @@ function mapProduct(
     priceCoins: product.price_coins ?? undefined,
     priceGems: product.price_gems ?? undefined,
     isOwned: owned,
+    isEquipped: equipped,
     isFeatured: asBoolean(metadata.featured, false),
     collection: asString(metadata.collection) || undefined,
   };
@@ -190,7 +221,7 @@ export async function fetchStorefront(profile?: UserProfile | null): Promise<Sto
         .eq("user_id", profile.id),
       supabase
         .from("profiles")
-        .select("coins, gems, puzzle_shards, rank_points, pass_xp, hint_balance, has_season_pass, is_vip, vip_expires_at, theme_id, frame_id")
+        .select("coins, gems, puzzle_shards, rank_points, pass_xp, hint_balance, has_season_pass, is_vip, vip_expires_at, theme_id, frame_id, player_card_id, banner_id, emblem_id, title_id")
         .eq("id", profile.id)
         .single<WalletRow>(),
     ]);
@@ -223,6 +254,10 @@ export async function fetchStorefront(profile?: UserProfile | null): Promise<Sto
           vipExpiresAt: wallet.vip_expires_at,
           themeId: wallet.theme_id,
           frameId: wallet.frame_id,
+          playerCardId: wallet.player_card_id,
+          bannerId: wallet.banner_id,
+          emblemId: wallet.emblem_id,
+          titleId: wallet.title_id,
         }
       : null,
   };
@@ -230,6 +265,10 @@ export async function fetchStorefront(profile?: UserProfile | null): Promise<Sto
 
 export async function purchaseStoreItem(productId: string) {
   return invoke<{ ok: boolean }>("purchase-store-item", { productId });
+}
+
+export async function equipStoreItem(productId: string) {
+  return invoke<{ ok: boolean }>("equip-store-item", { productId });
 }
 
 export async function createPayPalCheckout(productId: string, returnPath: string) {

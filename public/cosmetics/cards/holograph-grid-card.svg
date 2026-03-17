@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="900" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#24103D"/>
+      <stop offset=".42" stop-color="#0A2435"/>
+      <stop offset="1" stop-color="#11131B"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#6DF6FF" stop-opacity=".4"/>
+      <stop offset=".54" stop-color="#FF49D2" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#C6FF00" stop-opacity=".16"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="520" rx="42" fill="url(#bg)"/>
+  <path d="M102 92H792M92 156H806M80 228H820M96 308H804M122 394H778" stroke="url(#beam)" stroke-opacity=".52" stroke-width="2"/>
+  <path d="M188 62V442M334 62V442M480 62V442M626 62V442M772 62V442" stroke="url(#beam)" stroke-opacity=".3" stroke-width="2"/>
+  <path d="M0 132L900 452" stroke="#6DF6FF" stroke-opacity=".18" stroke-width="12"/>
+  <path d="M0 422L900 102" stroke="#FF49D2" stroke-opacity=".14" stroke-width="12"/>
+  <rect x="72" y="354" width="286" height="90" rx="26" fill="#09111D" fill-opacity=".56" stroke="#C3F8FF" stroke-opacity=".22"/>
+</svg>

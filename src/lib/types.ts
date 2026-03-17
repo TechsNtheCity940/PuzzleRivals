@@ -71,6 +71,10 @@ export interface UserProfile {
   avatarUrl?: string;
   frameId?: string;
   themeId?: string;
+  playerCardId?: string;
+  bannerId?: string;
+  emblemId?: string;
+  titleId?: string;
   hintBalance?: number;
   hasSeasonPass?: boolean;
   vipExpiresAt?: string | null;
@@ -204,6 +208,7 @@ export interface StoreItem {
   priceUsd?: number;
   imageUrl?: string;
   isOwned?: boolean;
+  isEquipped?: boolean;
   isFeatured?: boolean;
   collection?: string;
 }

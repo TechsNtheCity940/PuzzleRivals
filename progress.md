@@ -67,3 +67,10 @@ Original prompt: for the store, i want both types of transactions, however we ne
 - Updated `src/lib/economy.ts`, `src/lib/types.ts`, and `src/pages/SeasonPage.tsx` so the season UI now reads real quest definitions/progress from Supabase when available and falls back cleanly when the hosted schema is missing or the user is a guest.
 - Verification: `npm run build`, `npm run build:server`, and `npm test` all pass after the live economy pass.
 - Required deploy step: push migration `20260317000016_live_economy_loop.sql` and redeploy the matchmaking functions so hosted matches start awarding the new economy resources and quest progress.
+- Current task: convert identity cosmetics from passive ownership into a real equipped loadout system used by queue cards and match presentation.
+- Added queue/arena polish in `src/pages/MatchPage.tsx`, `src/components/match/MatchPuzzleBoard.tsx`, `src/index.css`, `src/lib/backend.ts`, and `supabase/functions/_shared/matchmaking.ts` so pre-match seats now render as collectible roster cards and active puzzle boards fit more reliably inside the viewport without scroll.
+- Started the loadout phase with migration `20260317000017_identity_loadouts.sql`, adding `player_card_id`, `banner_id`, `emblem_id`, and `title_id` to profiles.
+- Added edge function `supabase/functions/equip-store-item/index.ts` plus store/profile model updates so owned identity items can be explicitly equipped instead of being inferred from arbitrary owned inventory order.
+- Updated `src/lib/storefront.ts`, `src/lib/player-data.ts`, and `supabase/functions/_shared/store.ts` so storefront snapshots expose `isEquipped` state, profile loads persist equipped identity selections, and first-time grants auto-fill empty loadout slots.
+- Verification: `npm run build`, `npm run build:server`, and `npm test` pass after the queue-fit pass and the initial loadout implementation.
+- Required deploy step for the loadout phase: push migration `20260317000017_identity_loadouts.sql` and deploy the new `equip-store-item` function before testing equipped cards/banners/emblems/titles against hosted Supabase.

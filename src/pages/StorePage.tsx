@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Crown, ShoppingBag } from "lucide-react";
+import { ChevronLeft, ChevronRight, Crown, ShoppingBag } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
+import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
+import CosmeticPreview from "@/components/cosmetics/CosmeticPreview";
 import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
+import { isRenderableCosmeticCategory } from "@/lib/cosmetics";
 import { STORE_TABS } from "@/lib/economy";
 import { useAuth } from "@/providers/AuthProvider";
 import { VIP_MEMBERSHIP, romanNumeral } from "@/lib/seed-data";
 import {
   capturePayPalCheckout,
   createPayPalCheckout,
+  equipStoreItem,
   fetchStorefront,
   purchaseStoreItem,
   type StorefrontItem,
@@ -25,6 +29,17 @@ function formatPrice(item: StorefrontItem) {
   if (item.priceGems) return `${item.priceGems} Gems`;
   if (item.priceCoins) return `${item.priceCoins.toLocaleString()} Coins`;
   return "Unavailable";
+}
+
+function isEquipable(item: StorefrontItem) {
+  return (
+    item.kind === "theme" ||
+    item.kind === "frame" ||
+    item.kind === "player_card" ||
+    item.kind === "banner" ||
+    item.kind === "emblem" ||
+    item.kind === "title"
+  );
 }
 
 function clearCheckoutParams(params: URLSearchParams, setParams: ReturnType<typeof useSearchParams>[1]) {
@@ -123,7 +138,7 @@ export default function StorePage() {
   const vip = snapshot.vipProduct;
   const vipButtonLabel = snapshot.wallet?.isVip ? "Extend VIP" : "Subscribe";
 
-  async function handlePurchase(item: StorefrontItem) {
+  async function handleItemAction(item: StorefrontItem) {
     if (!canSave) {
       toast.error("Sign in before making purchases.");
       return;
@@ -131,6 +146,14 @@ export default function StorePage() {
 
     setBusyProductId(item.id);
     try {
+      if (item.isOwned && isEquipable(item)) {
+        await equipStoreItem(item.id);
+        await refreshUser();
+        setSnapshot(await fetchStorefront(user));
+        toast.success(`${item.name} equipped.`);
+        return;
+      }
+
       if (item.priceUsd) {
         const response = await createPayPalCheckout(item.id, "/store");
         window.location.assign(response.approvalUrl);
@@ -213,18 +236,38 @@ export default function StorePage() {
                   <p className="section-kicker">Featured Drop</p>
                   <h2 className="section-title">Sharper boards, richer identity cards, cleaner sessions</h2>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <span className="segment-chip">Avatars</span>
-                  <span className="segment-chip">Frames</span>
-                  <span className="segment-chip">Themes</span>
+                <div className="store-preview-strip">
+                  <CosmeticPreview
+                    kind="theme"
+                    productId={snapshot.wallet?.themeId ?? snapshot.items.find((item) => item.category === "theme")?.id ?? null}
+                  />
+                  <CosmeticPreview
+                    kind="frame"
+                    productId={snapshot.wallet?.frameId ?? snapshot.items.find((item) => item.category === "frame")?.id ?? null}
+                  />
+                  <CosmeticPreview
+                    kind="player_card"
+                    productId={snapshot.wallet?.playerCardId ?? snapshot.items.find((item) => item.category === "player_card")?.id ?? null}
+                  />
                 </div>
+                <IdentityLoadoutCard
+                  username={user?.username ?? "Guest Player"}
+                  subtitle={snapshot.wallet?.isVip ? "VIP identity live" : "Equip cosmetics from the market"}
+                  avatarId={user?.avatarId}
+                  frameId={snapshot.wallet?.frameId ?? user?.frameId}
+                  playerCardId={snapshot.wallet?.playerCardId ?? user?.playerCardId}
+                  bannerId={snapshot.wallet?.bannerId ?? user?.bannerId}
+                  emblemId={snapshot.wallet?.emblemId ?? user?.emblemId}
+                  titleId={snapshot.wallet?.titleId ?? user?.titleId}
+                  className="store-loadout-preview"
+                />
               </div>
               <Button
                 variant="prestige"
                 size="xl"
                 className="w-full"
                 disabled={!vip || busyProductId === vip?.id}
-                onClick={() => vip && handlePurchase(vip)}
+                onClick={() => vip && handleItemAction(vip)}
               >
                 <Crown size={14} />
                 {busyProductId === vip?.id ? "Working..." : vipButtonLabel}
@@ -268,11 +311,21 @@ export default function StorePage() {
                   key={item.id}
                   title={item.name}
                   description={item.description}
+                  media={
+                    isRenderableCosmeticCategory(item.kind) ? (
+                      <CosmeticPreview kind={item.kind} productId={item.id} label={item.name} className="store-item-preview" />
+                    ) : undefined
+                  }
                   icon={ShoppingBag}
                   right={
                     item.isOwned ? (
-                      <div className="rounded-full bg-primary/12 p-2 text-primary">
-                        <Check size={14} />
+                      <div className="text-right">
+                        <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                          {item.isEquipped ? "Loadout" : "Owned"}
+                        </p>
+                        <p className="mt-1 text-xs font-black text-primary">
+                          {item.isEquipped ? "Equipped" : isEquipable(item) ? "Tap to equip" : "Collected"}
+                        </p>
                       </div>
                     ) : (
                       <div>
@@ -284,8 +337,8 @@ export default function StorePage() {
                     )
                   }
                   className="h-full"
-                  onClick={() => void handlePurchase(item)}
-                  disabled={isLoading || busyProductId === item.id || item.isOwned}
+                  onClick={() => void handleItemAction(item)}
+                  disabled={isLoading || busyProductId === item.id || (item.isOwned && !isEquipable(item))}
                 />
               ))}
             </div>
