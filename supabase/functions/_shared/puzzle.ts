@@ -1,3 +1,5 @@
+import { buildGeneratedQuizRounds } from "./match-quiz-content.ts";
+
 export type MatchPlayablePuzzleType =
   | "rotate_pipes"
   | "number_grid"
@@ -592,7 +594,7 @@ export function evaluatePuzzleSubmission(
       return clampProgress((correct / puzzle.targets.length) * 100);
     }
     case "riddle_choice": {
-      const rounds = buildQuizRounds(seed, RIDDLE_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("riddle_choice", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "wordle_guess": {
@@ -602,59 +604,59 @@ export function evaluatePuzzleSubmission(
       return clampProgress((correct / target.length) * 100);
     }
     case "chess_tactic": {
-      const rounds = buildQuizRounds(seed, CHESS_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("chess_tactic", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "checkers_tactic": {
-      const rounds = buildQuizRounds(seed, CHECKERS_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("checkers_tactic", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "logic_sequence": {
-      const rounds = buildQuizRounds(seed, LOGIC_SEQUENCE_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("logic_sequence", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "trivia_blitz": {
-      const rounds = buildQuizRounds(seed, TRIVIA_BLITZ_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("trivia_blitz", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "geography_quiz": {
-      const rounds = buildQuizRounds(seed, GEOGRAPHY_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("geography_quiz", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "science_quiz": {
-      const rounds = buildQuizRounds(seed, SCIENCE_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("science_quiz", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "math_race": {
-      const rounds = buildQuizRounds(seed, MATH_RACE_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("math_race", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "code_breaker": {
-      const rounds = buildQuizRounds(seed, CODE_BREAKER_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("code_breaker", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "analogies": {
-      const rounds = buildQuizRounds(seed, ANALOGIES_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("analogies", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "deduction_grid": {
-      const rounds = buildQuizRounds(seed, DEDUCTION_GRID_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("deduction_grid", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "chess_endgame": {
-      const rounds = buildQuizRounds(seed, CHESS_ENDGAME_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("chess_endgame", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "chess_opening": {
-      const rounds = buildQuizRounds(seed, CHESS_OPENING_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("chess_opening", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "chess_mate_net": {
-      const rounds = buildQuizRounds(seed, CHESS_MATE_NET_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("chess_mate_net", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "vocabulary_duel": {
-      const rounds = buildQuizRounds(seed, VOCABULARY_DUEL_BANK, Math.min(3, Math.max(2, difficulty - 1)));
+      const rounds = buildGeneratedQuizRounds("vocabulary_duel", seed, difficulty);
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
   }

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { BackendLobby, BackendLobbyPlayer, MatchMode } from "@/lib/backend";
@@ -26,6 +26,7 @@ const mockAuthState = vi.hoisted(() => ({
 
 const mockLobbyState = vi.hoisted(() => ({
   lobby: null as BackendLobby | null,
+  listener: null as ((lobby: BackendLobby) => void) | null,
 }));
 
 const mockAuthDialog = vi.hoisted(() => ({
@@ -51,7 +52,12 @@ vi.mock("@/lib/supabase-client", () => ({
 }));
 
 vi.mock("@/lib/api-client", () => ({
-  subscribeToLobby: () => () => undefined,
+  subscribeToLobby: (_lobbyId: string, onLobby: (lobby: BackendLobby) => void) => {
+    mockLobbyState.listener = onLobby;
+    return () => {
+      mockLobbyState.listener = null;
+    };
+  },
   supabaseApi: {
     joinLobby: vi.fn(async () => ({ lobby: mockLobbyState.lobby })),
     syncLobby: vi.fn(async () => ({ lobby: mockLobbyState.lobby })),
@@ -173,6 +179,7 @@ describe("MatchPage states", () => {
     mockFlags.isSupabaseConfigured = true;
     mockFlags.supabaseConfigErrorMessage = "Supabase missing";
     mockLobbyState.lobby = createLobby("filling");
+    mockLobbyState.listener = null;
     mockAuthState.value = {
       ...mockAuthState.value,
       isReady: true,
@@ -191,6 +198,7 @@ describe("MatchPage states", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     cleanup();
   });
 
@@ -267,5 +275,20 @@ describe("MatchPage states", () => {
     expect(await screen.findByText("Match Leaderboard")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /exit to dashboard/i })).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByText(/1st/i).length).toBeGreaterThan(0));
+  });
+
+  it("keeps the leaderboard pinned if sync briefly bounces the lobby state", async () => {
+    mockLobbyState.lobby = createLobby("intermission");
+
+    renderMatchPage();
+
+    expect(await screen.findByText("Match Leaderboard")).toBeInTheDocument();
+
+    await act(async () => {
+      mockLobbyState.listener?.(createLobby("ready"));
+    });
+
+    expect(screen.getByText("Match Leaderboard")).toBeInTheDocument();
+    expect(screen.queryByText("Puzzle Lock")).not.toBeInTheDocument();
   });
 });

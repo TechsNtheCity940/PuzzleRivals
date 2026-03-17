@@ -135,6 +135,7 @@ export default function MatchPage() {
   const [hintSaving, setHintSaving] = useState(false);
   const [solvePending, setSolvePending] = useState(false);
   const [exitPending, setExitPending] = useState(false);
+  const [resultsSnapshot, setResultsSnapshot] = useState<BackendLobby | null>(null);
 
   const readyTimeoutRef = useRef<number | null>(null);
   const progressTimeoutRef = useRef<number | null>(null);
@@ -155,6 +156,7 @@ export default function MatchPage() {
     setPracticeSolved(false);
     setHintUnlocked(false);
     setSolvePending(false);
+    setResultsSnapshot(null);
     readySentLobbyIdRef.current = null;
     completedRoundRef.current = null;
 
@@ -252,6 +254,13 @@ export default function MatchPage() {
   }, [lobby?.status]);
 
   useEffect(() => {
+    if (!lobby) return;
+    if ((lobby.status === "intermission" || lobby.status === "complete") && lobby.results?.standings?.length) {
+      setResultsSnapshot(lobby);
+    }
+  }, [lobby]);
+
+  useEffect(() => {
     setHintUnlocked(false);
   }, [lobby?.selection?.selectedAt]);
 
@@ -269,6 +278,20 @@ export default function MatchPage() {
     navigate("/play");
   }, [lobby, navigate, user]);
 
+  const activeResultsLobby = useMemo(() => {
+    if (lobby && (lobby.status === "intermission" || lobby.status === "complete")) {
+      return lobby;
+    }
+
+    if (!resultsSnapshot?.intermissionEndsAt) {
+      return null;
+    }
+
+    const endsAt = new Date(resultsSnapshot.intermissionEndsAt).getTime();
+    return clockNow <= endsAt + 750 ? resultsSnapshot : null;
+  }, [clockNow, lobby, resultsSnapshot]);
+
+  const resultsSourceLobby = activeResultsLobby ?? lobby;
   const selfPlayer = lobby?.players.find((player) => player.playerId === user?.id) ?? null;
   const selectionMeta = lobby?.selection?.meta ?? null;
   const rapidFire = lobby?.selection ? isRapidFirePuzzleType(lobby.selection.puzzleType) : false;
@@ -282,10 +305,15 @@ export default function MatchPage() {
   );
   const intermissionTimeLeft = Math.max(
     0,
-    Math.ceil(((lobby?.intermissionEndsAt ? new Date(lobby.intermissionEndsAt).getTime() : 0) - clockNow) / 1000),
+    Math.ceil(((resultsSourceLobby?.intermissionEndsAt ? new Date(resultsSourceLobby.intermissionEndsAt).getTime() : 0) - clockNow) / 1000),
   );
   const standings = useMemo(() => rankPlayers(lobby?.players ?? [], rapidFire), [lobby?.players, rapidFire]);
-  const leaderboard = lobby?.results?.standings ?? standings.map((player, index) => ({
+  const resultsRapidFire = resultsSourceLobby?.selection ? isRapidFirePuzzleType(resultsSourceLobby.selection.puzzleType) : rapidFire;
+  const resultsStandings = useMemo(
+    () => rankPlayers(resultsSourceLobby?.players ?? [], resultsRapidFire),
+    [resultsRapidFire, resultsSourceLobby?.players],
+  );
+  const leaderboard = resultsSourceLobby?.results?.standings ?? resultsStandings.map((player, index) => ({
     playerId: player.playerId,
     username: player.username,
     progress: player.progress,
@@ -297,6 +325,7 @@ export default function MatchPage() {
     isBot: player.isBot,
   }));
   const selfStanding = leaderboard.find((entry) => entry.playerId === user?.id) ?? null;
+  const resultsSelectionMeta = resultsSourceLobby?.selection?.meta ?? selectionMeta;
   const activeSeed = lobby?.status === "live"
     ? Number(selfPlayer?.currentSeed ?? lobby?.selection?.liveSeed ?? 0)
     : Number(lobby?.selection?.practiceSeed ?? 0);
@@ -551,14 +580,14 @@ export default function MatchPage() {
     return renderFullscreenArena("live");
   }
 
-  if (lobby.status === "intermission" || lobby.status === "complete") {
+  if (activeResultsLobby) {
     return (
       <div className="match-results-screen">
         <div className="match-results-shell">
           <div className="match-results-top">
             <div>
               <p className="font-hud text-[11px] uppercase tracking-[0.24em] text-primary">Match Leaderboard</p>
-              <h1 className="match-results-title">{selectionMeta?.label ?? "Round Complete"}</h1>
+              <h1 className="match-results-title">{resultsSelectionMeta?.label ?? "Round Complete"}</h1>
               <p className="match-results-subtitle">
                 Next match loads in {intermissionTimeLeft}s. Exit returns you to the dashboard.
               </p>
@@ -585,8 +614,8 @@ export default function MatchPage() {
                   {entry.playerId === user.id ? " (You)" : entry.isBot ? " [Bot]" : ""}
                 </span>
                 <span>{formatSolveTime(entry.solvedAtMs)}</span>
-                <span>{rapidFire ? entry.score : entry.progress}</span>
-                <span>{rapidFire ? entry.completions : entry.solvedAtMs !== null ? 1 : 0}</span>
+                <span>{resultsRapidFire ? entry.score : entry.progress}</span>
+                <span>{resultsRapidFire ? entry.completions : entry.solvedAtMs !== null ? 1 : 0}</span>
               </div>
             ))}
           </div>
@@ -598,7 +627,7 @@ export default function MatchPage() {
                 {selfStanding ? formatPlacement(selfStanding.rank) : "Complete"}
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
-                {rapidFire
+                {resultsRapidFire
                   ? `Fastest clear ${formatSolveTime(selfStanding?.solvedAtMs ?? null)} | ${selfStanding?.completions ?? 0} clears logged.`
                   : `Solve time ${formatSolveTime(selfStanding?.solvedAtMs ?? null)}.`}
               </p>

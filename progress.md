@@ -43,3 +43,11 @@ Original prompt: for the store, i want both types of transactions, however we ne
 - Verification: `npm run build`, `npm run build:server`, and `npm run test` all pass after the refactor.
 - Live smoke: after redeploying the updated Edge Functions and pushing the new migration to project `jikgzrzrubqezcfrzpdj`, a browser sign-in reached fullscreen practice and then advanced into fullscreen live matchmaking successfully.
 - Follow-up idea: the browser smoke did not play a full round to the 10-second leaderboard automatically, so if leaderboard timing or repeated-variation scoring feels off in manual testing, inspect `advanceLobbyState` and `submit-solve` together first.
+- Current task: stop quiz scrolling/repetition, expand question variety, and fix the intermission leaderboard flicker.
+- Added seeded quiz generators in `src/lib/match-quiz-content.ts` and `supabase/functions/_shared/match-quiz-content.ts` so quiz-style rounds now produce 4-5 prompts per board with a much larger deterministic pool instead of looping 3 fixed entries.
+- Wired `MatchPuzzleBoard` and the Supabase puzzle validator to the shared generator, keeping client prompts and backend answer validation aligned for live matches.
+- Tightened the fullscreen quiz board layout and changed the arena board alignment so the prompt/answer stack sits higher and avoids the extra scroll on shorter screens.
+- Pinned the intermission leaderboard in `src/pages/MatchPage.tsx` using a cached results snapshot so transient lobby updates do not bounce the UI away from the leaderboard every countdown tick.
+- Added regression coverage in `src/test/match-quiz-content.test.ts` and `src/test/match-page-states.test.tsx` for expanded quiz rounds and pinned leaderboard rendering.
+- Verification: `npm run build`, `npm run build:server`, and `npm test` pass after the quiz/leaderboard fixes.
+- Constraint: this pass improves on-demand seeded generation and puzzle-family variety, but there is still no live LLM provider wired into the repo; true model-generated puzzle content would need a configured AI service plus server-side generation/cache/validation rules.

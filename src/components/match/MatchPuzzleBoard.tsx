@@ -8,6 +8,7 @@ import {
 } from "@/lib/puzzle-engine";
 import type { MatchPlayablePuzzleType } from "@/lib/ai-puzzle-service";
 import type { PuzzleSubmission } from "@/lib/backend";
+import { buildGeneratedQuizRounds, type QuizPuzzleKind } from "@/lib/match-quiz-content";
 import { Button } from "@/components/ui/button";
 
 interface MatchPuzzleBoardProps {
@@ -65,29 +66,6 @@ interface MemoryGridPuzzle {
   size: number;
   targets: number[];
 }
-
-interface QuizRound {
-  prompt: string;
-  options: string[];
-  correctOption: number;
-}
-
-type QuizPuzzleKind =
-  | "riddle_choice"
-  | "chess_tactic"
-  | "checkers_tactic"
-  | "logic_sequence"
-  | "trivia_blitz"
-  | "geography_quiz"
-  | "science_quiz"
-  | "math_race"
-  | "code_breaker"
-  | "analogies"
-  | "deduction_grid"
-  | "chess_endgame"
-  | "chess_opening"
-  | "chess_mate_net"
-  | "vocabulary_duel";
 
 const WORD_BANK = [
   "BRAIN", "SPEED", "QUICK", "FLASH", "POWER", "SMART", "BLAZE", "STORM",
@@ -427,11 +405,6 @@ function buildMemoryGrid(seed: number, difficulty: number): MemoryGridPuzzle {
     size: 4,
     targets: rng.shuffle(Array.from({ length: 16 }, (_, index) => index)).slice(0, Math.min(7, Math.max(4, difficulty + 2))),
   };
-}
-
-function buildQuizRounds(seed: number, bank: QuizRound[], totalRounds: number) {
-  const rng = new SeededRandom(seed);
-  return rng.shuffle(bank).slice(0, totalRounds);
 }
 
 function buildWordle(seed: number) {
@@ -1152,12 +1125,11 @@ function MemoryGridBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
 
 function QuizScenarioBoard(
   props: Omit<MatchPuzzleBoardProps, "puzzleType"> & {
-    bank: QuizRound[];
     kind: QuizPuzzleKind;
     helper: string;
   },
 ) {
-  const [rounds] = useState(() => buildQuizRounds(props.seed, props.bank, Math.min(3, Math.max(2, props.difficulty - 1))));
+  const [rounds] = useState(() => buildGeneratedQuizRounds(props.kind, props.seed, props.difficulty));
   const [roundIndex, setRoundIndex] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [locked, setLocked] = useState<number | null>(null);
@@ -1192,23 +1164,23 @@ function QuizScenarioBoard(
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex w-full max-w-3xl flex-col gap-3 self-start">
       {props.isPractice && (
-        <p className="text-center font-hud text-sm text-muted-foreground">{props.helper}</p>
+        <p className="text-center font-hud text-xs leading-5 text-muted-foreground sm:text-sm">{props.helper}</p>
       )}
-      <div className="w-full rounded-[28px] bg-card/70 p-4">
+      <div className="w-full rounded-[28px] bg-card/70 p-4 sm:p-5">
         <p className="font-hud text-xs uppercase tracking-[0.18em] text-muted-foreground">
           Round {roundIndex + 1}/{rounds.length}
         </p>
-        <p className="mt-3 text-sm font-bold">{currentRound.prompt}</p>
+        <p className="mt-3 text-base font-bold leading-7 sm:text-[1.15rem]">{currentRound.prompt}</p>
       </div>
-      <div className="grid w-full gap-3">
+      <div className="grid w-full gap-2.5 sm:gap-3">
         {currentRound.options.map((option, optionIndex) => (
           <button
             key={option}
             onClick={() => handleAnswer(optionIndex)}
             disabled={props.disabled || locked !== null}
-            className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold ${
+            className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold leading-6 sm:px-5 sm:py-3.5 sm:text-base ${
               locked === optionIndex
                 ? optionIndex === currentRound.correctOption
                   ? "border-primary bg-primary/10"
@@ -1334,7 +1306,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return (
       <QuizScenarioBoard
         {...props}
-        bank={RIDDLE_BANK}
         kind="riddle_choice"
         helper="Read the riddle carefully and pick the strongest answer."
       />
@@ -1349,7 +1320,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return (
       <QuizScenarioBoard
         {...props}
-        bank={CHESS_BANK}
         kind="chess_tactic"
         helper="Choose the best tactical continuation from the listed moves."
       />
@@ -1360,7 +1330,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return (
       <QuizScenarioBoard
         {...props}
-        bank={LOGIC_SEQUENCE_BANK}
         kind="logic_sequence"
         helper="Read the pattern and choose the only answer that continues it cleanly."
       />
@@ -1371,7 +1340,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return (
       <QuizScenarioBoard
         {...props}
-        bank={TRIVIA_BLITZ_BANK}
         kind="trivia_blitz"
         helper="Move fast. These are broad knowledge questions built for speed."
       />
@@ -1382,7 +1350,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return (
       <QuizScenarioBoard
         {...props}
-        bank={GEOGRAPHY_BANK}
         kind="geography_quiz"
         helper="Pick the right capital, country, or landmark before the timer closes."
       />
@@ -1393,7 +1360,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return (
       <QuizScenarioBoard
         {...props}
-        bank={SCIENCE_BANK}
         kind="science_quiz"
         helper="Choose the right science or tech answer from the prompt."
       />
@@ -1404,7 +1370,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return (
       <QuizScenarioBoard
         {...props}
-        bank={MATH_RACE_BANK}
         kind="math_race"
         helper="Mental math only. Pick the correct answer before momentum drops."
       />
@@ -1415,7 +1380,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return (
       <QuizScenarioBoard
         {...props}
-        bank={CODE_BREAKER_BANK}
         kind="code_breaker"
         helper="Read the code rule and break the right combination."
       />
@@ -1426,7 +1390,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return (
       <QuizScenarioBoard
         {...props}
-        bank={ANALOGIES_BANK}
         kind="analogies"
         helper="Pick the option that completes the relationship best."
       />
@@ -1437,7 +1400,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return (
       <QuizScenarioBoard
         {...props}
-        bank={DEDUCTION_GRID_BANK}
         kind="deduction_grid"
         helper="Think through the clues and choose the only consistent answer."
       />
@@ -1448,7 +1410,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return (
       <QuizScenarioBoard
         {...props}
-        bank={CHESS_ENDGAME_BANK}
         kind="chess_endgame"
         helper="Choose the endgame plan that actually converts or saves the draw."
       />
@@ -1459,7 +1420,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return (
       <QuizScenarioBoard
         {...props}
-        bank={CHESS_OPENING_BANK}
         kind="chess_opening"
         helper="Choose the principled opening move that fits the position."
       />
@@ -1470,7 +1430,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return (
       <QuizScenarioBoard
         {...props}
-        bank={CHESS_MATE_NET_BANK}
         kind="chess_mate_net"
         helper="Look for the forcing move that creates an unavoidable mating net."
       />
@@ -1481,7 +1440,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return (
       <QuizScenarioBoard
         {...props}
-        bank={VOCABULARY_DUEL_BANK}
         kind="vocabulary_duel"
         helper="Pick the strongest synonym, meaning, or word fit."
       />
@@ -1491,7 +1449,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   return (
     <QuizScenarioBoard
       {...props}
-      bank={CHECKERS_BANK}
       kind="checkers_tactic"
       helper="Find the best capture or positional continuation in the checkers scenario."
     />
