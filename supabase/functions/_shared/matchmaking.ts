@@ -10,7 +10,7 @@ export async function getLobbySnapshot(lobbyId: string) {
       admin.from("lobbies").select("*").eq("id", lobbyId).maybeSingle(),
       admin
         .from("lobby_players")
-        .select("*, profiles!inner(id, username, rank, elo)")
+        .select("*, profiles!inner(id, username, rank, elo, avatar_id, frame_id)")
         .eq("lobby_id", lobbyId)
         .is("left_at", null)
         .order("seat_no", { ascending: true }),
@@ -36,14 +36,57 @@ export async function getLobbySnapshot(lobbyId: string) {
   if (botError) throw botError;
 
   const botIds = new Set((botRows ?? []).map((entry) => String(entry.user_id)));
+  const { data: inventoryRows, error: inventoryError } = playerIds.length > 0
+    ? await admin
+      .from("user_inventory")
+      .select("user_id, product_id, is_equipped, products!inner(id, kind, metadata)")
+      .in("user_id", playerIds)
+    : { data: [], error: null };
+
+  if (inventoryError) throw inventoryError;
+
+  const cosmeticsByUserId = new Map<string, {
+    playerCardName: string | null;
+    bannerName: string | null;
+    emblemName: string | null;
+    titleName: string | null;
+  }>();
+
+  for (const row of inventoryRows ?? []) {
+    const userId = String(row.user_id);
+    const product = Array.isArray(row.products) ? row.products[0] : row.products;
+    const metadata = (product?.metadata ?? {}) as Record<string, unknown>;
+    const name = typeof metadata.name === "string" ? metadata.name : null;
+    if (!product?.kind || !name) continue;
+
+    const bucket = cosmeticsByUserId.get(userId) ?? {
+      playerCardName: null,
+      bannerName: null,
+      emblemName: null,
+      titleName: null,
+    };
+
+    if (product.kind === "player_card" && !bucket.playerCardName) bucket.playerCardName = name;
+    if (product.kind === "banner" && !bucket.bannerName) bucket.bannerName = name;
+    if (product.kind === "emblem" && !bucket.emblemName) bucket.emblemName = name;
+    if (product.kind === "title" && !bucket.titleName) bucket.titleName = name;
+    cosmeticsByUserId.set(userId, bucket);
+  }
 
   const snapshotPlayers = (players ?? []).map((player) => {
     const result = resultMap.get(String(player.user_id));
+    const cosmetics = cosmeticsByUserId.get(String(player.user_id));
     return {
       playerId: player.user_id,
       username: player.profiles.username,
       elo: player.profiles.elo,
       rank: player.profiles.rank,
+      avatarId: player.profiles.avatar_id,
+      frameId: player.profiles.frame_id,
+      playerCardName: cosmetics?.playerCardName ?? null,
+      bannerName: cosmetics?.bannerName ?? null,
+      emblemName: cosmetics?.emblemName ?? null,
+      titleName: cosmetics?.titleName ?? null,
       isBot: botIds.has(String(player.user_id)),
       ready: player.is_ready,
       nextRoundVote: player.next_round_vote,

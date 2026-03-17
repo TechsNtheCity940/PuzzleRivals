@@ -537,12 +537,12 @@
 
   .match-immersive-screen,
   .match-results-screen {
-    @apply relative flex min-h-screen w-full items-start justify-center overflow-hidden px-4 py-4 md:px-6 md:py-6;
+    @apply relative flex h-[100dvh] min-h-[100dvh] w-full items-start justify-center overflow-hidden px-4 py-3 md:px-6 md:py-4;
   }
 
   .match-immersive-shell,
   .match-results-shell {
-    @apply relative z-10 flex min-h-[calc(100vh-2rem)] w-full max-w-6xl flex-col gap-4 rounded-[36px] border border-white/10 bg-[rgba(10,12,20,0.92)] p-4 shadow-[0_40px_120px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:min-h-[calc(100vh-3rem)] md:p-6;
+    @apply relative z-10 flex h-[calc(100dvh-1.5rem)] w-full max-w-6xl flex-col gap-3 overflow-hidden rounded-[36px] border border-white/10 bg-[rgba(10,12,20,0.92)] p-3 shadow-[0_40px_120px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:h-[calc(100dvh-2rem)] md:p-4;
   }
 
   .match-immersive-shell::before,
@@ -554,29 +554,30 @@
 
   .match-immersive-top,
   .match-results-top {
-    @apply relative z-10 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px];
+    @apply relative z-10 grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px];
   }
 
   .match-immersive-copy {
-    @apply rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,rgba(28,18,54,0.88),rgba(13,18,30,0.88))] p-5;
+    @apply rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,rgba(28,18,54,0.88),rgba(13,18,30,0.88))] px-5 py-4;
   }
 
   .match-immersive-title,
   .match-results-title {
-    @apply mt-2 font-display text-4xl font-black leading-[0.94] tracking-[-0.05em] text-white md:text-5xl;
+    font-size: clamp(2.4rem, 4.8vw, 4.1rem);
+    @apply mt-1 font-display font-black leading-[0.94] tracking-[-0.05em] text-white;
   }
 
   .match-immersive-help,
   .match-results-subtitle {
-    @apply mt-3 max-w-3xl text-sm leading-6 text-white/80 md:text-base;
+    @apply mt-2 max-w-3xl text-sm leading-5 text-white/80 md:text-[15px];
   }
 
   .match-immersive-rule {
-    @apply mt-3 font-hud text-[11px] uppercase tracking-[0.18em] text-primary;
+    @apply mt-2 font-hud text-[10px] uppercase tracking-[0.18em] text-primary;
   }
 
   .match-countdown-card {
-    @apply flex min-h-[132px] flex-col justify-center rounded-[28px] border border-white/10 bg-[rgba(16,18,28,0.92)] px-5 py-4 text-center shadow-[0_24px_60px_rgba(0,0,0,0.35)];
+    @apply flex min-h-[116px] flex-col justify-center rounded-[28px] border border-white/10 bg-[rgba(16,18,28,0.92)] px-4 py-3 text-center shadow-[0_24px_60px_rgba(0,0,0,0.35)];
   }
 
   .match-countdown-card-urgent {
@@ -584,7 +585,7 @@
   }
 
   .match-immersive-utility {
-    @apply relative z-10 flex flex-wrap items-start gap-3;
+    @apply relative z-10 flex flex-wrap items-start gap-2;
   }
 
   .match-hint-button {
@@ -600,7 +601,11 @@
   }
 
   .match-immersive-board {
-    @apply relative z-10 flex min-h-0 flex-1 items-start justify-center overflow-auto rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(34,44,72,0.55),rgba(9,10,16,0.92)_60%)] p-3 md:p-5;
+    @apply relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(34,44,72,0.55),rgba(9,10,16,0.92)_60%)] px-3 py-2 md:px-4 md:py-3;
+  }
+
+  .match-immersive-board > div {
+    @apply flex max-h-full w-full max-w-5xl flex-col items-center justify-center;
   }
 
   .match-results-table {
@@ -622,6 +627,145 @@
 
   .match-results-summary {
     @apply relative z-10 grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px];
+  }
+
+  .match-seat-card {
+    @apply relative overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(160deg,rgba(17,20,32,0.98),rgba(12,15,24,0.96))] shadow-[0_20px_55px_rgba(0,0,0,0.28)];
+  }
+
+  .match-seat-card::before {
+    content: "";
+    @apply pointer-events-none absolute inset-x-0 top-0 h-20;
+    background: linear-gradient(90deg, rgba(184,255,0,0.08), rgba(255,255,255,0.02), rgba(184,255,0,0.05));
+  }
+
+  .match-seat-card-active {
+    @apply border-primary/15;
+  }
+
+  .match-seat-card-self {
+    @apply border-primary/30 shadow-[0_30px_80px_rgba(163,230,53,0.12)];
+  }
+
+  .match-seat-banner {
+    @apply relative z-10 flex items-center justify-between gap-3 border-b border-white/10 px-5 py-3;
+  }
+
+  .match-seat-banner-label,
+  .match-seat-banner-status {
+    @apply font-hud text-[10px] uppercase tracking-[0.18em];
+  }
+
+  .match-seat-banner-label {
+    @apply truncate text-primary;
+  }
+
+  .match-seat-banner-status {
+    @apply text-white/45;
+  }
+
+  .match-seat-main {
+    @apply relative z-10 flex items-center gap-4 px-5 py-4;
+  }
+
+  .match-seat-avatar-wrap {
+    @apply relative shrink-0;
+  }
+
+  .match-seat-avatar {
+    @apply h-16 w-16 rounded-[22px];
+  }
+
+  .match-seat-avatar-ring {
+    @apply pointer-events-none absolute inset-[-8px] rounded-[28px] border border-primary/15;
+  }
+
+  .match-seat-avatar-search {
+    @apply flex h-16 w-16 items-center justify-center rounded-[22px] border border-white/10 bg-black/20 text-white/40;
+  }
+
+  .match-seat-copy {
+    @apply min-w-0 flex-1;
+  }
+
+  .match-seat-name-row {
+    @apply flex flex-wrap items-center gap-x-3 gap-y-1;
+  }
+
+  .match-seat-name {
+    @apply truncate text-xl font-black tracking-tight text-white;
+  }
+
+  .match-seat-title {
+    @apply rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 font-hud text-[10px] uppercase tracking-[0.16em] text-primary;
+  }
+
+  .match-seat-subtitle {
+    @apply mt-1 font-hud text-[10px] uppercase tracking-[0.18em] text-white/55;
+  }
+
+  .match-seat-meta {
+    @apply mt-3 flex flex-wrap gap-2;
+  }
+
+  .match-seat-chip {
+    @apply rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-white/70;
+  }
+
+  .match-seat-rank {
+    @apply flex shrink-0 flex-col items-end gap-2 text-right;
+  }
+
+  .match-seat-presence {
+    @apply flex h-9 w-9 items-center justify-center rounded-full border;
+  }
+
+  .match-seat-presence-ready {
+    @apply border-primary/20 bg-primary/10 text-primary;
+  }
+
+  .match-seat-presence-searching {
+    @apply border-white/10 bg-white/5 text-white/45;
+  }
+
+  .match-quiz-board {
+    @apply flex w-full max-w-3xl flex-col gap-2 self-center;
+  }
+
+  .match-quiz-round {
+    @apply w-full rounded-[24px] bg-card/70 px-4 py-3 sm:px-5 sm:py-4;
+  }
+
+  .match-quiz-prompt {
+    @apply mt-2 text-[15px] font-bold leading-6 sm:text-[1.05rem] sm:leading-7;
+  }
+
+  .match-quiz-options {
+    @apply grid w-full gap-2;
+  }
+
+  .match-quiz-option {
+    @apply rounded-[20px] border px-4 py-2.5 text-left text-sm font-semibold leading-5 sm:px-5 sm:py-3 sm:text-base sm:leading-6;
+  }
+
+  .match-pattern-board {
+    @apply gap-3;
+  }
+
+  .match-pattern-grid {
+    @apply p-2.5;
+  }
+
+  .match-pattern-cell {
+    @apply h-14 w-14 sm:h-16 sm:w-16;
+  }
+
+  .match-pattern-options {
+    @apply gap-2;
+  }
+
+  .match-pattern-option {
+    @apply h-14 w-14 sm:h-16 sm:w-16;
   }
 }
 
@@ -760,7 +904,7 @@
 
   .match-immersive-shell,
   .match-results-shell {
-    min-height: calc(100vh - 1.5rem);
+    height: calc(100dvh - 1.5rem);
     border-radius: 28px;
     padding: 0.9rem;
   }
@@ -778,7 +922,7 @@
 
   .match-immersive-title,
   .match-results-title {
-    font-size: 2.7rem;
+    font-size: 2.3rem;
   }
 
   .match-results-row {
@@ -786,5 +930,80 @@
     font-size: 12px;
     gap: 0.45rem;
     padding: 0.8rem 0.7rem;
+  }
+
+  .match-seat-main {
+    padding: 0.9rem;
+    gap: 0.75rem;
+  }
+
+  .match-seat-avatar,
+  .match-seat-avatar-search {
+    height: 3.5rem;
+    width: 3.5rem;
+  }
+
+  .match-seat-name {
+    font-size: 1rem;
+  }
+}
+
+@media (max-height: 900px) {
+  .match-immersive-shell,
+  .match-results-shell {
+    gap: 0.75rem;
+  }
+
+  .match-immersive-copy {
+    padding: 1rem 1.15rem;
+  }
+
+  .match-immersive-help,
+  .match-results-subtitle {
+    margin-top: 0.45rem;
+    line-height: 1.35rem;
+  }
+
+  .match-countdown-card {
+    min-height: 98px;
+    padding: 0.85rem 0.8rem;
+  }
+
+  .match-immersive-board {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .match-quiz-option {
+    padding-top: 0.65rem;
+    padding-bottom: 0.65rem;
+  }
+}
+
+@media (max-height: 760px) {
+  .match-immersive-screen,
+  .match-results-screen {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .match-immersive-shell,
+  .match-results-shell {
+    height: calc(100dvh - 1rem);
+    border-radius: 26px;
+    padding: 0.75rem;
+  }
+
+  .match-immersive-title,
+  .match-results-title {
+    font-size: clamp(1.9rem, 4vw, 2.8rem);
+  }
+
+  .match-immersive-rule {
+    margin-top: 0.35rem;
+  }
+
+  .match-countdown-card {
+    min-height: 86px;
   }
 }

@@ -55,6 +55,12 @@ export interface BackendLobbyPlayer {
   username: string;
   elo: number;
   rank: UserProfile["rank"];
+  avatarId?: UserProfile["avatarId"];
+  frameId?: string | null;
+  playerCardName?: string | null;
+  bannerName?: string | null;
+  emblemName?: string | null;
+  titleName?: string | null;
   isBot: boolean;
   ready: boolean;
   nextRoundVote: "continue" | "exit" | null;

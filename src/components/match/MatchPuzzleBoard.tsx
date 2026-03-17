@@ -668,20 +668,20 @@ function PatternMatchBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="match-pattern-board flex flex-col items-center">
       {props.isPractice && (
         <p className="text-center font-hud text-sm text-muted-foreground">
           Find the missing piece. Rows share shapes, columns share colors.
         </p>
       )}
-      <p className="font-hud text-xs uppercase tracking-[0.18em] text-muted-foreground">
+      <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
         Round {roundIndex + 1}/{rounds.length}
       </p>
-      <div className="grid grid-cols-3 gap-2 rounded-[28px] bg-card/70 p-3">
+      <div className="match-pattern-grid grid grid-cols-3 gap-2 rounded-[28px] bg-card/70">
         {currentRound.pattern.map((item, index) => (
           <div
             key={index}
-            className={`flex h-16 w-16 items-center justify-center rounded-2xl ${
+            className={`match-pattern-cell flex items-center justify-center rounded-2xl ${
               index === currentRound.missingIndex
                 ? "border border-dashed border-primary/40 bg-background/20"
                 : "bg-background/35"
@@ -691,13 +691,13 @@ function PatternMatchBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-4 gap-3">
+      <div className="match-pattern-options grid grid-cols-4">
         {currentRound.options.map((option, optionIndex) => (
           <button
             key={optionIndex}
             onClick={() => handleSelect(optionIndex)}
             disabled={props.disabled || selectedIndex !== null}
-            className={`flex h-16 w-16 items-center justify-center rounded-2xl border transition-all active:scale-95 ${
+            className={`match-pattern-option flex items-center justify-center rounded-2xl border transition-all active:scale-95 ${
               selectedIndex === optionIndex
                 ? feedback === "correct"
                   ? "border-primary bg-primary/10"
@@ -1164,23 +1164,23 @@ function QuizScenarioBoard(
   }
 
   return (
-    <div className="flex w-full max-w-3xl flex-col gap-3 self-start">
+    <div className="match-quiz-board">
       {props.isPractice && (
         <p className="text-center font-hud text-xs leading-5 text-muted-foreground sm:text-sm">{props.helper}</p>
       )}
-      <div className="w-full rounded-[28px] bg-card/70 p-4 sm:p-5">
-        <p className="font-hud text-xs uppercase tracking-[0.18em] text-muted-foreground">
+      <div className="match-quiz-round">
+        <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
           Round {roundIndex + 1}/{rounds.length}
         </p>
-        <p className="mt-3 text-base font-bold leading-7 sm:text-[1.15rem]">{currentRound.prompt}</p>
+        <p className="match-quiz-prompt">{currentRound.prompt}</p>
       </div>
-      <div className="grid w-full gap-2.5 sm:gap-3">
+      <div className="match-quiz-options">
         {currentRound.options.map((option, optionIndex) => (
           <button
             key={option}
             onClick={() => handleAnswer(optionIndex)}
             disabled={props.disabled || locked !== null}
-            className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold leading-6 sm:px-5 sm:py-3.5 sm:text-base ${
+            className={`match-quiz-option ${
               locked === optionIndex
                 ? optionIndex === currentRound.correctOption
                   ? "border-primary bg-primary/10"

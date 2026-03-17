@@ -14,10 +14,12 @@ import {
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import PageHeader from "@/components/layout/PageHeader";
 import MatchPuzzleBoard from "@/components/match/MatchPuzzleBoard";
+import StockAvatar from "@/components/profile/StockAvatar";
 import { Button } from "@/components/ui/button";
 import { subscribeToLobby, supabaseApi } from "@/lib/api-client";
 import type { BackendLobby, BackendLobbyPlayer, MatchMode, PuzzleSubmission } from "@/lib/backend";
 import { getPuzzleHelpText, getPuzzleHintText, isRapidFirePuzzleType } from "@/lib/match-rules";
+import { DEFAULT_AVATAR_ID, getStockAvatar } from "@/lib/profile-customization";
 import { getRankColor } from "@/lib/seed-data";
 import { isSupabaseConfigured, supabaseConfigErrorMessage } from "@/lib/supabase-client";
 import { cn } from "@/lib/utils";
@@ -66,31 +68,74 @@ function LobbySeat({
   seatLabel: string;
   isSelf: boolean;
 }) {
+  const avatar = getStockAvatar(player?.avatarId ?? DEFAULT_AVATAR_ID);
+  const title = player?.titleName ?? (player?.isBot ? "Easy Bot" : `${player?.rank} rival`);
+  const cardName = player?.playerCardName ?? `${avatar.label} Card`;
+  const bannerName = player?.bannerName ?? (player?.isBot ? "Training Banner" : "Arena Banner");
+  const emblemName = player?.emblemName ?? (player?.isBot ? "Practice Emblem" : "Rank Emblem");
+
   return (
-    <div className="command-panel-soft flex items-center gap-3 p-4">
-      <div
-        className={cn(
-          "flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border",
-          player ? "border-primary/20 bg-primary/10 text-primary" : "border-white/10 bg-black/20 text-white/40",
-        )}
-      >
-        {player ? <Users size={18} /> : <ScanSearch size={18} />}
+    <div
+      className={cn(
+        "match-seat-card",
+        player && "match-seat-card-active",
+        isSelf && "match-seat-card-self",
+      )}
+    >
+      <div className="match-seat-banner">
+        <span className="match-seat-banner-label">{player ? bannerName : "Queue Search"}</span>
+        <span className="match-seat-banner-status">
+          {player ? (player.ready ? "Ready" : "Locking") : "Scanning"}
+        </span>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-black text-white">
-          {player ? `${player.username}${isSelf ? " (You)" : ""}` : "Searching..."}
-        </p>
-        <p className="truncate font-hud text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          {seatLabel}
-        </p>
-      </div>
-      <div className="text-right">
-        <p className={cn("text-xs font-black", player ? getRankColor(player.rank) : "text-muted-foreground")}>
-          {player ? `${player.isBot ? "Easy bot" : player.rank}` : "Open"}
-        </p>
-        <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          {player ? `${player.elo} elo` : "waiting"}
-        </p>
+
+      <div className="match-seat-main">
+        <div className="match-seat-avatar-wrap">
+          {player ? (
+            <>
+              <StockAvatar avatarId={player.avatarId ?? DEFAULT_AVATAR_ID} size="md" className="match-seat-avatar" />
+              <div className="match-seat-avatar-ring" />
+            </>
+          ) : (
+            <div className="match-seat-avatar-search">
+              <ScanSearch size={24} />
+            </div>
+          )}
+        </div>
+
+        <div className="match-seat-copy">
+          <div className="match-seat-name-row">
+            <p className="match-seat-name">
+              {player ? `${player.username}${isSelf ? " (You)" : ""}` : "Searching..."}
+            </p>
+            <span className="match-seat-title">{player ? title : "Open seat"}</span>
+          </div>
+          <p className="match-seat-subtitle">
+            {seatLabel}
+            {player?.isBot ? " • training rival" : player ? " • live profile synced" : " • waiting for challenger"}
+          </p>
+          <div className="match-seat-meta">
+            <span className="match-seat-chip">{player ? cardName : "Player card pending"}</span>
+            <span className="match-seat-chip">{player ? emblemName : "Emblem pending"}</span>
+          </div>
+        </div>
+
+        <div className="match-seat-rank">
+          <p className={cn("text-sm font-black", player ? getRankColor(player.rank) : "text-muted-foreground")}>
+            {player ? `${player.isBot ? "Easy bot" : player.rank}` : "Open"}
+          </p>
+          <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            {player ? `${player.elo} elo` : "waiting"}
+          </p>
+          <div
+            className={cn(
+              "match-seat-presence",
+              player ? "match-seat-presence-ready" : "match-seat-presence-searching",
+            )}
+          >
+            {player ? <Users size={14} /> : <LoaderCircle size={14} className="animate-spin" />}
+          </div>
+        </div>
       </div>
     </div>
   );
