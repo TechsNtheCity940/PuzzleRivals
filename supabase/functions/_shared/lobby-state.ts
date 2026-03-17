@@ -7,6 +7,13 @@ import {
 } from "./puzzle-generator.ts";
 import { fillLobbyWithEasyBots, hydrateBotRoundProgress } from "./bots.ts";
 import { isRapidFirePuzzleType } from "./match-rules.ts";
+import {
+  calculateMatchReward,
+  evaluateQuestProgress,
+  getActiveQuestDefinitions,
+  getNextDailyWinState,
+  grantQuestItems,
+} from "./economy.ts";
 
 type LobbyRow = {
   id: string;
@@ -56,6 +63,16 @@ type PuzzleStatRow = {
   matches_played: number;
   wins: number;
   total_progress: number;
+};
+
+type PlayerStatsRow = {
+  wins: number;
+  losses: number;
+  matches_played: number;
+  win_streak: number;
+  best_streak: number;
+  last_daily_win_on: string | null;
+  daily_win_streak: number;
 };
 
 type HistoryResultRow = {
@@ -198,13 +215,6 @@ async function getLastLossByUserId(
   }
 
   return lastLossByUserId;
-}
-
-function getReward(rank: number) {
-  if (rank === 1) return { xp: 420, coins: 700, elo: 28 };
-  if (rank === 2) return { xp: 260, coins: 420, elo: 12 };
-  if (rank === 3) return { xp: 170, coins: 260, elo: -4 };
-  return { xp: 90, coins: 140, elo: -16 };
 }
 
 function getRankTier(elo: number) {
@@ -361,6 +371,7 @@ async function finalizeLiveRound(lobby: LobbyRow, activePlayers: PlayerRow[], ro
   }
 
   const admin = createAdminClient();
+  const activeQuests = await getActiveQuestDefinitions(admin);
   const resultMap = new Map(results.map((result) => [String(result.user_id), result]));
   const ranked = activePlayers
     .map((player) => {
@@ -384,37 +395,76 @@ async function finalizeLiveRound(lobby: LobbyRow, activePlayers: PlayerRow[], ro
     });
 
   for (const [index, entry] of ranked.entries()) {
-    const reward = getReward(index + 1);
     const rivalUserId = index === 0
       ? (ranked[1]?.userId ?? null)
       : (ranked[0]?.userId ?? null);
-    await admin.from("round_results").upsert({
-      round_id: round.id,
-      user_id: entry.userId,
-      live_progress: entry.liveProgress,
-      solved_at_ms: entry.solvedAtMs,
-      live_completions: entry.liveCompletions,
-      live_score: entry.liveScore,
-      placement: index + 1,
-      xp_delta: reward.xp,
-      coin_delta: reward.coins,
-      elo_delta: reward.elo,
-    });
 
     const [{ data: profile }, { data: stats }] = await Promise.all([
       admin.from("profiles").select("*").eq("id", entry.userId).single(),
-      admin.from("player_stats").select("*").eq("user_id", entry.userId).single(),
+      admin.from("player_stats").select("*").eq("user_id", entry.userId).single<PlayerStatsRow>(),
     ]);
 
     if (profile && stats) {
       const isWinner = index === 0;
-      const nextElo = Math.max(0, Number(profile.elo) + reward.elo);
       const nextWinStreak = isWinner ? Number(stats.win_streak) + 1 : 0;
+      const dailyWinState = isWinner
+        ? getNextDailyWinState(stats.last_daily_win_on, Number(stats.daily_win_streak ?? 0))
+        : {
+          lastDailyWinOn: stats.last_daily_win_on,
+          dailyWinStreak: Number(stats.daily_win_streak ?? 0),
+          isFirstDailyWin: false,
+        };
+      const reward = calculateMatchReward({
+        mode: lobby.mode,
+        placement: index + 1,
+        currentWinStreak: Number(stats.win_streak),
+        isFirstDailyWin: dailyWinState.isFirstDailyWin,
+        perfectSolve: entry.liveProgress >= 100 || entry.liveCompletions > 0,
+      });
+      const nextElo = Math.max(0, Number(profile.elo) + reward.elo);
+      const nextRankPoints = Math.max(0, Number(profile.rank_points ?? 0) + reward.rankPoints);
+      const nextPassXpBeforeQuests = Math.max(0, Number(profile.pass_xp ?? 0) + reward.passXp);
+      const questRewards = await evaluateQuestProgress({
+        admin,
+        userId: entry.userId,
+        quests: activeQuests,
+        mode: lobby.mode,
+        placement: index + 1,
+        liveProgress: entry.liveProgress,
+        liveCompletions: entry.liveCompletions,
+        rankPoints: nextRankPoints,
+        passXp: nextPassXpBeforeQuests,
+      });
+      const nextPassXp = nextPassXpBeforeQuests + questRewards.passXp;
+      const nextCoins = Number(profile.coins) + reward.coins + questRewards.coins;
+      const nextGems = Number(profile.gems ?? 0) + questRewards.gems;
+      const nextShards = Math.max(0, Number(profile.puzzle_shards ?? 0) + reward.shards + questRewards.shards);
+
+      await admin.from("round_results").upsert({
+        round_id: round.id,
+        user_id: entry.userId,
+        live_progress: entry.liveProgress,
+        solved_at_ms: entry.solvedAtMs,
+        live_completions: entry.liveCompletions,
+        live_score: entry.liveScore,
+        placement: index + 1,
+        xp_delta: reward.xp,
+        coin_delta: reward.coins,
+        elo_delta: reward.elo,
+        pass_xp_delta: reward.passXp,
+        rank_points_delta: reward.rankPoints,
+        shard_delta: reward.shards,
+      });
+
       await admin.from("profiles").update({
         elo: nextElo,
         rank: getRankTier(nextElo),
         xp: Number(profile.xp) + reward.xp,
-        coins: Number(profile.coins) + reward.coins,
+        coins: nextCoins,
+        gems: nextGems,
+        pass_xp: nextPassXp,
+        rank_points: nextRankPoints,
+        puzzle_shards: nextShards,
       }).eq("id", entry.userId);
       await admin.from("player_stats").update({
         wins: Number(stats.wins) + (isWinner ? 1 : 0),
@@ -422,7 +472,13 @@ async function finalizeLiveRound(lobby: LobbyRow, activePlayers: PlayerRow[], ro
         matches_played: Number(stats.matches_played) + 1,
         win_streak: nextWinStreak,
         best_streak: Math.max(Number(stats.best_streak), nextWinStreak),
+        last_daily_win_on: dailyWinState.lastDailyWinOn,
+        daily_win_streak: dailyWinState.dailyWinStreak,
       }).eq("user_id", entry.userId);
+
+      if (questRewards.itemIds.length > 0) {
+        await grantQuestItems(admin, entry.userId, questRewards.itemIds, "quest_reward");
+      }
     }
 
     const { data: puzzleStat } = await admin

@@ -6,9 +6,10 @@ import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
-import { DAILY_QUESTS, getPassTierProgress, SEASONAL_CHALLENGES, WEEKLY_QUESTS } from "@/lib/economy";
+import { getPassTierProgress, loadQuestSnapshot } from "@/lib/economy";
 import { CURRENT_SEASON } from "@/lib/seed-data";
 import { capturePayPalCheckout, createPayPalCheckout, fetchStorefront } from "@/lib/storefront";
+import type { QuestDefinition } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
 const BATTLE_PASS_PRODUCT_ID = "s_6";
 
@@ -24,6 +25,9 @@ export default function SeasonPage() {
   const [hasSeasonPass, setHasSeasonPass] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [dailyQuests, setDailyQuests] = useState<QuestDefinition[]>([]);
+  const [weeklyQuests, setWeeklyQuests] = useState<QuestDefinition[]>([]);
+  const [seasonalQuests, setSeasonalQuests] = useState<QuestDefinition[]>([]);
   const [params, setParams] = useSearchParams();
   const { user, canSave, refreshUser } = useAuth();
 
@@ -32,9 +36,15 @@ export default function SeasonPage() {
     async function load() {
       setIsLoading(true);
       try {
-        const snapshot = await fetchStorefront(user);
+        const [snapshot, quests] = await Promise.all([
+          fetchStorefront(user),
+          loadQuestSnapshot(user),
+        ]);
         if (active) {
           setHasSeasonPass(Boolean(snapshot.wallet?.hasSeasonPass));
+          setDailyQuests(quests.daily);
+          setWeeklyQuests(quests.weekly);
+          setSeasonalQuests(quests.seasonal);
         }
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to load season pass.");
@@ -245,7 +255,7 @@ export default function SeasonPage() {
               </div>
             </div>
             <div className="section-stack">
-              {[...DAILY_QUESTS, ...WEEKLY_QUESTS].slice(0, 4).map((quest) => (
+              {[...dailyQuests, ...weeklyQuests].slice(0, 4).map((quest) => (
                 <PuzzleTileButton
                   key={quest.id}
                   icon={Gift}
@@ -272,7 +282,7 @@ export default function SeasonPage() {
               </div>
             </div>
             <div className="section-stack">
-              {SEASONAL_CHALLENGES.map((quest) => (
+              {seasonalQuests.map((quest) => (
                 <PuzzleTileButton
                   key={quest.id}
                   icon={Lock}

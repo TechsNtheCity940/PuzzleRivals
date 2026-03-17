@@ -150,6 +150,10 @@ export interface MatchReward {
   xp: number;
   coins: number;
   gems?: number;
+  elo?: number;
+  passXp?: number;
+  rankPoints?: number;
+  shards?: number;
   streakBonus?: number;
 }
 

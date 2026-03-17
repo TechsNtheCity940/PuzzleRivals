@@ -60,3 +60,10 @@ Original prompt: for the store, i want both types of transactions, however we ne
 - Verification: `npm run build`, `npm run build:server`, and `npm test` all pass after the Phase 1 economy pass.
 - Important next step: deploy migration `20260317000015_economy_foundation.sql` and redeploy store functions before expecting hosted Supabase wallets/storefront reads to include the new resources.
 - Recommended Phase 2: move live match reward logic to a shared economy config and start persisting daily/weekly/seasonal quest progress plus pass XP/match payouts from actual results.
+- Current task: implement the live economy loop so real match results feed rewards and quests instead of only frontend placeholders.
+- Added migration `20260317000016_live_economy_loop.sql` for `round_results` economy deltas, player daily-win tracking, and the new `quest_definitions` / `player_quest_progress` tables with seeded daily, weekly, and seasonal quests.
+- Added shared Supabase reward/quest logic in `supabase/functions/_shared/economy.ts` so placement rewards, perfect-solve bonuses, first-daily-win bonuses, quest period keys, and quest reward grants are calculated in one backend module.
+- Wired `supabase/functions/_shared/lobby-state.ts` to use the new economy helper during live round finalization, persisting `pass_xp`, `rank_points`, `puzzle_shards`, quest progress, quest rewards, and the new round result deltas from actual completed matches.
+- Updated `src/lib/economy.ts`, `src/lib/types.ts`, and `src/pages/SeasonPage.tsx` so the season UI now reads real quest definitions/progress from Supabase when available and falls back cleanly when the hosted schema is missing or the user is a guest.
+- Verification: `npm run build`, `npm run build:server`, and `npm test` all pass after the live economy pass.
+- Required deploy step: push migration `20260317000016_live_economy_loop.sql` and redeploy the matchmaking functions so hosted matches start awarding the new economy resources and quest progress.
