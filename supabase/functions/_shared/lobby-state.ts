@@ -6,6 +6,7 @@ import {
   type PuzzleGeneratorPlayerProfile,
 } from "./puzzle-generator.ts";
 import { fillLobbyWithEasyBots, hydrateBotRoundProgress } from "./bots.ts";
+import { isRapidFirePuzzleType } from "./match-rules.ts";
 
 type LobbyRow = {
   id: string;
@@ -352,9 +353,12 @@ async function startLive(lobby: LobbyRow) {
 async function finalizeLiveRound(lobby: LobbyRow, activePlayers: PlayerRow[], round: RoundRow | null, results: Array<Record<string, unknown>>) {
   if (!round || lobby.status !== "live") return false;
 
-  const solvedPlayers = results.filter((result) => (result.live_progress as number | null) !== null && (result.live_progress as number) >= 100).length;
   const liveExpired = lobby.live_ends_at ? new Date(lobby.live_ends_at).getTime() <= Date.now() : false;
-  if (!liveExpired && solvedPlayers < activePlayers.length) return false;
+  const repeatable = isRapidFirePuzzleType(round.puzzle_type);
+  const solvedPlayers = results.filter((result) => (result.live_progress as number | null) !== null && (result.live_progress as number) >= 100).length;
+  if ((!repeatable && !liveExpired && solvedPlayers < activePlayers.length) || (repeatable && !liveExpired)) {
+    return false;
+  }
 
   const admin = createAdminClient();
   const resultMap = new Map(results.map((result) => [String(result.user_id), result]));
@@ -365,9 +369,13 @@ async function finalizeLiveRound(lobby: LobbyRow, activePlayers: PlayerRow[], ro
         userId: player.user_id,
         liveProgress: Number(entry?.live_progress ?? 0),
         solvedAtMs: entry?.solved_at_ms ? Number(entry.solved_at_ms) : null,
+        liveCompletions: Number(entry?.live_completions ?? (entry?.solved_at_ms ? 1 : 0)),
+        liveScore: Number(entry?.live_score ?? (entry?.solved_at_ms ? 100 : 0)),
       };
     })
     .sort((left, right) => {
+      if (repeatable && right.liveScore !== left.liveScore) return right.liveScore - left.liveScore;
+      if (repeatable && right.liveCompletions !== left.liveCompletions) return right.liveCompletions - left.liveCompletions;
       if (right.liveProgress !== left.liveProgress) return right.liveProgress - left.liveProgress;
       if (left.solvedAtMs === null && right.solvedAtMs === null) return 0;
       if (left.solvedAtMs === null) return 1;
@@ -385,6 +393,8 @@ async function finalizeLiveRound(lobby: LobbyRow, activePlayers: PlayerRow[], ro
       user_id: entry.userId,
       live_progress: entry.liveProgress,
       solved_at_ms: entry.solvedAtMs,
+      live_completions: entry.liveCompletions,
+      live_score: entry.liveScore,
       placement: index + 1,
       xp_delta: reward.xp,
       coin_delta: reward.coins,
@@ -492,16 +502,13 @@ async function resolveIntermission(lobby: LobbyRow, activePlayers: PlayerRow[]) 
   if (lobby.status !== "intermission") return false;
 
   const timedOut = lobby.intermission_ends_at ? new Date(lobby.intermission_ends_at).getTime() <= Date.now() : false;
-  const allContinue = activePlayers.length > 0 && activePlayers.every((player) => player.next_round_vote === "continue");
-  if (!timedOut && !allContinue) return false;
+  if (!timedOut) return false;
 
   const admin = createAdminClient();
 
-  if (timedOut) {
-    await admin.from("lobby_players").update({
-      left_at: new Date().toISOString(),
-    }).eq("lobby_id", lobby.id).is("left_at", null).is("next_round_vote", null);
-  }
+  await admin.from("lobby_players").update({
+    left_at: new Date().toISOString(),
+  }).eq("lobby_id", lobby.id).is("left_at", null).eq("next_round_vote", "exit");
 
   const { data: remainingPlayers } = await admin.from("lobby_players").select("*").eq("lobby_id", lobby.id).is("left_at", null);
   const activeCount = remainingPlayers?.length ?? 0;
@@ -520,9 +527,13 @@ async function resolveIntermission(lobby: LobbyRow, activePlayers: PlayerRow[]) 
     intermission_ends_at: null,
   }).eq("id", lobby.id);
 
-  if (activeCount >= lobby.max_players) {
-    const refreshed = await getLobbyState(lobby.id);
-    await ensureRoundSelection(refreshed.lobby!, refreshed.players);
+  const refreshed = await getLobbyState(lobby.id);
+  if (refreshed.lobby) {
+    await fillLobbyWithEasyBots(refreshed.lobby.id);
+    const refilled = await getLobbyState(lobby.id);
+    if (refilled.lobby && refilled.players.length >= refilled.lobby.max_players) {
+      await ensureRoundSelection(refilled.lobby, refilled.players);
+    }
   }
 
   return true;

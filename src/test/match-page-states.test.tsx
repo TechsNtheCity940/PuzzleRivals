@@ -19,6 +19,7 @@ const mockAuthState = vi.hoisted(() => ({
       email: "ace@example.com",
     },
     refreshUser: vi.fn().mockResolvedValue(undefined),
+    saveProfile: vi.fn().mockResolvedValue(undefined),
     canSave: true,
   },
 }));
@@ -78,6 +79,9 @@ function createPlayer(overrides: Partial<BackendLobbyPlayer> = {}): BackendLobby
     progress: 48,
     practiceProgress: 32,
     solvedAtMs: null,
+    completions: 0,
+    score: 0,
+    currentSeed: 34,
     pace: 1,
     ...overrides,
   };
@@ -129,6 +133,8 @@ function createLobby(status: BackendLobby["status"], overrides: Partial<BackendL
               progress: 100,
               solvedAtMs: 18300,
               rank: 1,
+              completions: 3,
+              score: 352,
               reward: { xp: 180, coins: 260, elo: 18 },
               isBot: false,
             },
@@ -138,10 +144,13 @@ function createLobby(status: BackendLobby["status"], overrides: Partial<BackendL
               progress: 84,
               solvedAtMs: null,
               rank: 2,
+              completions: 1,
+              score: 100,
               reward: { xp: 120, coins: 180, elo: -8 },
               isBot: false,
             },
           ],
+          rapidFire: true,
         }
       : null,
     ...overrides,
@@ -175,6 +184,7 @@ describe("MatchPage states", () => {
       },
       canSave: true,
       refreshUser: vi.fn().mockResolvedValue(undefined),
+      saveProfile: vi.fn().mockResolvedValue(undefined),
     };
     mockAuthDialog.openSignIn.mockReset();
     mockAuthDialog.openSignUp.mockReset();
@@ -217,7 +227,7 @@ describe("MatchPage states", () => {
     renderMatchPage();
 
     expect(await screen.findByText("Filling Lobby")).toBeInTheDocument();
-    expect(screen.getByText(/No manual puzzle vetoes/i)).toBeInTheDocument();
+    expect(screen.getByText(/The room launches into practice/i)).toBeInTheDocument();
   });
 
   it("renders ready state", async () => {
@@ -225,7 +235,7 @@ describe("MatchPage states", () => {
 
     renderMatchPage();
 
-    expect(await screen.findByText("Puzzle Locked")).toBeInTheDocument();
+    expect(await screen.findByText("Puzzle Lock")).toBeInTheDocument();
     expect(screen.getByText("Pattern Match")).toBeInTheDocument();
   });
 
@@ -235,7 +245,7 @@ describe("MatchPage states", () => {
     renderMatchPage();
 
     expect(await screen.findByText("Practice Timer")).toBeInTheDocument();
-    expect(screen.getByText("Training Surface")).toBeInTheDocument();
+    expect(screen.getByText("Practice Arena")).toBeInTheDocument();
     expect(screen.getByTestId("mock-match-board")).toBeInTheDocument();
   });
 
@@ -244,9 +254,9 @@ describe("MatchPage states", () => {
 
     renderMatchPage();
 
-    expect(await screen.findByText("Live Timer")).toBeInTheDocument();
-    expect(screen.getByText("Combat Surface")).toBeInTheDocument();
-    expect(screen.getByText("Score updates live")).toBeInTheDocument();
+    expect(await screen.findByText("Match Timer")).toBeInTheDocument();
+    expect(screen.getByText(/Live Arena - Rapid Fire/i)).toBeInTheDocument();
+    expect(screen.getByText(/Score 0 \| Clears 0/i)).toBeInTheDocument();
   });
 
   it("renders intermission state", async () => {
@@ -254,8 +264,8 @@ describe("MatchPage states", () => {
 
     renderMatchPage();
 
-    expect(await screen.findByText("Results Relay")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /next round/i })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText(/Round Summary/i)).toBeInTheDocument());
+    expect(await screen.findByText("Match Leaderboard")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /exit to dashboard/i })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText(/1st/i).length).toBeGreaterThan(0));
   });
 });

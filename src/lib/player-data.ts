@@ -308,6 +308,7 @@ export async function saveProfileToSupabase(user: UserProfile) {
   const { error } = await supabase.from("profiles").update({
     username: user.username,
     avatar_id: user.avatarId ?? DEFAULT_AVATAR_ID,
+    hint_balance: user.hintBalance ?? 0,
     facebook_handle: user.socialLinks.facebook?.trim() || null,
     tiktok_handle: user.socialLinks.tiktok?.trim() || null,
   }).eq("id", user.id);

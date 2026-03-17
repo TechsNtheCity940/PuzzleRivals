@@ -74,7 +74,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       )}
 
       <main
-        className={`relative mx-auto flex min-h-[calc(100vh-88px)] w-full flex-col ${
+        className={`relative mx-auto flex ${isMatchRoute ? "min-h-screen" : "min-h-[calc(100vh-88px)]"} w-full flex-col ${
           isMatchRoute ? "pb-0" : "pb-32"
         } ${hideHeader ? "" : "pt-4"}`}
       >

@@ -62,18 +62,24 @@ export interface BackendLobbyPlayer {
   progress: number;
   practiceProgress: number;
   solvedAtMs: number | null;
+  completions: number;
+  score: number;
+  currentSeed: number;
   pace: number;
   reward?: BackendLobbyReward;
 }
 
 export interface BackendLobbyResults {
   completedAt: string;
+  rapidFire: boolean;
   standings: Array<{
     playerId: string;
     username: string;
     progress: number;
     solvedAtMs: number | null;
     rank: number;
+    completions: number;
+    score: number;
     reward: BackendLobbyReward;
     isBot: boolean;
   }>;

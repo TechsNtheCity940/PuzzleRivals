@@ -15,11 +15,20 @@ Deno.serve(async (req) => {
     const { lobbyId, vote } = await req.json();
     const admin = createAdminClient();
 
-    const { error } = await admin.rpc("vote_next_round", {
-      p_user_id: user.id,
-      p_lobby_id: lobbyId,
-      p_vote: vote,
-    });
+    const payload: Record<string, unknown> = {
+      next_round_vote: vote,
+    };
+
+    if (vote === "exit") {
+      payload.left_at = new Date().toISOString();
+    }
+
+    const { error } = await admin
+      .from("lobby_players")
+      .update(payload)
+      .eq("lobby_id", lobbyId)
+      .eq("user_id", user.id)
+      .is("left_at", null);
 
     if (error) throw error;
 

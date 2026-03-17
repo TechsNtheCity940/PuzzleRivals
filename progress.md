@@ -34,3 +34,12 @@ Original prompt: for the store, i want both types of transactions, however we ne
 - Deployed `set-security-questions`, `get-security-questions`, and `reset-password-with-security-questions` again with JWT verification disabled at the gateway, relying on the function code to validate auth where required.
 - Added client-side function error parsing in `src/lib/auth-security.ts` so future edge-function failures surface the backend message instead of only `non-2xx status code`.
 - Retest against the linked project now passes end-to-end for signup, security-question save/load, password reset, and sign-in with the new password.
+- Current task: convert `/match` into a fullscreen arena flow with auto leaderboard cycling, hint access, and per-player rapid-fire puzzle variations.
+- Added remote migration `20260317000014_match_round_variants_and_scores.sql` for per-player live variant seed, score, completion count, and best solve tracking.
+- Reworked the Supabase match services so `submit-progress`, `submit-solve`, and `vote-next-round` now handle state directly in Edge Functions instead of relying on the old round RPCs.
+- Added shared rapid-fire rules in `supabase/functions/_shared/match-rules.ts`, updated bot simulation to cycle personal variants, and changed intermission to a fixed 10-second leaderboard countdown that only removes players who explicitly exit.
+- Rebuilt `src/pages/MatchPage.tsx` into a fullscreen practice/live arena with only puzzle, help copy, timer, and a hint button during active play, plus a dedicated leaderboard screen after each round.
+- Added frontend match helpers in `src/lib/match-rules.ts`, persisted hint usage through `saveProfileToSupabase`, and extended `BackendLobby` types plus match-state tests for score/completion payloads.
+- Verification: `npm run build`, `npm run build:server`, and `npm run test` all pass after the refactor.
+- Live smoke: after redeploying the updated Edge Functions and pushing the new migration to project `jikgzrzrubqezcfrzpdj`, a browser sign-in reached fullscreen practice and then advanced into fullscreen live matchmaking successfully.
+- Follow-up idea: the browser smoke did not play a full round to the 10-second leaderboard automatically, so if leaderboard timing or repeated-variation scoring feels off in manual testing, inspect `advanceLobbyState` and `submit-solve` together first.

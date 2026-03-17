@@ -1,4 +1,10 @@
 import { createAdminClient } from "./supabase.ts";
+import {
+  createVariantSeed,
+  getSolveScore,
+  isRapidFirePuzzleType,
+  RAPID_FIRE_CUTOFF_MS,
+} from "./match-rules.ts";
 
 type BotDefinition = {
   key: string;
@@ -24,10 +30,13 @@ type LobbyRow = {
   id: string;
   status: "filling" | "ready" | "practice" | "live" | "intermission" | "complete";
   max_players: number;
+  live_ends_at?: string | null;
 };
 
 type RoundRow = {
   id: string;
+  puzzle_type?: string;
+  live_seed?: number;
   status: "ready" | "practice" | "live" | "intermission" | "complete";
   practice_started_at: string | null;
   live_started_at: string | null;
@@ -44,6 +53,10 @@ type RoundResultRow = {
   practice_progress: number | null;
   live_progress: number | null;
   solved_at_ms: number | null;
+  live_completions?: number | null;
+  live_score?: number | null;
+  current_live_seed?: number | null;
+  current_variant_started_at_ms?: number | null;
 };
 
 const BOT_PASSWORD = "PuzzleRivalsBot!2026";
@@ -368,23 +381,64 @@ export async function hydrateBotRoundProgress(
 
     if (lobby.status === "live" && round.live_started_at) {
       const elapsedMs = Math.max(0, Date.now() - new Date(round.live_started_at).getTime());
-      const completionMs = Math.round(90000 * clamp(Number(bot.pace_factor) + variance, 0.84, 1.08));
-      const solvedAtMs = completionMs <= 90000 && elapsedMs >= completionMs ? completionMs : null;
-      const targetProgress = solvedAtMs !== null
-        ? 100
-        : Math.round(clamp(elapsedMs / 90000, 0, 1) * clamp(88 + variance * 100, 76, 96));
-
       const current = resultMap.get(bot.user_id);
-      const currentProgress = Number(current?.live_progress ?? 0);
-      const nextProgress = Math.max(currentProgress, targetProgress);
+      const repeatable = isRapidFirePuzzleType(round.puzzle_type ?? null);
 
-      if (nextProgress > currentProgress || (solvedAtMs !== null && current?.solved_at_ms === null)) {
-        updates.push({
-          round_id: round.id,
-          user_id: bot.user_id,
-          live_progress: nextProgress,
-          solved_at_ms: solvedAtMs,
-        });
+      if (repeatable && typeof round.live_seed === "number") {
+        const repeatWindowMs = Math.max(0, 90000 - RAPID_FIRE_CUTOFF_MS);
+        const cycleMs = Math.round(7000 * clamp(Number(bot.pace_factor) + variance, 0.82, 1.12));
+        const elapsedInsideWindow = Math.min(elapsedMs, repeatWindowMs);
+        const completedCycles = Math.floor(elapsedInsideWindow / cycleMs);
+        const variantStartedAtMs = Math.min(completedCycles * cycleMs, repeatWindowMs);
+        const cycleElapsedMs = Math.max(0, elapsedInsideWindow - variantStartedAtMs);
+        const currentProgress = Math.max(0, Number(current?.live_progress ?? 0));
+        const targetProgress = elapsedMs >= repeatWindowMs
+          ? currentProgress
+          : Math.round(clamp(cycleElapsedMs / cycleMs, 0, 1) * 100);
+        const bestSolveMs = completedCycles > 0 ? cycleMs : null;
+        const completionScore = completedCycles * getSolveScore(cycleMs);
+        const currentSeed = createVariantSeed(Number(round.live_seed), bot.user_id, completedCycles);
+
+        if (
+          targetProgress !== currentProgress ||
+          Number(current?.live_completions ?? 0) !== completedCycles ||
+          Number(current?.live_score ?? 0) !== completionScore ||
+          Number(current?.current_live_seed ?? 0) !== currentSeed ||
+          Number(current?.current_variant_started_at_ms ?? -1) !== variantStartedAtMs ||
+          (bestSolveMs !== null && current?.solved_at_ms === null)
+        ) {
+          updates.push({
+            round_id: round.id,
+            user_id: bot.user_id,
+            live_progress: targetProgress,
+            solved_at_ms: bestSolveMs,
+            live_completions: completedCycles,
+            live_score: completionScore,
+            current_live_seed: currentSeed,
+            current_variant_started_at_ms: variantStartedAtMs,
+          });
+        }
+      } else {
+        const completionMs = Math.round(90000 * clamp(Number(bot.pace_factor) + variance, 0.84, 1.08));
+        const solvedAtMs = completionMs <= 90000 && elapsedMs >= completionMs ? completionMs : null;
+        const targetProgress = solvedAtMs !== null
+          ? 100
+          : Math.round(clamp(elapsedMs / 90000, 0, 1) * clamp(88 + variance * 100, 76, 96));
+        const currentProgress = Number(current?.live_progress ?? 0);
+        const nextProgress = Math.max(currentProgress, targetProgress);
+
+        if (nextProgress > currentProgress || (solvedAtMs !== null && current?.solved_at_ms === null)) {
+          updates.push({
+            round_id: round.id,
+            user_id: bot.user_id,
+            live_progress: nextProgress,
+            solved_at_ms: solvedAtMs,
+            live_completions: solvedAtMs !== null ? 1 : 0,
+            live_score: solvedAtMs !== null ? 100 : 0,
+            current_live_seed: Number(round.live_seed ?? 0),
+            current_variant_started_at_ms: 0,
+          });
+        }
       }
     }
   }

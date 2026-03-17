@@ -1,26 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { motion } from "framer-motion";
 import {
   Clock3,
+  DoorOpen,
   Home,
+  Lightbulb,
   LoaderCircle,
-  RotateCcw,
   ScanSearch,
-  Share2,
-  Sparkles,
-  Trophy,
   UserRoundPlus,
   Users,
   WifiOff,
 } from "lucide-react";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
-import MatchPuzzleBoard from "@/components/match/MatchPuzzleBoard";
 import PageHeader from "@/components/layout/PageHeader";
-import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
+import MatchPuzzleBoard from "@/components/match/MatchPuzzleBoard";
 import { Button } from "@/components/ui/button";
 import { subscribeToLobby, supabaseApi } from "@/lib/api-client";
 import type { BackendLobby, BackendLobbyPlayer, MatchMode, PuzzleSubmission } from "@/lib/backend";
+import { getPuzzleHelpText, getPuzzleHintText, isRapidFirePuzzleType } from "@/lib/match-rules";
 import { getRankColor } from "@/lib/seed-data";
 import { isSupabaseConfigured, supabaseConfigErrorMessage } from "@/lib/supabase-client";
 import { cn } from "@/lib/utils";
@@ -41,8 +38,17 @@ function formatMode(mode: MatchMode) {
   return mode.charAt(0).toUpperCase() + mode.slice(1);
 }
 
-function rankPlayers(players: BackendLobbyPlayer[]) {
+function formatPlacement(rank: number) {
+  if (rank === 1) return "1st";
+  if (rank === 2) return "2nd";
+  if (rank === 3) return "3rd";
+  return `${rank}th`;
+}
+
+function rankPlayers(players: BackendLobbyPlayer[], rapidFire: boolean) {
   return [...players].sort((left, right) => {
+    if (rapidFire && right.score !== left.score) return right.score - left.score;
+    if (rapidFire && right.completions !== left.completions) return right.completions - left.completions;
     if (right.progress !== left.progress) return right.progress - left.progress;
     if (left.solvedAtMs === null && right.solvedAtMs === null) return 0;
     if (left.solvedAtMs === null) return 1;
@@ -51,116 +57,64 @@ function rankPlayers(players: BackendLobbyPlayer[]) {
   });
 }
 
-type StageTone = "queue" | "warning" | "practice" | "live" | "intermission";
-type ProgressTone = "self" | "rival" | "practice";
-
-function StageChip({ label, tone }: { label: string; tone: StageTone }) {
-  return <span className={cn("match-stage-chip", `match-stage-chip-${tone}`)}>{label}</span>;
+function LobbySeat({
+  player,
+  seatLabel,
+  isSelf,
+}: {
+  player: BackendLobbyPlayer | null;
+  seatLabel: string;
+  isSelf: boolean;
+}) {
+  return (
+    <div className="command-panel-soft flex items-center gap-3 p-4">
+      <div
+        className={cn(
+          "flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border",
+          player ? "border-primary/20 bg-primary/10 text-primary" : "border-white/10 bg-black/20 text-white/40",
+        )}
+      >
+        {player ? <Users size={18} /> : <ScanSearch size={18} />}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-black text-white">
+          {player ? `${player.username}${isSelf ? " (You)" : ""}` : "Searching..."}
+        </p>
+        <p className="truncate font-hud text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          {seatLabel}
+        </p>
+      </div>
+      <div className="text-right">
+        <p className={cn("text-xs font-black", player ? getRankColor(player.rank) : "text-muted-foreground")}>
+          {player ? `${player.isBot ? "Easy bot" : player.rank}` : "Open"}
+        </p>
+        <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          {player ? `${player.elo} elo` : "waiting"}
+        </p>
+      </div>
+    </div>
+  );
 }
 
-function TimerCluster({
+function CountdownCard({
   label,
   value,
-  tone,
   urgent = false,
 }: {
   label: string;
   value: string;
-  tone: StageTone;
   urgent?: boolean;
 }) {
   return (
-    <div className={cn("match-timer-cluster", `match-timer-cluster-${tone}`, urgent && "glow-threat")}>
-      <p className="font-hud text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
-      <div className="mt-1 flex items-center justify-center gap-2">
+    <div className={cn("match-countdown-card", urgent && "match-countdown-card-urgent")}>
+      <p className="font-hud text-[10px] uppercase tracking-[0.18em] text-white/55">{label}</p>
+      <div className="mt-2 flex items-center justify-center gap-2">
         <Clock3 size={16} className={urgent ? "text-destructive" : "text-primary"} />
-        <span className={cn("text-2xl font-black tracking-tight", urgent ? "text-destructive" : "text-white")}>{value}</span>
-      </div>
-    </div>
-  );
-}
-
-function CompactMetric({
-  label,
-  value,
-  accent = false,
-  className,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-  className?: string;
-}) {
-  return (
-    <div className={cn("compact-metric min-h-[66px]", className)}>
-      <span className="hud-label">{label}</span>
-      <span className={cn("text-sm font-black leading-tight", accent && "text-primary")}>{value}</span>
-    </div>
-  );
-}
-
-function ProgressLane({
-  label,
-  detail,
-  progress,
-  tone,
-  highlight = false,
-}: {
-  label: string;
-  detail: string;
-  progress: number;
-  tone: ProgressTone;
-  highlight?: boolean;
-}) {
-  const clampedProgress = Math.max(0, Math.min(100, Math.round(progress)));
-  return (
-    <div className={cn("rounded-[24px] border px-3 py-3", highlight ? "border-primary/18 bg-primary/10" : "border-white/10 bg-black/10")}>
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-black">{label}</p>
-          <p className="truncate font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{detail}</p>
-        </div>
-        <span className={cn("text-xs font-hud font-semibold uppercase tracking-[0.16em]", highlight ? "text-primary" : "text-muted-foreground")}>
-          {clampedProgress}%
+        <span className={cn("text-3xl font-black tracking-[-0.04em]", urgent ? "text-destructive" : "text-white")}>
+          {value}
         </span>
       </div>
-      <div className="match-progress-track">
-        <motion.div
-          className={cn("match-progress-fill", `match-progress-fill-${tone}`)}
-          animate={{ width: `${clampedProgress}%` }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-        />
-      </div>
     </div>
-  );
-}
-
-function QueuePlayerTile({
-  player,
-  slotLabel,
-  isSelf,
-}: {
-  player: BackendLobbyPlayer | null;
-  slotLabel: string;
-  isSelf: boolean;
-}) {
-  return (
-    <PuzzleTileButton
-      icon={player ? Users : ScanSearch}
-      title={player ? `${player.username}${isSelf ? " (You)" : ""}` : "Searching..."}
-      description={player ? `${player.isBot ? "Easy bot - " : ""}${player.rank.toUpperCase()} - ${player.elo} ELO` : "Open slot waiting for a rival"}
-      active={Boolean(player)}
-      disabled
-      right={
-        <div className="text-right">
-          <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{slotLabel}</p>
-          <p className={cn("text-xs font-black", player ? getRankColor(player.rank) : "text-muted-foreground")}>
-            {player ? "Locked" : "Standby"}
-          </p>
-        </div>
-      }
-      className={cn("min-h-[94px]", !player && "opacity-90")}
-    />
   );
 }
 
@@ -169,15 +123,18 @@ export default function MatchPage() {
   const navigate = useNavigate();
   const { openSignIn, openSignUp } = useAuthDialog();
   const mode = (params.get("mode") || "ranked") as MatchMode;
-  const { isReady, user, refreshUser, canSave } = useAuth();
+  const { isReady, user, refreshUser, canSave, saveProfile } = useAuth();
 
   const [lobby, setLobby] = useState<BackendLobby | null>(null);
   const [practiceSolved, setPracticeSolved] = useState(false);
   const [clockNow, setClockNow] = useState(Date.now());
-  const [optimisticProgress, setOptimisticProgress] = useState(0);
   const [rematchKey, setRematchKey] = useState(0);
-  const [votePending, setVotePending] = useState<"continue" | "exit" | null>(null);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
+  const [localHintBalance, setLocalHintBalance] = useState(0);
+  const [hintUnlocked, setHintUnlocked] = useState(false);
+  const [hintSaving, setHintSaving] = useState(false);
+  const [solvePending, setSolvePending] = useState(false);
+  const [exitPending, setExitPending] = useState(false);
 
   const readyTimeoutRef = useRef<number | null>(null);
   const progressTimeoutRef = useRef<number | null>(null);
@@ -186,13 +143,18 @@ export default function MatchPage() {
   const completedRoundRef = useRef<string | null>(null);
 
   useEffect(() => {
+    setLocalHintBalance(user?.hintBalance ?? 0);
+  }, [user?.hintBalance, user?.id]);
+
+  useEffect(() => {
     if (!isSupabaseConfigured || !canSave || !isReady || !user) return;
 
     let cancelled = false;
     setLobby(null);
     setLobbyError(null);
     setPracticeSolved(false);
-    setOptimisticProgress(0);
+    setHintUnlocked(false);
+    setSolvePending(false);
     readySentLobbyIdRef.current = null;
     completedRoundRef.current = null;
 
@@ -250,7 +212,7 @@ export default function MatchPage() {
           readySentLobbyIdRef.current = null;
           console.error("Failed to ready lobby", error);
         });
-    }, 2200);
+    }, 1200);
 
     return () => {
       if (readyTimeoutRef.current !== null) {
@@ -273,12 +235,13 @@ export default function MatchPage() {
     const completedAt = lobby?.results?.completedAt ?? null;
     if (!completedAt || completedRoundRef.current === completedAt) return;
     completedRoundRef.current = completedAt;
+    setHintUnlocked(false);
     void refreshUser();
   }, [lobby, refreshUser]);
 
   useEffect(() => {
     if (lobby?.status !== "live") {
-      setOptimisticProgress(0);
+      setSolvePending(false);
     }
   }, [lobby?.status]);
 
@@ -287,6 +250,10 @@ export default function MatchPage() {
       setPracticeSolved(false);
     }
   }, [lobby?.status]);
+
+  useEffect(() => {
+    setHintUnlocked(false);
+  }, [lobby?.selection?.selectedAt]);
 
   useEffect(() => {
     return () => {
@@ -303,13 +270,8 @@ export default function MatchPage() {
   }, [lobby, navigate, user]);
 
   const selfPlayer = lobby?.players.find((player) => player.playerId === user?.id) ?? null;
-  const rivals = useMemo(
-    () => lobby?.players.filter((player) => player.playerId !== user?.id) ?? [],
-    [lobby?.players, user?.id],
-  );
-  const standings = useMemo(() => rankPlayers(lobby?.players ?? []), [lobby?.players]);
-  const playerRank = standings.findIndex((player) => player.playerId === user?.id) + 1 || standings.length;
   const selectionMeta = lobby?.selection?.meta ?? null;
+  const rapidFire = lobby?.selection ? isRapidFirePuzzleType(lobby.selection.puzzleType) : false;
   const practiceTimeLeft = Math.max(
     0,
     Math.ceil(((lobby?.practiceEndsAt ? new Date(lobby.practiceEndsAt).getTime() : 0) - clockNow) / 1000),
@@ -322,13 +284,28 @@ export default function MatchPage() {
     0,
     Math.ceil(((lobby?.intermissionEndsAt ? new Date(lobby.intermissionEndsAt).getTime() : 0) - clockNow) / 1000),
   );
+  const standings = useMemo(() => rankPlayers(lobby?.players ?? [], rapidFire), [lobby?.players, rapidFire]);
+  const leaderboard = lobby?.results?.standings ?? standings.map((player, index) => ({
+    playerId: player.playerId,
+    username: player.username,
+    progress: player.progress,
+    solvedAtMs: player.solvedAtMs,
+    rank: index + 1,
+    completions: player.completions,
+    score: player.score,
+    reward: player.reward ?? { xp: 0, coins: 0, elo: 0 },
+    isBot: player.isBot,
+  }));
+  const selfStanding = leaderboard.find((entry) => entry.playerId === user?.id) ?? null;
+  const activeSeed = lobby?.status === "live"
+    ? Number(selfPlayer?.currentSeed ?? lobby?.selection?.liveSeed ?? 0)
+    : Number(lobby?.selection?.practiceSeed ?? 0);
+  const helpText = lobby?.selection ? getPuzzleHelpText(lobby.selection.puzzleType) : "";
+  const hintText = lobby?.selection ? getPuzzleHintText(lobby.selection.puzzleType) : "";
 
   function queueProgressSubmission(stage: "practice" | "live", submission: PuzzleSubmission, progress: number) {
     if (!lobby) return;
     lastSubmissionRef.current = submission;
-    if (stage === "live") {
-      setOptimisticProgress(progress);
-    }
 
     if (progressTimeoutRef.current !== null) {
       window.clearTimeout(progressTimeoutRef.current);
@@ -341,77 +318,151 @@ export default function MatchPage() {
         .catch((error) => {
           console.error("Failed to submit progress", error);
         });
-    }, 180);
+    }, 160);
   }
 
   function handleLiveSolve() {
-    if (!lobby || !lastSubmissionRef.current) return;
+    if (!lobby || !lastSubmissionRef.current || solvePending) return;
 
+    setSolvePending(true);
     void supabaseApi
       .submitSolve(lobby.id, "live", lastSubmissionRef.current)
       .then((response) => setLobby(response.lobby))
       .catch((error) => {
         console.error("Failed to submit solve", error);
+      })
+      .finally(() => {
+        setSolvePending(false);
       });
   }
 
-  async function submitNextRoundVote(vote: "continue" | "exit") {
-    if (!lobby) return;
-    setVotePending(vote);
+  async function handleHintUnlock() {
+    if (!user || hintUnlocked || localHintBalance <= 0 || hintSaving) return;
+
+    const nextBalance = Math.max(0, localHintBalance - 1);
+    setHintUnlocked(true);
+    setLocalHintBalance(nextBalance);
+    setHintSaving(true);
 
     try {
-      const response = await supabaseApi.voteNextRound(lobby.id, vote);
-      setLobby(response.lobby);
-
-      if (vote === "exit") {
-        navigate("/play");
-      }
+      await saveProfile({ hintBalance: nextBalance });
+    } catch (error) {
+      console.error("Failed to save hint balance", error);
     } finally {
-      setVotePending(null);
+      setHintSaving(false);
     }
   }
 
-  const screenShellClassName = "page-screen";
-  const screenStackClassName = "page-stack";
+  async function exitLobby() {
+    if (!lobby || exitPending) return;
+    setExitPending(true);
+
+    try {
+      await supabaseApi.voteNextRound(lobby.id, "exit");
+    } catch (error) {
+      console.error("Failed to exit lobby", error);
+    } finally {
+      navigate("/");
+    }
+  }
+
+  function renderFullscreenArena(stage: "practice" | "live") {
+    if (!lobby?.selection || !selfPlayer) {
+      return null;
+    }
+
+    const isPractice = stage === "practice";
+    const timeLeft = isPractice ? practiceTimeLeft : liveTimeLeft;
+    const disabled = isPractice ? false : solvePending || (!rapidFire && selfPlayer.solvedAtMs !== null) || timeLeft <= 0;
+    const liveScoreLine = rapidFire
+      ? `Score ${selfPlayer.score} | Clears ${selfPlayer.completions} | New personal boards stop rolling at 0:05.`
+      : selfPlayer.solvedAtMs !== null
+        ? `Solve locked at ${formatSolveTime(selfPlayer.solvedAtMs)}.`
+        : `First full solve wins tiebreaks.`;
+
+    return (
+      <div className="match-immersive-screen">
+        <div className="match-immersive-shell">
+          <div className="match-immersive-top">
+            <div className="match-immersive-copy">
+              <p className="font-hud text-[11px] uppercase tracking-[0.24em] text-primary">
+                {isPractice ? "Practice Arena" : rapidFire ? "Live Arena - Rapid Fire" : "Live Arena"}
+              </p>
+              <h1 className="match-immersive-title">{selectionMeta?.label}</h1>
+              <p className="match-immersive-help">{helpText}</p>
+              <p className="match-immersive-rule">
+                {isPractice
+                  ? practiceSolved
+                    ? "Practice clear recorded. Stay sharp for the live seed."
+                    : "Use practice to learn the rule. The live match uses the same type with a fresh layout."
+                  : liveScoreLine}
+              </p>
+            </div>
+            <CountdownCard
+              label={isPractice ? "Practice Timer" : "Match Timer"}
+              value={formatTime(timeLeft)}
+              urgent={isPractice ? timeLeft <= 3 : timeLeft <= 10}
+            />
+          </div>
+
+          <div className="match-immersive-utility">
+            {localHintBalance > 0 ? (
+              <button
+                type="button"
+                onClick={() => void handleHintUnlock()}
+                disabled={hintUnlocked || hintSaving}
+                className={cn("match-hint-button", hintUnlocked && "match-hint-button-active")}
+              >
+                <Lightbulb size={18} />
+                <span>
+                  {hintUnlocked ? "Hint Unlocked" : `Use Hint (${localHintBalance})`}
+                </span>
+              </button>
+            ) : null}
+            {hintUnlocked ? <div className="match-hint-panel">{hintText}</div> : null}
+          </div>
+
+          <div className="match-immersive-board">
+            <MatchPuzzleBoard
+              key={`${stage}-${activeSeed}`}
+              puzzleType={lobby.selection.puzzleType}
+              seed={activeSeed}
+              difficulty={lobby.selection.difficulty}
+              isPractice={isPractice}
+              disabled={disabled}
+              onProgress={() => undefined}
+              onStateChange={(submission, progress) => queueProgressSubmission(stage, submission, progress)}
+              onSolve={isPractice ? () => setPracticeSolved(true) : handleLiveSolve}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!isSupabaseConfigured) {
     return (
-      <div className={screenShellClassName}>
-        <div className={screenStackClassName}>
+      <div className="page-screen">
+        <div className="page-stack">
           <PageHeader
             eyebrow="Arena Uplink"
             title="Backend Required"
             subtitle="Local mock mode cannot host matchmaking sessions."
-            right={<StageChip label="Offline" tone="warning" />}
           />
-
-          <section className="command-panel flex min-h-0 flex-1 flex-col justify-between gap-3 p-3">
-            <div className="grid gap-3 sm:grid-cols-[1.15fr_0.85fr]">
-              <div className="command-panel-soft flex items-start gap-3 p-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-destructive/30 bg-destructive/10 text-destructive">
-                  <WifiOff size={20} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-black">Match service unavailable</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{supabaseConfigErrorMessage}</p>
-                </div>
+          <section className="command-panel flex flex-col gap-4 p-5">
+            <div className="command-panel-soft flex items-start gap-3 p-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-destructive/30 bg-destructive/10 text-destructive">
+                <WifiOff size={20} />
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <CompactMetric label="Queue" value="Disabled" />
-                <CompactMetric label="Mode" value={formatMode(mode)} accent />
+              <div className="min-w-0">
+                <p className="text-sm font-black">Match service unavailable</p>
+                <p className="mt-1 text-sm text-muted-foreground">{supabaseConfigErrorMessage}</p>
               </div>
             </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Button onClick={() => navigate("/play")} variant="play" size="lg" className="w-full">
-                <Home size={16} />
-                Back to Play
-              </Button>
-              <div className="command-panel-soft flex items-center justify-center px-4 py-3 text-center text-sm text-muted-foreground">
-                Restore the Supabase keys to bring ranked matchmaking back online.
-              </div>
-            </div>
+            <Button onClick={() => navigate("/play")} variant="outline" size="lg" className="w-full">
+              <Home size={16} />
+              Back to Play
+            </Button>
           </section>
         </div>
       </div>
@@ -420,47 +471,24 @@ export default function MatchPage() {
 
   if (!canSave) {
     return (
-      <div className={screenShellClassName}>
-        <div className={screenStackClassName}>
+      <div className="page-screen">
+        <div className="page-stack">
           <PageHeader
             eyebrow="Account Deck"
             title="Account Required"
-            subtitle="Guest sessions can browse the arena, but ranked match results only persist to a saved account."
-            right={<StageChip label="Locked" tone="warning" />}
+            subtitle="Guest sessions can browse the arena, but ranked results only persist to a saved account."
           />
-
-          <section className="command-panel flex min-h-0 flex-1 flex-col justify-between gap-3 p-3">
-            <div className="grid gap-3 sm:grid-cols-[1.15fr_0.85fr]">
-              <div className="command-panel-soft flex items-start gap-3 p-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-primary/20 bg-primary/10 text-primary">
-                  <UserRoundPlus size={20} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-black">Ranked command deck is account-only</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Sign in or create an account, then return here to queue live matches, save ELO changes, and track puzzle performance.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <CompactMetric label="Queue" value={formatMode(mode)} accent />
-                <CompactMetric label="Rewards" value="Saved" />
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Button onClick={openSignUp} variant="play" size="lg" className="w-full">
-                Create Account
-              </Button>
-              <Button onClick={openSignIn} variant="outline" size="lg" className="w-full">
-                Sign In
-              </Button>
-              <Button onClick={() => navigate("/play")} variant="outline" size="lg" className="w-full">
-                <Home size={16} />
-                Back
-              </Button>
-            </div>
+          <section className="command-panel grid gap-3 p-5 sm:grid-cols-3">
+            <Button onClick={openSignUp} variant="play" size="lg" className="w-full">
+              Create Account
+            </Button>
+            <Button onClick={openSignIn} variant="outline" size="lg" className="w-full">
+              Sign In
+            </Button>
+            <Button onClick={() => navigate("/play")} variant="outline" size="lg" className="w-full">
+              <UserRoundPlus size={16} />
+              Back
+            </Button>
           </section>
         </div>
       </div>
@@ -469,19 +497,17 @@ export default function MatchPage() {
 
   if (!isReady || !user || !lobby) {
     return (
-      <div className={screenShellClassName}>
-        <div className={screenStackClassName}>
+      <div className="page-screen">
+        <div className="page-stack">
           <PageHeader
             eyebrow="Arena Sync"
             title="Preparing Session"
-            subtitle="Linking account, queue, and match telemetry before the deck comes online."
-            right={<StageChip label="Connecting" tone="queue" />}
+            subtitle="Linking account, queue, and round telemetry."
           />
-
-          <section className="command-panel flex min-h-0 flex-1 flex-col justify-center gap-3 p-3">
+          <section className="command-panel flex min-h-[320px] items-center justify-center p-5">
             {lobbyError ? (
-              <div className="command-panel-soft flex flex-col gap-4 p-6 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-destructive/25 bg-destructive/10 text-destructive glow-threat">
+              <div className="command-panel-soft flex max-w-xl flex-col gap-4 p-6 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-destructive/25 bg-destructive/10 text-destructive">
                   <WifiOff size={22} />
                 </div>
                 <div>
@@ -500,12 +526,14 @@ export default function MatchPage() {
               </div>
             ) : (
               <div className="command-panel-soft flex flex-col items-center gap-3 p-6 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary glow-primary">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
                   <LoaderCircle size={24} className="animate-spin" />
                 </div>
                 <div>
                   <p className="text-lg font-black">Command deck booting</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Reserving your seat in the {formatMode(mode)} arena.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Reserving your seat in the {formatMode(mode)} arena.
+                  </p>
                 </div>
               </div>
             )}
@@ -515,377 +543,121 @@ export default function MatchPage() {
     );
   }
 
+  if (lobby.status === "practice") {
+    return renderFullscreenArena("practice");
+  }
+
+  if (lobby.status === "live") {
+    return renderFullscreenArena("live");
+  }
+
+  if (lobby.status === "intermission" || lobby.status === "complete") {
+    return (
+      <div className="match-results-screen">
+        <div className="match-results-shell">
+          <div className="match-results-top">
+            <div>
+              <p className="font-hud text-[11px] uppercase tracking-[0.24em] text-primary">Match Leaderboard</p>
+              <h1 className="match-results-title">{selectionMeta?.label ?? "Round Complete"}</h1>
+              <p className="match-results-subtitle">
+                Next match loads in {intermissionTimeLeft}s. Exit returns you to the dashboard.
+              </p>
+            </div>
+            <CountdownCard label="Next Match" value={`${intermissionTimeLeft}s`} urgent={intermissionTimeLeft <= 3} />
+          </div>
+
+          <div className="match-results-table">
+            <div className="match-results-row match-results-head">
+              <span>Place</span>
+              <span>Player</span>
+              <span>Solve Time</span>
+              <span>Score</span>
+              <span>Clears</span>
+            </div>
+            {leaderboard.slice(0, 4).map((entry) => (
+              <div
+                key={entry.playerId}
+                className={cn("match-results-row", entry.playerId === user.id && "match-results-row-self")}
+              >
+                <span className="font-black text-primary">{formatPlacement(entry.rank)}</span>
+                <span className="truncate">
+                  {entry.username}
+                  {entry.playerId === user.id ? " (You)" : entry.isBot ? " [Bot]" : ""}
+                </span>
+                <span>{formatSolveTime(entry.solvedAtMs)}</span>
+                <span>{rapidFire ? entry.score : entry.progress}</span>
+                <span>{rapidFire ? entry.completions : entry.solvedAtMs !== null ? 1 : 0}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="match-results-summary">
+            <div className="command-panel-soft p-4">
+              <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">Your Finish</p>
+              <p className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">
+                {selfStanding ? formatPlacement(selfStanding.rank) : "Complete"}
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {rapidFire
+                  ? `Fastest clear ${formatSolveTime(selfStanding?.solvedAtMs ?? null)} | ${selfStanding?.completions ?? 0} clears logged.`
+                  : `Solve time ${formatSolveTime(selfStanding?.solvedAtMs ?? null)}.`}
+              </p>
+            </div>
+            <Button onClick={() => void exitLobby()} variant="outline" size="lg" className="w-full" disabled={exitPending}>
+              <DoorOpen size={16} />
+              Exit to Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (lobby.status === "filling") {
     const slotCards = Array.from({ length: lobby.maxPlayers }, (_, index) => lobby.players[index] ?? null);
 
     return (
-      <div className={screenShellClassName}>
-        <div className={screenStackClassName}>
+      <div className="page-screen">
+        <div className="page-stack">
           <PageHeader
             eyebrow="Arena Queue"
             title="Filling Lobby"
-            subtitle="Four-player rooms auto-lock a single puzzle type once the deck is full."
-            right={<StageChip label={`${lobby.players.length}/${lobby.maxPlayers} Ready`} tone="queue" />}
+            subtitle="The room launches into practice as soon as four seats are locked."
           />
-
-          <section className="command-panel grid min-h-0 flex-1 grid-rows-[auto_auto_1fr] gap-3 overflow-hidden p-3">
-            <div className="grid gap-3 sm:grid-cols-4">
-              <CompactMetric label="Mode" value={formatMode(mode)} accent />
-              <CompactMetric label="Seats" value={`${lobby.players.length}/${lobby.maxPlayers}`} />
-              <CompactMetric label="Puzzle Pick" value="Randomized" />
-              <CompactMetric label="Lobby" value={lobby.id.slice(0, 8).toUpperCase()} />
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-[1.15fr_0.85fr]">
-              <div className="command-panel-soft p-4">
-                <div className="flex items-center gap-3">
-                  <img
-                    src="/brand/puzzle-rivals-logo.png"
-                    alt="Puzzle Rivals"
-                    className="h-11 w-11 rounded-2xl border border-white/10 object-cover"
-                    draggable={false}
-                  />
-                  <div className="min-w-0">
-                    <p className="hud-label text-primary">Queue Rule</p>
-                    <p className="text-sm font-black">No manual puzzle vetoes</p>
-                    <p className="mt-1 text-xs text-muted-foreground">The arena assigns one type for everyone the moment the final seat locks.</p>
-                  </div>
-                </div>
-              </div>
-              <div className="command-panel-soft flex items-center justify-center px-4 py-3 text-center text-sm text-muted-foreground">
-                Keep this screen open. Practice auto-arms as soon as the roster is complete.
-              </div>
-            </div>
-
-            <div className="grid min-h-0 gap-3 overflow-hidden sm:grid-cols-2">
-              {slotCards.map((player, index) => (
-                <QueuePlayerTile
-                  key={player?.playerId ?? `slot-${index}`}
-                  player={player}
-                  slotLabel={`Seat ${index + 1}`}
-                  isSelf={player?.playerId === user.id}
-                />
-              ))}
-            </div>
-          </section>
-        </div>
-      </div>
-    );
-  }
-
-  if (lobby.status === "ready" && selectionMeta) {
-    return (
-      <div className={screenShellClassName}>
-        <div className={screenStackClassName}>
-          <PageHeader
-            eyebrow="Command Deck Armed"
-            title="Puzzle Locked"
-            subtitle="The lobby has its shared puzzle type. Practice begins automatically in a moment."
-            right={<StageChip label="Arming Practice" tone="queue" />}
-          />
-
-          <section className="command-panel grid min-h-0 flex-1 grid-rows-[auto_1fr] gap-3 overflow-hidden p-3">
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="command-panel-soft grid gap-3 p-4 sm:grid-cols-[1.05fr_0.95fr]"
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] border border-primary/20 bg-gradient-play text-3xl text-primary-foreground glow-primary">
-                  {selectionMeta.icon}
-                </div>
-                <div className="min-w-0">
-                  <p className="hud-label text-primary">Selected Type</p>
-                  <p className="text-xl font-black">{selectionMeta.label}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{selectionMeta.description}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <CompactMetric label="Practice" value="12s warm-up" accent />
-                <CompactMetric label="Live Seed" value="Fresh roll" />
-                <CompactMetric label="Difficulty" value={`Tier ${lobby.selection.difficulty}`} />
-                <CompactMetric label="Lobby" value={lobby.id.slice(0, 8).toUpperCase()} />
-              </div>
-            </motion.div>
-
-            <div className="grid min-h-0 gap-3 overflow-hidden sm:grid-cols-2">
-              {lobby.players.map((player, index) => (
-                <QueuePlayerTile key={player.playerId} player={player} slotLabel={`Seat ${index + 1}`} isSelf={player.playerId === user.id} />
-              ))}
-            </div>
-          </section>
-        </div>
-      </div>
-    );
-  }
-
-  function renderArenaStage(stage: "practice" | "live") {
-    if (!lobby?.selection || !selfPlayer) {
-      return null;
-    }
-
-    const isPractice = stage === "practice";
-    const timeLeft = isPractice ? practiceTimeLeft : liveTimeLeft;
-    const selfProgress = isPractice ? selfPlayer.practiceProgress : Math.max(selfPlayer.progress, optimisticProgress);
-    const progressRows = [
-      {
-        key: selfPlayer.playerId,
-        label: "You",
-        detail:
-          stage === "practice"
-            ? practiceSolved
-              ? "Warm-up locked"
-              : "Practice telemetry"
-            : selfPlayer.solvedAtMs !== null
-              ? `Solved - ${formatSolveTime(selfPlayer.solvedAtMs)}`
-              : "Live telemetry",
-        progress: selfProgress,
-        tone: isPractice ? ("practice" as const) : ("self" as const),
-        highlight: true,
-      },
-      ...rivals.map((rival) => ({
-        key: rival.playerId,
-        label: rival.username,
-        detail:
-          stage === "practice"
-            ? `${rival.rank.toUpperCase()} warm-up`
-            : rival.solvedAtMs !== null
-              ? `Solved - ${formatSolveTime(rival.solvedAtMs)}`
-              : `${rival.rank.toUpperCase()} live`,
-        progress: isPractice ? rival.practiceProgress : rival.progress,
-        tone: isPractice ? ("practice" as const) : ("rival" as const),
-        highlight: false,
-      })),
-    ];
-
-    return (
-      <div className={screenShellClassName}>
-        <div className={screenStackClassName}>
-          <PageHeader
-            eyebrow={isPractice ? "Practice Sim" : "Live Arena"}
-            title={lobby.selection.meta.label}
-            subtitle={isPractice ? "Warm up on the shared type before the live seed drops." : "Same puzzle type, fresh generated layout, live scoring enabled."}
-            compact
-            right={
-              <TimerCluster
-                label={isPractice ? "Practice Timer" : "Live Timer"}
-                value={formatTime(timeLeft)}
-                tone={isPractice ? "practice" : "live"}
-                urgent={isPractice ? timeLeft <= 4 : timeLeft <= 10}
+          <section className="command-panel grid gap-3 p-5 sm:grid-cols-2">
+            {slotCards.map((player, index) => (
+              <LobbySeat
+                key={player?.playerId ?? `slot-${index}`}
+                player={player}
+                seatLabel={`Seat ${index + 1}`}
+                isSelf={player?.playerId === user.id}
               />
-            }
-          />
-
-          <section className="command-panel grid min-h-0 flex-1 grid-rows-[auto_1fr_auto] gap-3 overflow-hidden p-3">
-            <div className="grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
-              <div className="command-panel-soft p-3">
-                <div className="mb-3 flex flex-wrap gap-2">
-                  <StageChip label={isPractice ? "Practice" : "Live"} tone={isPractice ? "practice" : "live"} />
-                  <StageChip label={formatMode(mode)} tone="queue" />
-                  <StageChip label={`Tier ${lobby.selection.difficulty}`} tone="queue" />
-                  <StageChip label={`Lobby ${lobby.id.slice(0, 4).toUpperCase()}`} tone="queue" />
-                </div>
-                <div className="grid gap-2">
-                  {progressRows.map((row) => (
-                    <ProgressLane key={row.key} label={row.label} detail={row.detail} progress={row.progress} tone={row.tone} highlight={row.highlight} />
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <CompactMetric label="Players" value={`${lobby.players.length}`} accent />
-                <CompactMetric label="Current Rank" value={`#${playerRank || 1}`} />
-                <CompactMetric label={isPractice ? "Practice Seed" : "Live Seed"} value={isPractice ? "Scout" : "Active"} />
-                <CompactMetric label="Puzzle Type" value={lobby.selection.meta.label} className="col-span-2" />
-              </div>
-            </div>
-
-            <div className="match-board-frame">
-              <div className="mb-2 flex items-center justify-between gap-3 px-1">
-                <div className="min-w-0">
-                  <p className="hud-label text-primary">{isPractice ? "Training Surface" : "Combat Surface"}</p>
-                  <p className="truncate text-sm font-black">{isPractice ? "Practice seed loaded" : "Live seed loaded"}</p>
-                </div>
-                <StageChip label={isPractice ? "Warm-Up" : "Scored"} tone={isPractice ? "practice" : "live"} />
-              </div>
-
-              <div className="match-board-scroll">
-                <MatchPuzzleBoard
-                  key={`${stage}-${isPractice ? lobby.selection.practiceSeed : lobby.selection.liveSeed}`}
-                  puzzleType={lobby.selection.puzzleType}
-                  seed={isPractice ? lobby.selection.practiceSeed : lobby.selection.liveSeed}
-                  difficulty={lobby.selection.difficulty}
-                  isPractice={isPractice}
-                  disabled={isPractice ? false : selfPlayer.solvedAtMs !== null}
-                  onProgress={() => {}}
-                  onStateChange={(submission, progress) => queueProgressSubmission(stage, submission, progress)}
-                  onSolve={isPractice ? () => setPracticeSolved(true) : handleLiveSolve}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-3 lg:grid-cols-[1.15fr_0.85fr]">
-              <div className="command-panel-soft flex items-center gap-3 p-3">
-                <img
-                  src="/brand/puzzle-rivals-logo.png"
-                  alt="Puzzle Rivals"
-                  className="h-11 w-11 rounded-2xl border border-white/10 object-cover"
-                  draggable={false}
-                />
-                <div className="min-w-0">
-                  <p className="hud-label text-primary">{isPractice ? "Briefing" : "Context"}</p>
-                  <p className="text-sm font-black">{lobby.selection.meta.description}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {isPractice
-                      ? "A different generated version goes live when the timer expires."
-                      : "Practice and live always share the type, never the exact same seed."}
-                  </p>
-                </div>
-              </div>
-
-              <div className={cn("command-panel-soft p-3", practiceSolved ? "border-primary/20 bg-primary/10" : "")}>
-                <p className="hud-label">{isPractice ? "Status" : "Match Rule"}</p>
-                <p className={cn("text-sm font-black", practiceSolved && "text-primary")}>
-                  {isPractice
-                    ? practiceSolved
-                      ? "Practice solve locked in"
-                      : "Warm-up still open"
-                    : selfPlayer.solvedAtMs !== null
-                      ? "Solve submitted"
-                      : "Score updates live"}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {isPractice
-                    ? "Use the short window to learn the pattern and pacing."
-                    : "First full solve and total progress decide the finishing order."}
-                </p>
-              </div>
-            </div>
+            ))}
           </section>
         </div>
       </div>
     );
   }
 
-  if (lobby.status === "practice" && lobby.selection) {
-    return renderArenaStage("practice");
-  }
-
-  if (lobby.status === "intermission" || lobby.status === "complete") {
-    const results = lobby.results?.standings ?? standings.map((player, index) => ({
-      playerId: player.playerId,
-      username: player.username,
-      progress: player.progress,
-      solvedAtMs: player.solvedAtMs,
-      rank: index + 1,
-      reward: player.reward ?? { xp: 90, coins: 140, elo: -16 },
-      isBot: player.isBot,
-    }));
-    const selfResult = results.find((entry) => entry.playerId === user.id);
-    const continueVotes = lobby.players.filter((player) => player.nextRoundVote === "continue").length;
-
-    return (
-      <div className={screenShellClassName}>
-        <div className={screenStackClassName}>
-          <PageHeader
-            eyebrow="Results Relay"
-            title={`Rank #${selfResult?.rank ?? playerRank}`}
-            subtitle={`${selectionMeta?.label ?? "Puzzle"} concluded. Rewards, standings, and the next-round vote are live.`}
-            compact
-            right={<TimerCluster label="Decision Timer" value={`${intermissionTimeLeft}s`} tone="intermission" urgent={intermissionTimeLeft <= 5} />}
-          />
-
-          <section className="command-panel grid min-h-0 flex-1 grid-rows-[auto_1fr_auto] gap-3 overflow-hidden p-3">
-            <div className="grid gap-3 sm:grid-cols-4">
-              <CompactMetric label="XP" value={`+${selfResult?.reward.xp ?? 0}`} accent />
-              <CompactMetric label="Coins" value={`+${selfResult?.reward.coins ?? 0}`} />
-              <CompactMetric label="ELO" value={`${(selfResult?.reward.elo ?? 0) >= 0 ? "+" : ""}${selfResult?.reward.elo ?? 0}`} className={(selfResult?.reward.elo ?? 0) >= 0 ? "text-primary" : "text-destructive"} />
-              <CompactMetric label="Votes" value={`${continueVotes}/${lobby.players.length} Continue`} />
-            </div>
-
-            <div className="grid min-h-0 gap-3 lg:grid-cols-[1.1fr_0.9fr]">
-              <div className="grid min-h-0 gap-3 overflow-hidden">
-                {results.map((entry) => (
-                  <PuzzleTileButton
-                    key={entry.playerId}
-                    icon={entry.rank === 1 ? Trophy : Sparkles}
-                    title={`${entry.username}${entry.playerId === user.id ? " (You)" : ""}`}
-                    description={`${entry.progress}% complete - ${formatSolveTime(entry.solvedAtMs)}${entry.isBot ? " - easy bot" : ""}`}
-                    active={entry.playerId === user.id}
-                    disabled
-                    right={<span className="text-sm font-black text-primary">#{entry.rank}</span>}
-                    className="min-h-[82px]"
-                  />
-                ))}
-              </div>
-
-              <div className="grid gap-3">
-                <div className="command-panel-soft p-4">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] border text-xl",
-                        (selfResult?.rank ?? playerRank) === 1 ? "border-primary/30 bg-primary/12 text-primary glow-primary" : "border-accent/30 bg-accent/12 text-accent glow-prestige",
-                      )}
-                    >
-                      <Sparkles size={22} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="hud-label text-primary">Round Summary</p>
-                      <p className="text-base font-black">{selectionMeta?.label ?? "Puzzle"} cleared</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {(selfResult?.rank ?? playerRank) === 1 ? "First place secured." : "Standings locked for this round."}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="command-panel-soft p-4">
-                  <p className="hud-label">Next Round Vote</p>
-                  <p className="text-sm font-black">{votePending ? "Submitting vote..." : "Stay with this lobby or exit to Play."}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Continue votes: {continueVotes}. Exit immediately returns you to the play deck.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Button
-                onClick={() => void submitNextRoundVote("continue")}
-                variant="play"
-                size="lg"
-                className="w-full"
-                disabled={votePending !== null}
-              >
-                <RotateCcw size={16} />
-                Next Round
-              </Button>
-              <Button
-                onClick={() => void submitNextRoundVote("exit")}
-                variant="outline"
-                size="lg"
-                className="w-full"
-                disabled={votePending !== null}
-              >
-                <Share2 size={16} />
-                Exit Lobby
-              </Button>
-              <Button onClick={() => setRematchKey((current) => current + 1)} variant="outline" size="lg" className="w-full sm:col-span-2">
-                <Home size={16} />
-                Find New Lobby
-              </Button>
-            </div>
-          </section>
-        </div>
+  return (
+    <div className="page-screen">
+      <div className="page-stack">
+        <PageHeader
+          eyebrow="Puzzle Lock"
+          title={selectionMeta?.label ?? "Loading"}
+          subtitle="The puzzle type is locked. Practice takes over the screen in a moment."
+        />
+        <section className="command-panel grid gap-3 p-5 sm:grid-cols-2">
+          {lobby.players.map((player, index) => (
+            <LobbySeat
+              key={player.playerId}
+              player={player}
+              seatLabel={`Seat ${index + 1}`}
+              isSelf={player.playerId === user.id}
+            />
+          ))}
+        </section>
       </div>
-    );
-  }
-
-  if (!lobby.selection || !selfPlayer) {
-    return null;
-  }
-
-  return renderArenaStage("live");
+    </div>
+  );
 }

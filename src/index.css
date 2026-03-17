@@ -534,6 +534,95 @@
   .rank-platinum { color: hsl(var(--rank-platinum)); }
   .rank-diamond { color: hsl(var(--rank-diamond)); }
   .rank-master { color: hsl(var(--primary)); }
+
+  .match-immersive-screen,
+  .match-results-screen {
+    @apply relative flex min-h-screen w-full items-center justify-center overflow-hidden px-4 py-4 md:px-6 md:py-6;
+  }
+
+  .match-immersive-shell,
+  .match-results-shell {
+    @apply relative z-10 flex min-h-[calc(100vh-2rem)] w-full max-w-6xl flex-col gap-4 rounded-[36px] border border-white/10 bg-[rgba(10,12,20,0.92)] p-4 shadow-[0_40px_120px_rgba(0,0,0,0.55)] backdrop-blur-2xl md:min-h-[calc(100vh-3rem)] md:p-6;
+  }
+
+  .match-immersive-shell::before,
+  .match-results-shell::before {
+    content: "";
+    @apply pointer-events-none absolute inset-x-8 top-0 h-24 rounded-full blur-3xl;
+    background: radial-gradient(circle, rgba(184,255,0,0.18), transparent 72%);
+  }
+
+  .match-immersive-top,
+  .match-results-top {
+    @apply relative z-10 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px];
+  }
+
+  .match-immersive-copy {
+    @apply rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,rgba(28,18,54,0.88),rgba(13,18,30,0.88))] p-5;
+  }
+
+  .match-immersive-title,
+  .match-results-title {
+    @apply mt-2 font-display text-4xl font-black leading-[0.94] tracking-[-0.05em] text-white md:text-5xl;
+  }
+
+  .match-immersive-help,
+  .match-results-subtitle {
+    @apply mt-3 max-w-3xl text-sm leading-6 text-white/80 md:text-base;
+  }
+
+  .match-immersive-rule {
+    @apply mt-3 font-hud text-[11px] uppercase tracking-[0.18em] text-primary;
+  }
+
+  .match-countdown-card {
+    @apply flex min-h-[132px] flex-col justify-center rounded-[28px] border border-white/10 bg-[rgba(16,18,28,0.92)] px-5 py-4 text-center shadow-[0_24px_60px_rgba(0,0,0,0.35)];
+  }
+
+  .match-countdown-card-urgent {
+    @apply border-destructive/30 bg-destructive/10;
+  }
+
+  .match-immersive-utility {
+    @apply relative z-10 flex flex-wrap items-start gap-3;
+  }
+
+  .match-hint-button {
+    @apply inline-flex min-h-[54px] items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-5 py-3 text-sm font-black text-primary transition hover:scale-[1.01] hover:border-primary/30 hover:bg-primary/20 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70;
+  }
+
+  .match-hint-button-active {
+    @apply border-accent/30 bg-accent/10 text-white;
+  }
+
+  .match-hint-panel {
+    @apply flex-1 rounded-[24px] border border-white/10 bg-[rgba(18,21,30,0.9)] px-4 py-3 text-sm leading-6 text-white/80;
+  }
+
+  .match-immersive-board {
+    @apply relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(34,44,72,0.55),rgba(9,10,16,0.92)_60%)] p-3 md:p-6;
+  }
+
+  .match-results-table {
+    @apply relative z-10 grid gap-2 rounded-[30px] border border-white/10 bg-[rgba(12,14,22,0.88)] p-3 md:p-4;
+  }
+
+  .match-results-row {
+    @apply grid items-center gap-3 rounded-[22px] border border-white/10 bg-white/5 px-3 py-3 text-sm text-white/80;
+    grid-template-columns: 80px minmax(0, 1.5fr) minmax(0, 1fr) 88px 72px;
+  }
+
+  .match-results-head {
+    @apply border-primary/20 bg-primary/10 font-hud text-[10px] uppercase tracking-[0.18em] text-primary;
+  }
+
+  .match-results-row-self {
+    @apply border-primary/20 bg-primary/10 text-white;
+  }
+
+  .match-results-summary {
+    @apply relative z-10 grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px];
+  }
 }
 
 @layer utilities {
@@ -659,5 +748,38 @@
     padding: 0.55rem 0.1rem;
     font-size: 9px;
     letter-spacing: 0.12em;
+  }
+
+  .match-immersive-screen,
+  .match-results-screen {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .match-immersive-shell,
+  .match-results-shell {
+    min-height: calc(100vh - 1.5rem);
+    border-radius: 28px;
+    padding: 0.9rem;
+  }
+
+  .match-immersive-top,
+  .match-results-top,
+  .match-results-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .match-immersive-title,
+  .match-results-title {
+    font-size: 2.7rem;
+  }
+
+  .match-results-row {
+    grid-template-columns: 62px minmax(0,1.2fr) minmax(0,0.9fr) 66px 58px;
+    font-size: 12px;
+    gap: 0.45rem;
+    padding: 0.8rem 0.7rem;
   }
 }

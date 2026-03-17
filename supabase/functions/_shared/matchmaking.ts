@@ -1,5 +1,6 @@
 import { createAdminClient } from "./supabase.ts";
 import { getPuzzleMeta } from "./puzzle.ts";
+import { isRapidFirePuzzleType } from "./match-rules.ts";
 
 export async function getLobbySnapshot(lobbyId: string) {
   const admin = createAdminClient();
@@ -50,6 +51,9 @@ export async function getLobbySnapshot(lobbyId: string) {
       progress: Number(result?.live_progress ?? 0),
       practiceProgress: Number(result?.practice_progress ?? 0),
       solvedAtMs: result?.solved_at_ms ? Number(result.solved_at_ms) : null,
+      completions: Number(result?.live_completions ?? (result?.solved_at_ms ? 1 : 0)),
+      score: Number(result?.live_score ?? (result?.solved_at_ms ? 100 : 0)),
+      currentSeed: Number(result?.current_live_seed ?? round?.live_seed ?? 0),
       pace: 0,
       reward: result?.placement
         ? {
@@ -92,18 +96,19 @@ export async function getLobbySnapshot(lobbyId: string) {
             completedAt: round.finished_at,
             standings: [...snapshotPlayers]
               .filter((player) => player.reward)
-              .sort((left, right) => (left.reward?.elo ?? 0) === (right.reward?.elo ?? 0)
-                ? (left.solvedAtMs ?? Number.MAX_SAFE_INTEGER) - (right.solvedAtMs ?? Number.MAX_SAFE_INTEGER)
-                : (right.reward?.elo ?? 0) - (left.reward?.elo ?? 0))
+              .sort((left, right) => Number(resultMap.get(left.playerId)?.placement ?? 99) - Number(resultMap.get(right.playerId)?.placement ?? 99))
               .map((player, index) => ({
                 playerId: player.playerId,
                 username: player.username,
                 progress: player.progress,
                 solvedAtMs: player.solvedAtMs,
                 rank: Number(resultMap.get(player.playerId)?.placement ?? index + 1),
+                completions: player.completions,
+                score: player.score,
                 reward: player.reward!,
                 isBot: botIds.has(player.playerId),
               })),
+            rapidFire: isRapidFirePuzzleType(round.puzzle_type),
           }
         : null,
     },
