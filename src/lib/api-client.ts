@@ -6,11 +6,47 @@ async function invoke<T>(functionName: string, body: Record<string, unknown>) {
     throw new Error(supabaseConfigErrorMessage);
   }
 
-  const { data, error } = await supabase.functions.invoke(functionName, { body });
-  if (error) {
-    throw new Error(error.message);
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error("You must be signed in before using matchmaking.");
   }
-  return data as T;
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const browserKey =
+    (import.meta.env.VITE_SUPABASE_PUBLIC_KEY as string | undefined) ??
+    (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) ??
+    (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
+
+  if (!supabaseUrl || !browserKey) {
+    throw new Error(supabaseConfigErrorMessage);
+  }
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: browserKey,
+      "x-supabase-auth": session.access_token,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | T
+    | { message?: string }
+    | null;
+
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === "object" && "message" in payload && typeof payload.message === "string"
+        ? payload.message
+        : `Request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+  return payload as T;
 }
 
 export function subscribeToLobby(lobbyId: string, onSnapshot: (lobby: BackendLobby) => void) {

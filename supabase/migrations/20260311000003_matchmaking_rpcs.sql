@@ -12,6 +12,7 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+#variable_conflict use_column
 declare
   v_lobby_id uuid;
   v_seat_no integer;
@@ -41,7 +42,12 @@ begin
   if v_lobby_id is null then
     insert into public.lobbies (mode, region, status, max_players)
     values (p_mode, p_region, 'filling', 4)
-    returning id, max_players into v_lobby_id, v_max_players;
+    returning id into v_lobby_id;
+
+    select l.max_players
+    into v_max_players
+    from public.lobbies l
+    where l.id = v_lobby_id;
   end if;
 
   if not exists (

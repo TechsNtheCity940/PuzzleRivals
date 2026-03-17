@@ -1,25 +1,3 @@
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_type t
-    join pg_enum e on e.enumtypid = t.oid
-    where t.typname = 'match_mode'
-      and e.enumlabel = 'revenge'
-  ) then
-    alter type public.match_mode add value 'revenge';
-  end if;
-end
-$$;
-
-alter table public.profiles
-  add column if not exists best_puzzle_type text,
-  add column if not exists worst_puzzle_type text,
-  add column if not exists rival_user_id uuid references public.profiles(id) on delete set null;
-
-create index if not exists idx_profiles_rival_user_id
-  on public.profiles(rival_user_id);
-
 create or replace function public.join_lobby(
   p_user_id uuid,
   p_mode public.match_mode,
@@ -46,10 +24,10 @@ begin
   on conflict (user_id, mode, status)
   do update set updated_at = timezone('utc', now());
 
-  select rival_user_id
+  select profiles.rival_user_id
   into v_rival_user_id
   from public.profiles
-  where id = p_user_id;
+  where profiles.id = p_user_id;
 
   select l.id, l.max_players
   into v_lobby_id, v_max_players

@@ -28,3 +28,21 @@ verify_jwt = false
 
 [functions.reset-password-with-security-questions]
 verify_jwt = false
+
+[functions.join-lobby]
+verify_jwt = false
+
+[functions.ready-lobby]
+verify_jwt = false
+
+[functions.sync-lobby]
+verify_jwt = false
+
+[functions.submit-progress]
+verify_jwt = false
+
+[functions.submit-solve]
+verify_jwt = false
+
+[functions.vote-next-round]
+verify_jwt = false
