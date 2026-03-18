@@ -3,6 +3,10 @@ import type { MatchPlayablePuzzleType } from "./puzzle.ts";
 const RAPID_FIRE_TYPES = new Set<MatchPlayablePuzzleType>([
   "pattern_match",
   "word_scramble",
+  "crossword_mini",
+  "word_search",
+  "matching_pairs",
+  "spatial_reasoning",
   "riddle_choice",
   "wordle_guess",
   "logic_sequence",
@@ -14,6 +18,7 @@ const RAPID_FIRE_TYPES = new Set<MatchPlayablePuzzleType>([
   "analogies",
   "deduction_grid",
   "vocabulary_duel",
+  "pathfinder",
 ]);
 
 export const RAPID_FIRE_CUTOFF_MS = 5_000;

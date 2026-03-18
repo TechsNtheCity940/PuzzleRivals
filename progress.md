@@ -74,3 +74,15 @@ Original prompt: for the store, i want both types of transactions, however we ne
 - Updated `src/lib/storefront.ts`, `src/lib/player-data.ts`, and `supabase/functions/_shared/store.ts` so storefront snapshots expose `isEquipped` state, profile loads persist equipped identity selections, and first-time grants auto-fill empty loadout slots.
 - Verification: `npm run build`, `npm run build:server`, and `npm test` pass after the queue-fit pass and the initial loadout implementation.
 - Required deploy step for the loadout phase: push migration `20260317000017_identity_loadouts.sql` and deploy the new `equip-store-item` function before testing equipped cards/banners/emblems/titles against hosted Supabase.
+- Current task: expand the live match pool with crossword, word-search, matching, spatial, and path puzzles, and mark the fast-solvable ones as rapid-fire.
+- Added five new live-match puzzle types end-to-end: `crossword_mini`, `word_search`, `matching_pairs`, `spatial_reasoning`, and `pathfinder`.
+- Updated both the frontend and Supabase match puzzle registries so these types can be selected, rendered, submitted, validated, and weighted by the generator alongside the existing pool.
+- Rapid-fire routing now includes the new fast-solvable types, and the frontend help/hint copy covers all five so the fullscreen arena can explain them correctly.
+- Verification: `npm run build`, `npm run build:server`, and `npm test` all pass after the puzzle-pool expansion.
+- Browser smoke constraint: a fresh Playwright session on `/match?mode=ranked` only reached the expected account-required state in this shell, so the new boards were validated through builds/tests plus deterministic board wiring rather than a full live-browser match run.
+- Current task: rebuild the puzzle-board presentation into a shared Neon Rivals board system with reusable animated layers and family-based skins.
+- Added shared component `src/components/match/NeonPuzzleShell.tsx` to provide a common board frame, rails, corner nodes, ambient particles, scanlines, and family-specific trim for every match puzzle.
+- Updated `src/components/match/MatchPuzzleBoard.tsx` so all puzzle types now render inside the shared shell and map onto six board families: letter, crossword, logic, match, spatial, and maze/path.
+- Expanded `src/index.css` with reusable neon board animations and family skins, including pulsing frame glow, edge arcs, scanline drift, particle motion, reusable input/button glow, and shared panel treatments for the puzzle boards.
+- Verification: `npm run build` and `npm test` pass after the neon-board system pass.
+- Browser smoke constraint remains: a fresh browser session in this shell still lands on the expected account-required `/match` state, so the new live board visuals were validated through production build/test coverage rather than a full authenticated live-round screenshot pass here.

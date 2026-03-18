@@ -9,6 +9,7 @@ import {
 import type { MatchPlayablePuzzleType } from "@/lib/ai-puzzle-service";
 import type { PuzzleSubmission } from "@/lib/backend";
 import { buildGeneratedQuizRounds, type QuizPuzzleKind } from "@/lib/match-quiz-content";
+import NeonPuzzleShell, { type NeonPuzzleFamily } from "@/components/match/NeonPuzzleShell";
 import { Button } from "@/components/ui/button";
 
 interface MatchPuzzleBoardProps {
@@ -20,6 +21,31 @@ interface MatchPuzzleBoardProps {
   onSolve: () => void;
   onProgress: (progress: number) => void;
   onStateChange?: (submission: PuzzleSubmission, progress: number) => void;
+}
+
+function getPuzzleBoardFamily(puzzleType: MatchPlayablePuzzleType): NeonPuzzleFamily {
+  switch (puzzleType) {
+    case "word_scramble":
+    case "word_search":
+    case "wordle_guess":
+    case "vocabulary_duel":
+      return "letter";
+    case "crossword_mini":
+      return "crossword";
+    case "pattern_match":
+    case "matching_pairs":
+    case "memory_grid":
+      return "match";
+    case "rotate_pipes":
+    case "tile_slide":
+    case "spatial_reasoning":
+      return "spatial";
+    case "maze":
+    case "pathfinder":
+      return "maze";
+    default:
+      return "logic";
+  }
 }
 
 interface NumberGridPuzzle {
@@ -62,6 +88,45 @@ interface MazePuzzle {
   goalIndex: number;
 }
 
+interface CrosswordEntry {
+  clue: string;
+  answer: string;
+}
+
+interface MatchingPair {
+  pairId: number;
+  left: string;
+  right: string;
+}
+
+interface WordSearchPlacement {
+  word: string;
+  start: number;
+  end: number;
+  cells: number[];
+}
+
+interface WordSearchPuzzle {
+  size: number;
+  grid: string[];
+  placements: WordSearchPlacement[];
+}
+
+type ShapeCells = Array<[number, number]>;
+
+interface SpatialRound {
+  base: ShapeCells;
+  options: ShapeCells[];
+  correctOption: number;
+  instruction: string;
+}
+
+interface PathfinderPuzzle {
+  size: number;
+  blocked: number[];
+  solutionPath: number[];
+}
+
 interface MemoryGridPuzzle {
   size: number;
   targets: number[];
@@ -75,6 +140,44 @@ const WORD_BANK = [
 ];
 
 const WORDLE_BANK = ["SPARK", "BRAIN", "QUEST", "PRISM", "CROWN", "ORBIT", "GLINT", "SHARD"];
+const CROSSWORD_BANK: CrosswordEntry[] = [
+  { clue: "Fast-thinking organ", answer: "BRAIN" },
+  { clue: "A clue-solving contest can feel like a ____", answer: "RACE" },
+  { clue: "A hidden way through a puzzle grid", answer: "PATH" },
+  { clue: "A collection of letters that forms a word", answer: "ANAGRAM" },
+  { clue: "A board game with rooks and bishops", answer: "CHESS" },
+  { clue: "A puzzle hint might narrow the ____", answer: "FIELD" },
+  { clue: "A dead-end corridor inside a labyrinth", answer: "MAZE" },
+  { clue: "A relation between two similar ideas", answer: "ANALOGY" },
+  { clue: "What you do to a jumbled word", answer: "UNSCRAMBLE" },
+  { clue: "A shape turned around in space", answer: "ROTATION" },
+  { clue: "A list of facts that leads to one answer", answer: "LOGIC" },
+  { clue: "The hidden answer inside a riddle", answer: "SOLUTION" },
+];
+const MATCHING_PAIR_BANK = [
+  ["Mercury", "Planet closest to the sun"],
+  ["Rook", "Chess piece that moves in straight lines"],
+  ["Anagram", "Word made by rearranging letters"],
+  ["Seismograph", "Tool that records earthquakes"],
+  ["Ottawa", "Capital of Canada"],
+  ["Opposition", "Key king-and-pawn endgame concept"],
+  ["Diagonal", "A line that slants across a grid"],
+  ["Square", "Shape with four equal sides"],
+  ["Cipher", "Secret code system"],
+  ["Vertex", "Corner point of a shape"],
+  ["Sahara", "Largest hot desert in Africa"],
+  ["Canberra", "Capital of Australia"],
+];
+const WORD_SEARCH_WORD_BANK = [
+  "BRAIN", "QUEST", "SPARK", "GRID", "LOGIC", "MAZE", "ROOK", "CROWN",
+  "TRACE", "MATCH", "CLUE", "SWIFT", "SHAPE", "TILES", "TOKEN", "PATH",
+];
+const SPATIAL_BASE_SHAPES: ShapeCells[] = [
+  [[1, 0], [0, 1], [1, 1], [2, 1]],
+  [[0, 0], [0, 1], [0, 2], [1, 2]],
+  [[0, 0], [1, 0], [1, 1], [2, 1]],
+  [[1, 0], [0, 1], [1, 1], [1, 2]],
+];
 
 const RIDDLE_BANK: QuizRound[] = [
   {
@@ -215,6 +318,10 @@ function clampProgress(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
+function normalizeSegment(start: number, end: number) {
+  return start <= end ? `${start}:${end}` : `${end}:${start}`;
+}
+
 function buildNumberGrid(seed: number, difficulty: number): NumberGridPuzzle {
   const rng = new SeededRandom(seed);
   const size = 3;
@@ -292,6 +399,184 @@ function buildWordScramble(seed: number, difficulty: number) {
   }
 
   return { targetWord, scrambled };
+}
+
+function buildCrosswordMini(seed: number, difficulty: number) {
+  const rng = new SeededRandom(seed);
+  const totalEntries = Math.min(5, Math.max(3, difficulty));
+  return rng.shuffle(CROSSWORD_BANK).slice(0, totalEntries);
+}
+
+function buildMatchingPairs(seed: number, difficulty: number): MatchingPair[] {
+  const rng = new SeededRandom(seed);
+  const totalPairs = Math.min(5, Math.max(3, difficulty));
+  return rng.shuffle(MATCHING_PAIR_BANK).slice(0, totalPairs).map(([left, right], index) => ({ pairId: index, left, right }));
+}
+
+function buildWordSearch(seed: number, difficulty: number): WordSearchPuzzle {
+  const rng = new SeededRandom(seed);
+  const size = difficulty >= 4 ? 7 : 6;
+  const totalWords = Math.min(4, Math.max(3, difficulty));
+  const words = rng.shuffle(WORD_SEARCH_WORD_BANK.filter((word) => word.length <= size)).slice(0, totalWords);
+  const grid = Array.from({ length: size * size }, () => "");
+  const placements: WordSearchPlacement[] = [];
+  const directions = [
+    { dr: 0, dc: 1 },
+    { dr: 1, dc: 0 },
+    { dr: 1, dc: 1 },
+    { dr: 1, dc: -1 },
+  ];
+
+  for (const word of words) {
+    let placed = false;
+    for (let attempt = 0; attempt < 80 && !placed; attempt += 1) {
+      const direction = directions[rng.nextInt(0, directions.length - 1)];
+      const startRow = rng.nextInt(0, size - 1);
+      const startCol = rng.nextInt(0, size - 1);
+      const endRow = startRow + direction.dr * (word.length - 1);
+      const endCol = startCol + direction.dc * (word.length - 1);
+      if (endRow < 0 || endRow >= size || endCol < 0 || endCol >= size) continue;
+
+      const cells: number[] = [];
+      let valid = true;
+      for (let step = 0; step < word.length; step += 1) {
+        const row = startRow + direction.dr * step;
+        const col = startCol + direction.dc * step;
+        const index = row * size + col;
+        const letter = word[step];
+        if (grid[index] && grid[index] !== letter) {
+          valid = false;
+          break;
+        }
+        cells.push(index);
+      }
+      if (!valid) continue;
+
+      cells.forEach((index, step) => {
+        grid[index] = word[step];
+      });
+      placements.push({ word, start: cells[0], end: cells[cells.length - 1], cells });
+      placed = true;
+    }
+  }
+
+  for (let index = 0; index < grid.length; index += 1) {
+    if (!grid[index]) {
+      grid[index] = String.fromCharCode(65 + rng.nextInt(0, 25));
+    }
+  }
+
+  return { size, grid, placements };
+}
+
+function normalizeShapeCells(cells: ShapeCells) {
+  const minRow = Math.min(...cells.map(([row]) => row));
+  const minCol = Math.min(...cells.map(([, col]) => col));
+  return cells
+    .map(([row, col]) => [row - minRow, col - minCol] as [number, number])
+    .sort((left, right) => (left[0] - right[0]) || (left[1] - right[1]));
+}
+
+function rotateShapeCells(cells: ShapeCells) {
+  return normalizeShapeCells(cells.map(([row, col]) => [col, -row] as [number, number]));
+}
+
+function mirrorShapeCells(cells: ShapeCells) {
+  return normalizeShapeCells(cells.map(([row, col]) => [row, -col] as [number, number]));
+}
+
+function shapeCellsEqual(left: ShapeCells, right: ShapeCells) {
+  return JSON.stringify(normalizeShapeCells(left)) === JSON.stringify(normalizeShapeCells(right));
+}
+
+function buildSpatialRounds(seed: number, difficulty: number): SpatialRound[] {
+  const rng = new SeededRandom(seed);
+  const totalRounds = Math.min(5, Math.max(3, difficulty));
+  return Array.from({ length: totalRounds }, () => {
+    const base = normalizeShapeCells(SPATIAL_BASE_SHAPES[rng.nextInt(0, SPATIAL_BASE_SHAPES.length - 1)]);
+    const instructionMode = rng.nextInt(0, 2);
+    const correct =
+      instructionMode === 0
+        ? rotateShapeCells(base)
+        : instructionMode === 1
+          ? rotateShapeCells(rotateShapeCells(base))
+          : mirrorShapeCells(base);
+    const pool = [
+      base,
+      rotateShapeCells(base),
+      rotateShapeCells(rotateShapeCells(base)),
+      rotateShapeCells(rotateShapeCells(rotateShapeCells(base))),
+      mirrorShapeCells(base),
+      mirrorShapeCells(rotateShapeCells(base)),
+    ];
+
+    const options: ShapeCells[] = [correct];
+    for (const candidate of rng.shuffle(pool)) {
+      if (options.some((entry) => shapeCellsEqual(entry, candidate))) continue;
+      options.push(candidate);
+      if (options.length === 4) break;
+    }
+
+    const shuffled = rng.shuffle(options);
+    return {
+      base,
+      options: shuffled,
+      correctOption: shuffled.findIndex((option) => shapeCellsEqual(option, correct)),
+      instruction:
+        instructionMode === 0
+          ? "Rotate 90 degrees clockwise"
+          : instructionMode === 1
+            ? "Rotate 180 degrees"
+            : "Mirror across a vertical line",
+    };
+  });
+}
+
+function buildPathfinder(seed: number, difficulty: number): PathfinderPuzzle {
+  const rng = new SeededRandom(seed);
+  const size = difficulty >= 4 ? 7 : 6;
+  const pathLength = size + 3 + difficulty;
+  const blocked = new Set<number>();
+  const solutionPath = [0];
+  let current = 0;
+
+  while (solutionPath.length < pathLength && current !== size * size - 1) {
+    const row = Math.floor(current / size);
+    const col = current % size;
+    const candidates = rng.shuffle([
+      row < size - 1 ? current + size : -1,
+      col < size - 1 ? current + 1 : -1,
+      row > 0 ? current - size : -1,
+      col > 0 ? current - 1 : -1,
+    ]).filter((next) => next >= 0 && !solutionPath.includes(next));
+
+    if (candidates.length === 0) break;
+
+    current = candidates[0];
+    solutionPath.push(current);
+  }
+
+  if (solutionPath[solutionPath.length - 1] !== size * size - 1) {
+    let cursor = solutionPath[solutionPath.length - 1];
+    while (cursor % size < size - 1) {
+      cursor += 1;
+      if (!solutionPath.includes(cursor)) solutionPath.push(cursor);
+    }
+    while (cursor < size * (size - 1)) {
+      cursor += size;
+      if (!solutionPath.includes(cursor)) solutionPath.push(cursor);
+    }
+  }
+
+  for (let index = 0; index < size * size; index += 1) {
+    if (!solutionPath.includes(index) && rng.next() > 0.28) {
+      blocked.add(index);
+    }
+  }
+
+  blocked.delete(0);
+  blocked.delete(size * size - 1);
+  return { size, blocked: [...blocked], solutionPath };
 }
 
 function buildTilePuzzle(seed: number, difficulty: number) {
@@ -469,7 +754,7 @@ function RotatePipesBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="match-neon-stage match-spatial-board flex flex-col items-center gap-3">
       {props.isPractice && (
         <p className="text-center font-hud text-sm text-muted-foreground">
           Rotate tiles until the source path connects cleanly to the sink.
@@ -569,7 +854,7 @@ function NumberGridBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="match-neon-stage match-logic-board flex flex-col items-center gap-3">
       {props.isPractice && (
         <p className="text-center font-hud text-sm text-muted-foreground">
           Fill the blanks so every row and column matches its target sum.
@@ -668,7 +953,7 @@ function PatternMatchBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
   }
 
   return (
-    <div className="match-pattern-board flex flex-col items-center">
+    <div className="match-neon-stage match-match-board match-pattern-board flex flex-col items-center">
       {props.isPractice && (
         <p className="text-center font-hud text-sm text-muted-foreground">
           Find the missing piece. Rows share shapes, columns share colors.
@@ -767,7 +1052,7 @@ function WordScrambleBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="match-neon-stage match-letter-board flex flex-col items-center gap-4">
       {props.isPractice && (
         <p className="text-center font-hud text-sm text-muted-foreground">
           Tap the scrambled letters in order to spell the hidden word.
@@ -805,6 +1090,303 @@ function WordScrambleBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function CrosswordMiniBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
+  const [entries] = useState(() => buildCrosswordMini(props.seed, props.difficulty));
+  const [answers, setAnswers] = useState<string[]>(() => entries.map(() => ""));
+  const [solved, setSolved] = useState(false);
+
+  useEffect(() => {
+    const correct = entries.filter((entry, index) => answers[index].trim().toUpperCase() === entry.answer).length;
+    const progress = clampProgress((correct / Math.max(entries.length, 1)) * 100);
+    props.onProgress(progress);
+    props.onStateChange?.({ kind: "crossword_mini", answers }, progress);
+  }, [answers, entries, props]);
+
+  function handleAnswerChange(index: number, value: string) {
+    if (props.disabled || solved) return;
+    setAnswers((current) => {
+      const next = [...current];
+      next[index] = value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, entries[index].answer.length);
+      const done = next.every((answer, answerIndex) => answer === entries[answerIndex].answer);
+      if (done) {
+        setSolved(true);
+        window.setTimeout(props.onSolve, 250);
+      }
+      return next;
+    });
+  }
+
+  return (
+    <div className="match-neon-stage match-crossword-board flex w-full max-w-3xl flex-col gap-3">
+      {props.isPractice && (
+        <p className="text-center font-hud text-sm text-muted-foreground">
+          Solve each clue fast. Every filled answer counts toward the clear.
+        </p>
+      )}
+      {entries.map((entry, index) => (
+        <div key={`${entry.clue}-${index}`} className="grid gap-2 rounded-[24px] border border-border bg-card/60 p-3 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Clue {index + 1}</p>
+            <p className="text-sm font-semibold text-foreground sm:text-base">{entry.clue}</p>
+          </div>
+          <input
+            value={answers[index]}
+            onChange={(event) => handleAnswerChange(index, event.target.value)}
+            disabled={props.disabled || solved}
+            className="h-12 min-w-[12rem] rounded-2xl border border-border bg-background/35 px-4 text-sm font-black uppercase tracking-[0.22em]"
+            placeholder={`${entry.answer.length} letters`}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function WordSearchBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
+  const [puzzle] = useState(() => buildWordSearch(props.seed, props.difficulty));
+  const [selectionStart, setSelectionStart] = useState<number | null>(null);
+  const [foundSegments, setFoundSegments] = useState<Array<{ start: number; end: number }>>([]);
+  const [solved, setSolved] = useState(false);
+  const foundKeys = new Set(foundSegments.map((segment) => normalizeSegment(segment.start, segment.end)));
+
+  useEffect(() => {
+    const progress = clampProgress((foundSegments.length / Math.max(puzzle.placements.length, 1)) * 100);
+    props.onProgress(progress);
+    props.onStateChange?.({ kind: "word_search", segments: foundSegments }, progress);
+  }, [foundSegments, props, puzzle.placements.length]);
+
+  function handleCellTap(index: number) {
+    if (props.disabled || solved) return;
+    if (selectionStart === null) {
+      setSelectionStart(index);
+      return;
+    }
+
+    const nextKey = normalizeSegment(selectionStart, index);
+    const match = puzzle.placements.find((placement) => normalizeSegment(placement.start, placement.end) === nextKey);
+    if (match && !foundKeys.has(nextKey)) {
+      setFoundSegments((current) => {
+        const next = [...current, { start: selectionStart, end: index }];
+        if (next.length === puzzle.placements.length) {
+          setSolved(true);
+          window.setTimeout(props.onSolve, 250);
+        }
+        return next;
+      });
+    }
+    setSelectionStart(null);
+  }
+
+  return (
+    <div className="match-neon-stage match-letter-board flex w-full flex-col items-center gap-4">
+      {props.isPractice && (
+        <p className="text-center font-hud text-sm text-muted-foreground">
+          Find each word in the grid, then mark it by tapping its first and last letter.
+        </p>
+      )}
+      <div className="flex flex-wrap justify-center gap-2">
+        {puzzle.placements.map((placement) => {
+          const found = foundKeys.has(normalizeSegment(placement.start, placement.end));
+          return (
+            <div
+              key={placement.word}
+              className={`rounded-full border px-3 py-1 text-xs font-hud uppercase tracking-[0.16em] ${
+                found ? "border-primary bg-primary/15 text-primary" : "border-border bg-card/60 text-muted-foreground"
+              }`}
+            >
+              {placement.word}
+            </div>
+          );
+        })}
+      </div>
+      <div className="grid gap-1 rounded-[28px] bg-card/70 p-3" style={{ gridTemplateColumns: `repeat(${puzzle.size}, minmax(0, 1fr))` }}>
+        {puzzle.grid.map((letter, index) => {
+          const highlighted = puzzle.placements.some((placement) => {
+            const key = normalizeSegment(placement.start, placement.end);
+            return foundKeys.has(key) && placement.cells.includes(index);
+          });
+          return (
+            <button
+              key={`${letter}-${index}`}
+              onClick={() => handleCellTap(index)}
+              disabled={props.disabled || solved}
+              className={`flex h-10 w-10 items-center justify-center rounded-xl border text-sm font-black transition-all ${
+                selectionStart === index
+                  ? "border-primary bg-primary/15 text-primary"
+                  : highlighted
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border bg-background/35"
+              }`}
+            >
+              {letter}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MatchingPairsBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
+  const [pairs] = useState(() => buildMatchingPairs(props.seed, props.difficulty));
+  const [selectedCard, setSelectedCard] = useState<{ key: string; pairId: number } | null>(null);
+  const [matchedPairIds, setMatchedPairIds] = useState<number[]>([]);
+  const [solved, setSolved] = useState(false);
+  const cards = pairs.flatMap((pair) => ([
+    { key: `left-${pair.pairId}`, pairId: pair.pairId, text: pair.left },
+    { key: `right-${pair.pairId}`, pairId: pair.pairId, text: pair.right },
+  ]));
+  const [deck] = useState(() => new SeededRandom(props.seed).shuffle(cards));
+
+  useEffect(() => {
+    const progress = clampProgress((matchedPairIds.length / Math.max(pairs.length, 1)) * 100);
+    props.onProgress(progress);
+    props.onStateChange?.({ kind: "matching_pairs", matchedPairIds }, progress);
+  }, [matchedPairIds, pairs.length, props]);
+
+  function handleCardTap(cardKey: string, pairId: number) {
+    if (props.disabled || solved || matchedPairIds.includes(pairId)) return;
+    if (selectedCard === null) {
+      setSelectedCard({ key: cardKey, pairId });
+      return;
+    }
+    if (selectedCard.key === cardKey) {
+      return;
+    }
+    if (selectedCard.pairId !== pairId) {
+      setSelectedCard(null);
+      return;
+    }
+
+    setMatchedPairIds((current) => {
+      const next = [...current, pairId];
+      if (next.length === pairs.length) {
+        setSolved(true);
+        window.setTimeout(props.onSolve, 250);
+      }
+      return next;
+    });
+    setSelectedCard(null);
+  }
+
+  return (
+    <div className="match-neon-stage match-match-board flex w-full max-w-4xl flex-col gap-4">
+      {props.isPractice && (
+        <p className="text-center font-hud text-sm text-muted-foreground">
+          Tap two cards that belong together. Clear the obvious pairs first.
+        </p>
+      )}
+      <div className="grid gap-3 md:grid-cols-2">
+        {deck.map((card) => {
+          const isMatched = matchedPairIds.includes(card.pairId);
+          const isSelected = selectedCard?.key === card.key && !isMatched;
+          return (
+            <button
+              key={card.key}
+              onClick={() => handleCardTap(card.key, card.pairId)}
+              disabled={props.disabled || solved}
+              className={`rounded-[24px] border p-4 text-left transition-all ${
+                isMatched
+                  ? "border-primary bg-primary/12 text-primary"
+                  : isSelected
+                    ? "border-primary/40 bg-card"
+                    : "border-border bg-card/60 hover:border-primary/25"
+              }`}
+            >
+              <p className="text-sm font-semibold leading-6 sm:text-base">{card.text}</p>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ShapePreview({ cells }: { cells: ShapeCells }) {
+  return (
+    <div className="grid h-24 w-24 grid-cols-4 gap-1 rounded-[20px] bg-background/35 p-2">
+      {Array.from({ length: 16 }, (_, index) => {
+        const row = Math.floor(index / 4);
+        const col = index % 4;
+        const active = cells.some(([shapeRow, shapeCol]) => shapeRow === row && shapeCol === col);
+        return <div key={index} className={`rounded-lg ${active ? "bg-primary shadow-[0_0_18px_rgba(198,255,0,0.32)]" : "bg-background/25"}`} />;
+      })}
+    </div>
+  );
+}
+
+function SpatialReasoningBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
+  const [rounds] = useState(() => buildSpatialRounds(props.seed, props.difficulty));
+  const [roundIndex, setRoundIndex] = useState(0);
+  const [answers, setAnswers] = useState<number[]>([]);
+  const [locked, setLocked] = useState<number | null>(null);
+  const currentRound = rounds[roundIndex];
+
+  useEffect(() => {
+    const progress = clampProgress((answers.length / rounds.length) * 100);
+    props.onProgress(progress);
+    props.onStateChange?.({ kind: "spatial_reasoning", answers }, progress);
+  }, [answers, props, rounds.length]);
+
+  function handleOption(optionIndex: number) {
+    if (props.disabled || locked !== null) return;
+    setLocked(optionIndex);
+    if (optionIndex !== currentRound.correctOption) {
+      window.setTimeout(() => setLocked(null), 250);
+      return;
+    }
+
+    const nextAnswers = [...answers, optionIndex];
+    setAnswers(nextAnswers);
+    if (roundIndex === rounds.length - 1) {
+      props.onProgress(100);
+      window.setTimeout(props.onSolve, 250);
+      return;
+    }
+    window.setTimeout(() => {
+      setRoundIndex((current) => current + 1);
+      setLocked(null);
+    }, 250);
+  }
+
+  return (
+    <div className="match-neon-stage match-spatial-board flex w-full max-w-4xl flex-col items-center gap-4">
+      {props.isPractice && (
+        <p className="text-center font-hud text-sm text-muted-foreground">
+          Track the anchor blocks mentally. One corner usually gives the answer away.
+        </p>
+      )}
+      <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+        Round {roundIndex + 1}/{rounds.length}
+      </p>
+      <div className="rounded-[28px] border border-border bg-card/60 p-4 text-center">
+        <p className="font-hud text-xs uppercase tracking-[0.18em] text-primary">{currentRound.instruction}</p>
+        <div className="mt-3 flex justify-center">
+          <ShapePreview cells={currentRound.base} />
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {currentRound.options.map((option, optionIndex) => (
+          <button
+            key={optionIndex}
+            onClick={() => handleOption(optionIndex)}
+            disabled={props.disabled || locked !== null}
+            className={`rounded-[24px] border p-4 transition-all ${
+              locked === optionIndex
+                ? optionIndex === currentRound.correctOption
+                  ? "border-primary bg-primary/10"
+                  : "border-destructive bg-destructive/10"
+                : "border-border bg-card/60 hover:border-primary/25"
+            }`}
+          >
+            <ShapePreview cells={option} />
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -857,7 +1439,7 @@ function TileSlidingBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="match-neon-stage match-spatial-board flex flex-col items-center gap-3">
       {props.isPractice && (
         <p className="text-center font-hud text-sm text-muted-foreground">
           Slide tiles into order by moving pieces into the empty space.
@@ -924,7 +1506,7 @@ function SudokuMiniBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="match-neon-stage match-logic-board flex flex-col items-center gap-4">
       {props.isPractice && (
         <p className="text-center font-hud text-sm text-muted-foreground">
           Fill 1-4 so each row, column, and 2x2 box has no repeats.
@@ -1014,13 +1596,13 @@ function MazeBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="match-neon-stage match-maze-board flex flex-col items-center gap-3">
       {props.isPractice && (
-        <p className="text-center font-hud text-sm text-muted-foreground">
+        <p className="match-maze-copy text-center font-hud text-sm text-muted-foreground">
           Navigate the maze by moving to adjacent open cells until you reach the finish.
         </p>
       )}
-      <div className="grid gap-1 rounded-[28px] bg-card/70 p-3" style={{ gridTemplateColumns: `repeat(${maze.size}, 1fr)` }}>
+      <div className="match-maze-grid" style={{ gridTemplateColumns: `repeat(${maze.size}, 1fr)` }}>
         {maze.cells.map((cell, index) => (
           <button
             key={index}
@@ -1029,31 +1611,114 @@ function MazeBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
               move(delta);
             }}
             disabled={props.disabled || solved}
-            className={`flex h-10 w-10 items-center justify-center rounded-xl border text-xs font-black ${
+            className={`match-maze-cell ${
               index === position
-                ? "border-primary bg-primary/15 text-primary"
+                ? "match-maze-cell-player"
                 : index === maze.goalIndex
-                  ? "border-accent bg-accent/10 text-accent"
-                  : "border-border bg-background/35"
+                  ? "match-maze-cell-goal"
+                  : "match-maze-cell-open"
             }`}
-            style={{
-              borderTopWidth: cell.top ? 3 : 1,
-              borderRightWidth: cell.right ? 3 : 1,
-              borderBottomWidth: cell.bottom ? 3 : 1,
-              borderLeftWidth: cell.left ? 3 : 1,
-            }}
           >
-            {index === position ? "P" : index === maze.goalIndex ? "G" : ""}
+            {cell.top ? <span className="match-maze-wall match-maze-wall-top" /> : null}
+            {cell.right ? <span className="match-maze-wall match-maze-wall-right" /> : null}
+            {cell.bottom ? <span className="match-maze-wall match-maze-wall-bottom" /> : null}
+            {cell.left ? <span className="match-maze-wall match-maze-wall-left" /> : null}
+            <span className="match-maze-cell-core" />
+            {index === position ? <span className="match-maze-marker match-maze-marker-player">P</span> : null}
+            {index === maze.goalIndex ? <span className="match-maze-marker match-maze-marker-goal">G</span> : null}
           </button>
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="match-maze-controls">
         <div />
-        <Button variant="outline" size="sm" onClick={() => move(-maze.size)}>Up</Button>
+        <Button variant="outline" size="sm" className="match-maze-control" onClick={() => move(-maze.size)}>↑</Button>
         <div />
-        <Button variant="outline" size="sm" onClick={() => move(-1)}>Left</Button>
-        <Button variant="outline" size="sm" onClick={() => move(maze.size)}>Down</Button>
-        <Button variant="outline" size="sm" onClick={() => move(1)}>Right</Button>
+        <Button variant="outline" size="sm" className="match-maze-control" onClick={() => move(-1)}>←</Button>
+        <Button variant="outline" size="sm" className="match-maze-control" onClick={() => move(maze.size)}>↓</Button>
+        <Button variant="outline" size="sm" className="match-maze-control" onClick={() => move(1)}>→</Button>
+      </div>
+    </div>
+  );
+}
+
+function PathfinderBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
+  const [puzzle] = useState(() => buildPathfinder(props.seed, props.difficulty));
+  const [path, setPath] = useState<number[]>([0]);
+  const [solved, setSolved] = useState(false);
+  const blocked = new Set(puzzle.blocked);
+
+  useEffect(() => {
+    let matchingPrefix = 0;
+    while (
+      matchingPrefix < path.length &&
+      matchingPrefix < puzzle.solutionPath.length &&
+      path[matchingPrefix] === puzzle.solutionPath[matchingPrefix]
+    ) {
+      matchingPrefix += 1;
+    }
+    const progress = clampProgress((matchingPrefix / Math.max(puzzle.solutionPath.length, 1)) * 100);
+    props.onProgress(progress);
+    props.onStateChange?.({ kind: "pathfinder", path }, progress);
+  }, [path, props, puzzle.solutionPath]);
+
+  function handleCellTap(index: number) {
+    if (props.disabled || solved || blocked.has(index)) return;
+    const last = path[path.length - 1];
+    if (index === 0) {
+      setPath([0]);
+      return;
+    }
+    if (path.includes(index)) {
+      setPath(path.slice(0, path.indexOf(index) + 1));
+      return;
+    }
+    const size = puzzle.size;
+    const isAdjacent = Math.abs(Math.floor(last / size) - Math.floor(index / size)) + Math.abs((last % size) - (index % size)) === 1;
+    if (!isAdjacent) return;
+    const nextPath = [...path, index];
+    setPath(nextPath);
+    if (index === size * size - 1 && nextPath.every((cell, cellIndex) => cell === puzzle.solutionPath[cellIndex])) {
+      setSolved(true);
+      props.onProgress(100);
+      window.setTimeout(props.onSolve, 250);
+    }
+  }
+
+  return (
+    <div className="match-neon-stage match-maze-board flex flex-col items-center gap-3">
+      {props.isPractice && (
+        <p className="match-maze-copy text-center font-hud text-sm text-muted-foreground">
+          Trace the open route from start to goal. You can backtrack by tapping a visited cell.
+        </p>
+      )}
+      <div className="match-maze-grid match-path-grid" style={{ gridTemplateColumns: `repeat(${puzzle.size}, 1fr)` }}>
+        {Array.from({ length: puzzle.size * puzzle.size }, (_, index) => {
+          const inPath = path.includes(index);
+          const isStart = index === 0;
+          const isGoal = index === puzzle.size * puzzle.size - 1;
+          return (
+            <button
+              key={index}
+              onClick={() => handleCellTap(index)}
+              disabled={props.disabled || solved || blocked.has(index)}
+              className={`match-maze-cell ${
+                blocked.has(index)
+                  ? "match-path-cell-blocked"
+                  : isStart
+                    ? "match-maze-cell-player"
+                    : isGoal
+                      ? "match-maze-cell-goal"
+                      : inPath
+                        ? "match-path-cell-active"
+                        : "match-maze-cell-open"
+              }`}
+            >
+              <span className="match-maze-cell-core" />
+              {isStart ? <span className="match-maze-marker match-maze-marker-player">S</span> : null}
+              {isGoal ? <span className="match-maze-marker match-maze-marker-goal">G</span> : null}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -1098,7 +1763,7 @@ function MemoryGridBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="match-neon-stage match-match-board flex flex-col items-center gap-4">
       {props.isPractice && (
         <p className="text-center font-hud text-sm text-muted-foreground">
           Memorize the highlighted cells, then tap the same pattern back from memory.
@@ -1164,7 +1829,7 @@ function QuizScenarioBoard(
   }
 
   return (
-    <div className="match-quiz-board">
+    <div className="match-neon-stage match-logic-board match-quiz-board">
       {props.isPractice && (
         <p className="text-center font-hud text-xs leading-5 text-muted-foreground sm:text-sm">{props.helper}</p>
       )}
@@ -1224,7 +1889,7 @@ function WordleGuessBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="match-neon-stage match-letter-board flex flex-col items-center gap-4">
       {props.isPractice && (
         <p className="text-center font-hud text-sm text-muted-foreground">
           Guess the five-letter word. Green means the letter is in the right spot.
@@ -1270,187 +1935,163 @@ function WordleGuessBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
 }
 
 export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
+  const family = getPuzzleBoardFamily(props.puzzleType);
+
+  let board: JSX.Element;
+
   if (props.puzzleType === "rotate_pipes") {
-    return <RotatePipesBoard {...props} />;
-  }
-
-  if (props.puzzleType === "number_grid") {
-    return <NumberGridBoard {...props} />;
-  }
-
-  if (props.puzzleType === "pattern_match") {
-    return <PatternMatchBoard {...props} />;
-  }
-
-  if (props.puzzleType === "word_scramble") {
-    return <WordScrambleBoard {...props} />;
-  }
-
-  if (props.puzzleType === "tile_slide") {
-    return <TileSlidingBoard {...props} />;
-  }
-
-  if (props.puzzleType === "sudoku_mini") {
-    return <SudokuMiniBoard {...props} />;
-  }
-
-  if (props.puzzleType === "maze") {
-    return <MazeBoard {...props} />;
-  }
-
-  if (props.puzzleType === "memory_grid") {
-    return <MemoryGridBoard {...props} />;
-  }
-
-  if (props.puzzleType === "riddle_choice") {
-    return (
+    board = <RotatePipesBoard {...props} />;
+  } else if (props.puzzleType === "number_grid") {
+    board = <NumberGridBoard {...props} />;
+  } else if (props.puzzleType === "pattern_match") {
+    board = <PatternMatchBoard {...props} />;
+  } else if (props.puzzleType === "word_scramble") {
+    board = <WordScrambleBoard {...props} />;
+  } else if (props.puzzleType === "crossword_mini") {
+    board = <CrosswordMiniBoard {...props} />;
+  } else if (props.puzzleType === "tile_slide") {
+    board = <TileSlidingBoard {...props} />;
+  } else if (props.puzzleType === "sudoku_mini") {
+    board = <SudokuMiniBoard {...props} />;
+  } else if (props.puzzleType === "word_search") {
+    board = <WordSearchBoard {...props} />;
+  } else if (props.puzzleType === "matching_pairs") {
+    board = <MatchingPairsBoard {...props} />;
+  } else if (props.puzzleType === "spatial_reasoning") {
+    board = <SpatialReasoningBoard {...props} />;
+  } else if (props.puzzleType === "maze") {
+    board = <MazeBoard {...props} />;
+  } else if (props.puzzleType === "pathfinder") {
+    board = <PathfinderBoard {...props} />;
+  } else if (props.puzzleType === "memory_grid") {
+    board = <MemoryGridBoard {...props} />;
+  } else if (props.puzzleType === "riddle_choice") {
+    board = (
       <QuizScenarioBoard
         {...props}
         kind="riddle_choice"
         helper="Read the riddle carefully and pick the strongest answer."
       />
     );
-  }
-
-  if (props.puzzleType === "wordle_guess") {
-    return <WordleGuessBoard {...props} />;
-  }
-
-  if (props.puzzleType === "chess_tactic") {
-    return (
+  } else if (props.puzzleType === "wordle_guess") {
+    board = <WordleGuessBoard {...props} />;
+  } else if (props.puzzleType === "chess_tactic") {
+    board = (
       <QuizScenarioBoard
         {...props}
         kind="chess_tactic"
         helper="Choose the best tactical continuation from the listed moves."
       />
     );
-  }
-
-  if (props.puzzleType === "logic_sequence") {
-    return (
+  } else if (props.puzzleType === "logic_sequence") {
+    board = (
       <QuizScenarioBoard
         {...props}
         kind="logic_sequence"
         helper="Read the pattern and choose the only answer that continues it cleanly."
       />
     );
-  }
-
-  if (props.puzzleType === "trivia_blitz") {
-    return (
+  } else if (props.puzzleType === "trivia_blitz") {
+    board = (
       <QuizScenarioBoard
         {...props}
         kind="trivia_blitz"
         helper="Move fast. These are broad knowledge questions built for speed."
       />
     );
-  }
-
-  if (props.puzzleType === "geography_quiz") {
-    return (
+  } else if (props.puzzleType === "geography_quiz") {
+    board = (
       <QuizScenarioBoard
         {...props}
         kind="geography_quiz"
         helper="Pick the right capital, country, or landmark before the timer closes."
       />
     );
-  }
-
-  if (props.puzzleType === "science_quiz") {
-    return (
+  } else if (props.puzzleType === "science_quiz") {
+    board = (
       <QuizScenarioBoard
         {...props}
         kind="science_quiz"
         helper="Choose the right science or tech answer from the prompt."
       />
     );
-  }
-
-  if (props.puzzleType === "math_race") {
-    return (
+  } else if (props.puzzleType === "math_race") {
+    board = (
       <QuizScenarioBoard
         {...props}
         kind="math_race"
         helper="Mental math only. Pick the correct answer before momentum drops."
       />
     );
-  }
-
-  if (props.puzzleType === "code_breaker") {
-    return (
+  } else if (props.puzzleType === "code_breaker") {
+    board = (
       <QuizScenarioBoard
         {...props}
         kind="code_breaker"
         helper="Read the code rule and break the right combination."
       />
     );
-  }
-
-  if (props.puzzleType === "analogies") {
-    return (
+  } else if (props.puzzleType === "analogies") {
+    board = (
       <QuizScenarioBoard
         {...props}
         kind="analogies"
         helper="Pick the option that completes the relationship best."
       />
     );
-  }
-
-  if (props.puzzleType === "deduction_grid") {
-    return (
+  } else if (props.puzzleType === "deduction_grid") {
+    board = (
       <QuizScenarioBoard
         {...props}
         kind="deduction_grid"
         helper="Think through the clues and choose the only consistent answer."
       />
     );
-  }
-
-  if (props.puzzleType === "chess_endgame") {
-    return (
+  } else if (props.puzzleType === "chess_endgame") {
+    board = (
       <QuizScenarioBoard
         {...props}
         kind="chess_endgame"
         helper="Choose the endgame plan that actually converts or saves the draw."
       />
     );
-  }
-
-  if (props.puzzleType === "chess_opening") {
-    return (
+  } else if (props.puzzleType === "chess_opening") {
+    board = (
       <QuizScenarioBoard
         {...props}
         kind="chess_opening"
         helper="Choose the principled opening move that fits the position."
       />
     );
-  }
-
-  if (props.puzzleType === "chess_mate_net") {
-    return (
+  } else if (props.puzzleType === "chess_mate_net") {
+    board = (
       <QuizScenarioBoard
         {...props}
         kind="chess_mate_net"
         helper="Look for the forcing move that creates an unavoidable mating net."
       />
     );
-  }
-
-  if (props.puzzleType === "vocabulary_duel") {
-    return (
+  } else if (props.puzzleType === "vocabulary_duel") {
+    board = (
       <QuizScenarioBoard
         {...props}
         kind="vocabulary_duel"
         helper="Pick the strongest synonym, meaning, or word fit."
       />
     );
+  } else {
+    board = (
+      <QuizScenarioBoard
+        {...props}
+        kind="checkers_tactic"
+        helper="Find the best capture or positional continuation in the checkers scenario."
+      />
+    );
   }
 
   return (
-    <QuizScenarioBoard
-      {...props}
-      kind="checkers_tactic"
-      helper="Find the best capture or positional continuation in the checkers scenario."
-    />
+    <NeonPuzzleShell family={family} puzzleType={props.puzzleType}>
+      {board}
+    </NeonPuzzleShell>
   );
 }

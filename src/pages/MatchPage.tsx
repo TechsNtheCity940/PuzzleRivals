@@ -616,14 +616,6 @@ export default function MatchPage() {
     );
   }
 
-  if (lobby.status === "practice") {
-    return renderFullscreenArena("practice");
-  }
-
-  if (lobby.status === "live") {
-    return renderFullscreenArena("live");
-  }
-
   if (activeResultsLobby) {
     return (
       <div className="match-results-screen">
@@ -684,6 +676,14 @@ export default function MatchPage() {
         </div>
       </div>
     );
+  }
+
+  if (lobby.status === "practice") {
+    return renderFullscreenArena("practice");
+  }
+
+  if (lobby.status === "live") {
+    return renderFullscreenArena("live");
   }
 
   if (lobby.status === "filling") {

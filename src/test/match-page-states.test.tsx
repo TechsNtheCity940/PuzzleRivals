@@ -291,4 +291,19 @@ describe("MatchPage states", () => {
     expect(screen.getByText("Match Leaderboard")).toBeInTheDocument();
     expect(screen.queryByText("Puzzle Lock")).not.toBeInTheDocument();
   });
+
+  it("keeps the leaderboard pinned even if the next round starts early", async () => {
+    mockLobbyState.lobby = createLobby("intermission");
+
+    renderMatchPage();
+
+    expect(await screen.findByText("Match Leaderboard")).toBeInTheDocument();
+
+    await act(async () => {
+      mockLobbyState.listener?.(createLobby("practice"));
+    });
+
+    expect(screen.getByText("Match Leaderboard")).toBeInTheDocument();
+    expect(screen.queryByText("Practice Arena")).not.toBeInTheDocument();
+  });
 });

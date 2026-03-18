@@ -7,9 +7,14 @@ export type MatchPlayablePuzzleType =
   | "number_grid"
   | "pattern_match"
   | "word_scramble"
+  | "crossword_mini"
   | "tile_slide"
   | "sudoku_mini"
+  | "word_search"
+  | "matching_pairs"
+  | "spatial_reasoning"
   | "maze"
+  | "pathfinder"
   | "memory_grid"
   | "riddle_choice"
   | "wordle_guess"
@@ -134,6 +139,11 @@ export type WordScrambleSubmission = {
   selectedIndices: number[];
 };
 
+export type CrosswordMiniSubmission = {
+  kind: "crossword_mini";
+  answers: string[];
+};
+
 export type TileSlideSubmission = {
   kind: "tile_slide";
   tiles: number[];
@@ -144,9 +154,32 @@ export type SudokuMiniSubmission = {
   values: Array<number | null>;
 };
 
+export type WordSearchSubmission = {
+  kind: "word_search";
+  segments: Array<{
+    start: number;
+    end: number;
+  }>;
+};
+
+export type MatchingPairsSubmission = {
+  kind: "matching_pairs";
+  matchedPairIds: number[];
+};
+
+export type SpatialReasoningSubmission = {
+  kind: "spatial_reasoning";
+  answers: number[];
+};
+
 export type MazeSubmission = {
   kind: "maze";
   position: number;
+};
+
+export type PathfinderSubmission = {
+  kind: "pathfinder";
+  path: number[];
 };
 
 export type MemoryGridSubmission = {
@@ -239,9 +272,14 @@ export type PuzzleSubmission =
   | NumberGridSubmission
   | PatternMatchSubmission
   | WordScrambleSubmission
+  | CrosswordMiniSubmission
   | TileSlideSubmission
   | SudokuMiniSubmission
+  | WordSearchSubmission
+  | MatchingPairsSubmission
+  | SpatialReasoningSubmission
   | MazeSubmission
+  | PathfinderSubmission
   | MemoryGridSubmission
   | RiddleChoiceSubmission
   | WordleGuessSubmission

@@ -7,6 +7,7 @@ import { AuthService } from "./services/auth-service.js";
 import { LobbyManager } from "./services/lobby-manager.js";
 import { PayPalService } from "./services/paypal-service.js";
 import { registerAuthRoutes } from "./routes/auth.js";
+import { registerAutomationAgentRoutes } from "./routes/automation-agents.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerMatchmakingRoutes } from "./routes/matchmaking.js";
 import { registerPayPalRoutes } from "./routes/paypal.js";
@@ -46,6 +47,7 @@ export async function buildServer() {
   });
 
   await registerAuthRoutes(app, authService);
+  await registerAutomationAgentRoutes(app);
   await registerHealthRoutes(app);
   await registerMatchmakingRoutes(app, lobbyManager, authService);
   await registerPayPalRoutes(app, payPalService, authService, database);

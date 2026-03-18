@@ -5,9 +5,14 @@ export type MatchPlayablePuzzleType =
   | "number_grid"
   | "pattern_match"
   | "word_scramble"
+  | "crossword_mini"
   | "tile_slide"
   | "sudoku_mini"
+  | "word_search"
+  | "matching_pairs"
+  | "spatial_reasoning"
   | "maze"
+  | "pathfinder"
   | "memory_grid"
   | "riddle_choice"
   | "wordle_guess"
@@ -47,9 +52,14 @@ export type PuzzleSubmission =
   | { kind: "number_grid"; values: Array<number | null> }
   | { kind: "pattern_match"; answers: number[] }
   | { kind: "word_scramble"; selectedIndices: number[] }
+  | { kind: "crossword_mini"; answers: string[] }
   | { kind: "tile_slide"; tiles: number[] }
   | { kind: "sudoku_mini"; values: Array<number | null> }
+  | { kind: "word_search"; segments: Array<{ start: number; end: number }> }
+  | { kind: "matching_pairs"; matchedPairIds: number[] }
+  | { kind: "spatial_reasoning"; answers: number[] }
   | { kind: "maze"; position: number }
+  | { kind: "pathfinder"; path: number[] }
   | { kind: "memory_grid"; selectedIndices: number[] }
   | { kind: "riddle_choice"; answers: number[] }
   | { kind: "wordle_guess"; guesses: string[] }
@@ -96,6 +106,37 @@ interface QuizRound {
   correctOption: number;
 }
 
+interface CrosswordEntry {
+  clue: string;
+  answer: string;
+}
+
+interface MatchingPair {
+  pairId: number;
+  left: string;
+  right: string;
+}
+
+interface WordSearchPlacement {
+  word: string;
+  start: number;
+  end: number;
+  cells: number[];
+}
+
+interface WordSearchPuzzle {
+  size: number;
+  grid: string[];
+  placements: WordSearchPlacement[];
+}
+
+interface SpatialRound {
+  base: Array<[number, number]>;
+  options: Array<Array<[number, number]>>;
+  correctOption: number;
+  instruction: string;
+}
+
 class SeededRandom {
   private seed: number;
 
@@ -127,9 +168,14 @@ const MATCH_PLAYABLE_PUZZLES: MatchPlayablePuzzleType[] = [
   "number_grid",
   "pattern_match",
   "word_scramble",
+  "crossword_mini",
   "tile_slide",
   "sudoku_mini",
+  "word_search",
+  "matching_pairs",
+  "spatial_reasoning",
   "maze",
+  "pathfinder",
   "memory_grid",
   "riddle_choice",
   "wordle_guess",
@@ -154,9 +200,14 @@ const PUZZLE_CATALOG: Record<MatchPlayablePuzzleType, PuzzleCatalogEntry> = {
   number_grid: { type: "number_grid", label: "Number Crunch", icon: "🔢", description: "Fill the empty cells so every row and column matches the target sum." },
   pattern_match: { type: "pattern_match", label: "Pattern Eye", icon: "👁", description: "Identify the missing piece by reading the shape and color rule." },
   word_scramble: { type: "word_scramble", label: "Word Blitz", icon: "🔤", description: "Tap the scrambled letters in order to spell the hidden word." },
+  crossword_mini: { type: "crossword_mini", label: "Crossword Clash", icon: "Clue", description: "Solve a burst of clue-driven mini crossword entries." },
   tile_slide: { type: "tile_slide", label: "Tile Shift", icon: "⬜", description: "Slide tiles into the empty space until the board returns to order." },
   sudoku_mini: { type: "sudoku_mini", label: "Sudoku Sprint", icon: "🧩", description: "Fill 1-4 so each row, column, and 2x2 box has no repeats." },
+  word_search: { type: "word_search", label: "Word Hunt", icon: "Search", description: "Find hidden words in the grid and mark their endpoints." },
+  matching_pairs: { type: "matching_pairs", label: "Match Maker", icon: "Link", description: "Pair each term with the clue or partner that belongs with it." },
+  spatial_reasoning: { type: "spatial_reasoning", label: "Spatial Spin", icon: "Shape", description: "Choose the rotated or mirrored shape that fits the rule." },
   maze: { type: "maze", label: "Maze Rush", icon: "🏁", description: "Guide the runner through the maze and reach the goal square." },
+  pathfinder: { type: "pathfinder", label: "Pathfinder", icon: "Route", description: "Trace the valid route through a blocked grid from start to finish." },
   memory_grid: { type: "memory_grid", label: "Memory Flash", icon: "🧠", description: "Memorize the highlighted pattern, then tap the same cells back." },
   riddle_choice: { type: "riddle_choice", label: "Riddle Relay", icon: "❓", description: "Solve rapid-fire riddles with multiple-choice answers." },
   wordle_guess: { type: "wordle_guess", label: "Word Strike", icon: "🟩", description: "Guess the five-letter word using color feedback from each attempt." },
@@ -178,6 +229,44 @@ const PUZZLE_CATALOG: Record<MatchPlayablePuzzleType, PuzzleCatalogEntry> = {
 
 const WORD_BANK = ["BRAIN", "SPEED", "QUICK", "FLASH", "POWER", "SMART", "BLAZE", "STORM", "CLASH", "RIVAL", "CROWN", "DREAM", "FLAME", "GLEAM", "HEART", "JOLTS", "KNACK", "LEMON", "MANGO", "NERVE", "ORBIT", "PRISM", "QUEST", "REIGN", "PIXEL", "DRIFT", "SPARK", "CHASE", "PULSE", "TIGER", "GIANT", "NOBLE"];
 const WORDLE_BANK = ["SPARK", "BRAIN", "QUEST", "PRISM", "CROWN", "ORBIT", "GLINT", "SHARD"];
+const CROSSWORD_BANK: CrosswordEntry[] = [
+  { clue: "Fast-thinking organ", answer: "BRAIN" },
+  { clue: "A clue-solving contest can feel like a ____", answer: "RACE" },
+  { clue: "A hidden way through a puzzle grid", answer: "PATH" },
+  { clue: "A collection of letters that forms a word", answer: "ANAGRAM" },
+  { clue: "A board game with rooks and bishops", answer: "CHESS" },
+  { clue: "A puzzle hint might narrow the ____", answer: "FIELD" },
+  { clue: "A dead-end corridor inside a labyrinth", answer: "MAZE" },
+  { clue: "A relation between two similar ideas", answer: "ANALOGY" },
+  { clue: "What you do to a jumbled word", answer: "UNSCRAMBLE" },
+  { clue: "A shape turned around in space", answer: "ROTATION" },
+  { clue: "A list of facts that leads to one answer", answer: "LOGIC" },
+  { clue: "The hidden answer inside a riddle", answer: "SOLUTION" },
+];
+const MATCHING_PAIR_BANK = [
+  ["Mercury", "Planet closest to the sun"],
+  ["Rook", "Chess piece that moves in straight lines"],
+  ["Anagram", "Word made by rearranging letters"],
+  ["Seismograph", "Tool that records earthquakes"],
+  ["Ottawa", "Capital of Canada"],
+  ["Opposition", "Key king-and-pawn endgame concept"],
+  ["Diagonal", "A line that slants across a grid"],
+  ["Square", "Shape with four equal sides"],
+  ["Cipher", "Secret code system"],
+  ["Vertex", "Corner point of a shape"],
+  ["Sahara", "Largest hot desert in Africa"],
+  ["Canberra", "Capital of Australia"],
+];
+const WORD_SEARCH_WORD_BANK = [
+  "BRAIN", "QUEST", "SPARK", "GRID", "LOGIC", "MAZE", "ROOK", "CROWN",
+  "TRACE", "MATCH", "CLUE", "SWIFT", "SHAPE", "TILES", "TOKEN", "PATH",
+];
+const SPATIAL_BASE_SHAPES: Array<Array<[number, number]>> = [
+  [[1, 0], [0, 1], [1, 1], [2, 1]],
+  [[0, 0], [0, 1], [0, 2], [1, 2]],
+  [[0, 0], [1, 0], [1, 1], [2, 1]],
+  [[1, 0], [0, 1], [1, 1], [1, 2]],
+];
 const PATTERN_SHAPES: PatternShape[] = ["circle", "square", "triangle", "diamond"];
 const PATTERN_COLORS = ["hsl(72 100% 50%)", "hsl(269 100% 58%)", "hsl(0 100% 65%)", "hsl(200 100% 60%)", "hsl(45 100% 55%)"];
 const RIDDLE_BANK: QuizRound[] = [
@@ -404,6 +493,186 @@ function buildWordScramble(seed: number, difficulty: number) {
   return { targetWord, scrambled };
 }
 
+function buildCrosswordMini(seed: number, difficulty: number) {
+  const rng = new SeededRandom(seed);
+  const totalEntries = Math.min(5, Math.max(3, difficulty));
+  return rng.shuffle(CROSSWORD_BANK).slice(0, totalEntries);
+}
+
+function buildMatchingPairs(seed: number, difficulty: number) {
+  const rng = new SeededRandom(seed);
+  const totalPairs = Math.min(5, Math.max(3, difficulty));
+  return rng.shuffle(MATCHING_PAIR_BANK).slice(0, totalPairs).map(([left, right], index) => ({ pairId: index, left, right })) as MatchingPair[];
+}
+
+function buildWordSearch(seed: number, difficulty: number): WordSearchPuzzle {
+  const rng = new SeededRandom(seed);
+  const size = difficulty >= 4 ? 7 : 6;
+  const totalWords = Math.min(4, Math.max(3, difficulty));
+  const words = rng.shuffle(WORD_SEARCH_WORD_BANK.filter((word) => word.length <= size)).slice(0, totalWords);
+  const grid = Array.from({ length: size * size }, () => "");
+  const placements: WordSearchPlacement[] = [];
+  const directions = [
+    { dr: 0, dc: 1 },
+    { dr: 1, dc: 0 },
+    { dr: 1, dc: 1 },
+    { dr: 1, dc: -1 },
+  ];
+
+  for (const word of words) {
+    let placed = false;
+    for (let attempt = 0; attempt < 80 && !placed; attempt += 1) {
+      const direction = directions[rng.nextInt(0, directions.length - 1)];
+      const startRow = rng.nextInt(0, size - 1);
+      const startCol = rng.nextInt(0, size - 1);
+      const endRow = startRow + direction.dr * (word.length - 1);
+      const endCol = startCol + direction.dc * (word.length - 1);
+      if (endRow < 0 || endRow >= size || endCol < 0 || endCol >= size) continue;
+
+      const cells: number[] = [];
+      let valid = true;
+      for (let step = 0; step < word.length; step += 1) {
+        const row = startRow + direction.dr * step;
+        const col = startCol + direction.dc * step;
+        const index = row * size + col;
+        const letter = word[step];
+        if (grid[index] && grid[index] !== letter) {
+          valid = false;
+          break;
+        }
+        cells.push(index);
+      }
+      if (!valid) continue;
+
+      cells.forEach((index, step) => {
+        grid[index] = word[step];
+      });
+      placements.push({ word, start: cells[0], end: cells[cells.length - 1], cells });
+      placed = true;
+    }
+  }
+
+  for (let index = 0; index < grid.length; index += 1) {
+    if (!grid[index]) {
+      grid[index] = String.fromCharCode(65 + rng.nextInt(0, 25));
+    }
+  }
+
+  return { size, grid, placements };
+}
+
+function normalizeCells(cells: Array<[number, number]>) {
+  const minRow = Math.min(...cells.map(([row]) => row));
+  const minCol = Math.min(...cells.map(([, col]) => col));
+  return cells
+    .map(([row, col]) => [row - minRow, col - minCol] as [number, number])
+    .sort((left, right) => (left[0] - right[0]) || (left[1] - right[1]));
+}
+
+function rotateCellsClockwise(cells: Array<[number, number]>) {
+  return normalizeCells(cells.map(([row, col]) => [col, -row] as [number, number]));
+}
+
+function mirrorCellsHorizontal(cells: Array<[number, number]>) {
+  return normalizeCells(cells.map(([row, col]) => [row, -col] as [number, number]));
+}
+
+function cellsEqual(left: Array<[number, number]>, right: Array<[number, number]>) {
+  return JSON.stringify(normalizeCells(left)) === JSON.stringify(normalizeCells(right));
+}
+
+function buildSpatialRounds(seed: number, difficulty: number) {
+  const rng = new SeededRandom(seed);
+  const totalRounds = Math.min(5, Math.max(3, difficulty));
+  return Array.from({ length: totalRounds }, () => {
+    const base = normalizeCells(SPATIAL_BASE_SHAPES[rng.nextInt(0, SPATIAL_BASE_SHAPES.length - 1)]);
+    const instructionMode = rng.nextInt(0, 2);
+    const correct =
+      instructionMode === 0
+        ? rotateCellsClockwise(base)
+        : instructionMode === 1
+          ? rotateCellsClockwise(rotateCellsClockwise(base))
+          : mirrorCellsHorizontal(base);
+
+    const pool = [
+      base,
+      rotateCellsClockwise(base),
+      rotateCellsClockwise(rotateCellsClockwise(base)),
+      rotateCellsClockwise(rotateCellsClockwise(rotateCellsClockwise(base))),
+      mirrorCellsHorizontal(base),
+      mirrorCellsHorizontal(rotateCellsClockwise(base)),
+    ];
+
+    const options: Array<Array<[number, number]>> = [correct];
+    for (const candidate of rng.shuffle(pool)) {
+      if (options.some((entry) => cellsEqual(entry, candidate))) continue;
+      options.push(candidate);
+      if (options.length === 4) break;
+    }
+    const shuffled = rng.shuffle(options);
+    return {
+      base,
+      options: shuffled,
+      correctOption: shuffled.findIndex((option) => cellsEqual(option, correct)),
+      instruction:
+        instructionMode === 0
+          ? "Rotate 90 degrees clockwise"
+          : instructionMode === 1
+            ? "Rotate 180 degrees"
+            : "Mirror across a vertical line",
+    } satisfies SpatialRound;
+  });
+}
+
+function buildPathfinder(seed: number, difficulty: number) {
+  const rng = new SeededRandom(seed);
+  const size = difficulty >= 4 ? 7 : 6;
+  const pathLength = size + 3 + difficulty;
+  const blocked = new Set<number>();
+  const path = [0];
+  let current = 0;
+
+  while (path.length < pathLength && current !== size * size - 1) {
+    const row = Math.floor(current / size);
+    const col = current % size;
+    const candidates = rng.shuffle([
+      row < size - 1 ? current + size : -1,
+      col < size - 1 ? current + 1 : -1,
+      row > 0 ? current - size : -1,
+      col > 0 ? current - 1 : -1,
+    ]).filter((next) => next >= 0 && !path.includes(next));
+
+    if (candidates.length === 0) {
+      break;
+    }
+
+    current = candidates[0];
+    path.push(current);
+  }
+
+  if (path[path.length - 1] !== size * size - 1) {
+    let cursor = path[path.length - 1];
+    while (cursor % size < size - 1) {
+      cursor += 1;
+      if (!path.includes(cursor)) path.push(cursor);
+    }
+    while (cursor < size * (size - 1)) {
+      cursor += size;
+      if (!path.includes(cursor)) path.push(cursor);
+    }
+  }
+
+  for (let index = 0; index < size * size; index += 1) {
+    if (!path.includes(index) && rng.next() > 0.28) {
+      blocked.add(index);
+    }
+  }
+
+  blocked.delete(0);
+  blocked.delete(size * size - 1);
+  return { size, blocked: [...blocked], solutionPath: path };
+}
+
 function buildTilePuzzle(seed: number, difficulty: number) {
   const rng = new SeededRandom(seed);
   const size = 3;
@@ -516,6 +785,10 @@ function buildMemoryGrid(seed: number, difficulty: number) {
   return { targets: rng.shuffle(Array.from({ length: 16 }, (_, index) => index)).slice(0, Math.min(7, Math.max(4, difficulty + 2))) };
 }
 
+function normalizeSegment(start: number, end: number) {
+  return start <= end ? `${start}:${end}` : `${end}:${start}`;
+}
+
 function buildQuizRounds(seed: number, bank: QuizRound[], totalRounds: number) {
   const rng = new SeededRandom(seed);
   return rng.shuffle(bank).slice(0, totalRounds);
@@ -577,6 +850,11 @@ export function evaluatePuzzleSubmission(
       while (matchingPrefix < word.length && word[matchingPrefix] === puzzle.targetWord[matchingPrefix]) matchingPrefix += 1;
       return clampProgress((matchingPrefix / puzzle.targetWord.length) * 100);
     }
+    case "crossword_mini": {
+      const entries = buildCrosswordMini(seed, difficulty);
+      const correct = entries.filter((entry, index) => (submission.answers[index] ?? "").trim().toUpperCase() === entry.answer).length;
+      return clampProgress((correct / Math.max(entries.length, 1)) * 100);
+    }
     case "tile_slide": {
       const correct = submission.tiles.filter((value, index) => (index === submission.tiles.length - 1 ? value === 0 : value === index + 1)).length;
       return clampProgress((correct / submission.tiles.length) * 100);
@@ -586,8 +864,36 @@ export function evaluatePuzzleSubmission(
       const correct = submission.values.filter((value, index) => value === puzzle.solution[index]).length;
       return clampProgress((correct / puzzle.solution.length) * 100);
     }
+    case "word_search": {
+      const puzzle = buildWordSearch(seed, difficulty);
+      const expected = new Set(puzzle.placements.map((placement) => normalizeSegment(placement.start, placement.end)));
+      const found = new Set(submission.segments.map((segment) => normalizeSegment(segment.start, segment.end)).filter((key) => expected.has(key)));
+      return clampProgress((found.size / Math.max(expected.size, 1)) * 100);
+    }
+    case "matching_pairs": {
+      const pairs = buildMatchingPairs(seed, difficulty);
+      const expected = new Set(pairs.map((pair) => pair.pairId));
+      const found = new Set(submission.matchedPairIds.filter((pairId) => expected.has(pairId)));
+      return clampProgress((found.size / Math.max(expected.size, 1)) * 100);
+    }
+    case "spatial_reasoning": {
+      const rounds = buildSpatialRounds(seed, difficulty);
+      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+    }
     case "maze":
       return getMazeProgress(buildMaze(seed, difficulty), submission.position);
+    case "pathfinder": {
+      const puzzle = buildPathfinder(seed, difficulty);
+      let matchingPrefix = 0;
+      while (
+        matchingPrefix < submission.path.length &&
+        matchingPrefix < puzzle.solutionPath.length &&
+        submission.path[matchingPrefix] === puzzle.solutionPath[matchingPrefix]
+      ) {
+        matchingPrefix += 1;
+      }
+      return clampProgress((matchingPrefix / Math.max(puzzle.solutionPath.length, 1)) * 100);
+    }
     case "memory_grid": {
       const puzzle = buildMemoryGrid(seed, difficulty);
       const correct = submission.selectedIndices.filter((index) => puzzle.targets.includes(index)).length;

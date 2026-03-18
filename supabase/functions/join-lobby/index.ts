@@ -29,8 +29,23 @@ Deno.serve(async (req) => {
     await broadcastLobbySnapshot(lobbyId);
     return Response.json(snapshot, { headers: corsHeaders });
   } catch (error) {
+    const details =
+      typeof error === "object" && error !== null
+        ? {
+            message: "message" in error ? String(error.message ?? "") : "",
+            code: "code" in error ? String(error.code ?? "") : "",
+            details: "details" in error ? String(error.details ?? "") : "",
+            hint: "hint" in error ? String(error.hint ?? "") : "",
+          }
+        : null;
+
     return Response.json(
-      { message: error instanceof Error ? error.message : "Failed to join lobby." },
+      {
+        message: error instanceof Error
+          ? error.message
+          : details?.message || "Failed to join lobby.",
+        details,
+      },
       { status: 400, headers: corsHeaders },
     );
   }
