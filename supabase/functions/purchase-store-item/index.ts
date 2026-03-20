@@ -1,6 +1,7 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { requireUser } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
+import { recordPurchaseActivity } from "../_shared/activity.ts";
 import {
   applyProductGrant,
   assertPurchasable,
@@ -50,9 +51,19 @@ Deno.serve(async (req) => {
     if (walletError) throw walletError;
 
     await applyProductGrant(admin, user.id, product, "virtual");
-    await createPurchaseRecord(admin, user.id, product, {
-      currency: product.price_gems ? "GEMS" : "COINS",
-      unitAmount: product.price_gems ?? product.price_coins ?? 0,
+    const currency = product.price_gems ? "GEMS" : "COINS";
+    const amount = product.price_gems ?? product.price_coins ?? 0;
+    const purchaseId = await createPurchaseRecord(admin, user.id, product, {
+      currency,
+      unitAmount: amount,
+    });
+    await recordPurchaseActivity(admin, {
+      userId: user.id,
+      purchaseId,
+      product,
+      status: "captured",
+      currency,
+      amount,
     });
 
     return Response.json({ ok: true }, { headers: corsHeaders });

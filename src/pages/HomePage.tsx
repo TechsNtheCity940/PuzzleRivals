@@ -9,7 +9,7 @@ import StockAvatar from "@/components/profile/StockAvatar";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import { loadDiscoveryContent, type GameContentSource } from "@/lib/game-content";
 import { fetchLeaderboard } from "@/lib/player-data";
-import { getRankBand, getRankColor } from "@/lib/seed-data";
+import { LEADERBOARD, getRankBand, getRankColor } from "@/lib/seed-data";
 import type { DailyChallenge, LeaderboardEntry } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -25,6 +25,7 @@ export default function HomePage() {
   const [featuredPlayers, setFeaturedPlayers] = useState<LeaderboardEntry[]>([]);
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [challengeSource, setChallengeSource] = useState<GameContentSource>("seed");
+  const [leaderboardSource, setLeaderboardSource] = useState<GameContentSource>("seed");
   const [isContentLoading, setIsContentLoading] = useState(true);
   const [contentError, setContentError] = useState<string | null>(null);
   const winRate = user && user.matchesPlayed > 0 ? Math.round((user.wins / user.matchesPlayed) * 100) : 0;
@@ -44,7 +45,8 @@ export default function HomePage() {
 
         if (cancelled) return;
 
-        setFeaturedPlayers(entries);
+        setFeaturedPlayers(entries.length > 0 ? entries : LEADERBOARD.slice(0, 4));
+        setLeaderboardSource(entries.length > 0 ? "supabase" : "seed");
         setChallenge(discovery.dailyChallenges.find((entry) => !entry.isCompleted) ?? discovery.dailyChallenges[0] ?? null);
         setChallengeSource(discovery.sources.dailyChallenges);
       } catch (error) {
@@ -209,7 +211,7 @@ export default function HomePage() {
             <div className="section-header">
               <div>
                 <p className="section-kicker">Top Ladder</p>
-                <h2 className="section-title">Current standouts</h2>
+                <h2 className="section-title">{sourceLabel(leaderboardSource)} current standouts</h2>
               </div>
               <Button onClick={() => navigate("/tournaments")} variant="ghost" size="sm">
                 <Trophy size={14} />
@@ -236,7 +238,7 @@ export default function HomePage() {
                 </div>
               )) : (
                 <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-                  Leaderboard sync is still warming up.
+                  {contentError ?? "Leaderboard sync is still warming up."}
                 </div>
               )}
             </div>
@@ -280,4 +282,5 @@ export default function HomePage() {
     </div>
   );
 }
+
 

@@ -21,6 +21,7 @@ import type {
   DailyChallenge,
   LeaderboardEntry,
   MatchReward,
+  ProfileActivityEvent,
   PuzzleMeta,
   PuzzleType,
   QuestDefinition,
@@ -65,10 +66,12 @@ export interface ProfileContentSnapshot {
   leaderboard: LeaderboardEntry[];
   socialDirectory: ProfileSocialDirectoryEntry[];
   puzzleTypes: PuzzleMeta[];
+  activityFeed: ProfileActivityEvent[];
   sources: {
     leaderboard: GameContentSource;
     socialDirectory: GameContentSource;
     puzzleTypes: GameContentSource;
+    activityFeed: GameContentSource;
   };
 }
 
@@ -132,11 +135,104 @@ type SeasonRow = {
   active: boolean;
 };
 
+type ProfileRoundActivityRow = {
+  round_id: string;
+  created_at: string;
+  placement: number | null;
+  xp_delta: number;
+  coin_delta: number;
+  elo_delta: number;
+  live_progress: number;
+  solved_at_ms: number | null;
+  rounds:
+    | {
+        round_no: number;
+        puzzle_type: string;
+        difficulty: number;
+        lobbies:
+          | {
+              mode: string;
+            }
+          | Array<{
+              mode: string;
+            }>
+          | null;
+      }
+    | Array<{
+        round_no: number;
+        puzzle_type: string;
+        difficulty: number;
+        lobbies:
+          | {
+              mode: string;
+            }
+          | Array<{
+              mode: string;
+            }>
+          | null;
+      }>
+    | null;
+};
+
+type PurchaseProductRow = {
+  id: string;
+  kind: string;
+  metadata: Record<string, unknown> | null;
+};
+
+type PurchaseItemActivityRow = {
+  product_id: string;
+  quantity: number;
+  unit_amount: number | string;
+  products: PurchaseProductRow | PurchaseProductRow[] | null;
+};
+
+type PurchaseActivityRow = {
+  id: string;
+  status: string;
+  amount: number | string;
+  currency: string;
+  created_at: string;
+  captured_at: string | null;
+  purchase_items: PurchaseItemActivityRow[] | null;
+};
+
+type SocialProfileActivityRow = {
+  id: string;
+  username: string;
+  facebook_handle: string | null;
+  tiktok_handle: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type ProfileActivityEventRow = {
+  id: string;
+  event_type: ProfileActivityEvent["type"];
+  label: string;
+  title: string;
+  description: string;
+  occurred_at: string;
+  is_read: boolean;
+  metadata: Record<string, unknown> | null;
+};
+
 const PUZZLE_TYPE_SET = new Set<PuzzleType>(PUZZLE_TYPES.map((entry) => entry.type));
 const DEFAULT_PUZZLE_TYPE = PUZZLE_TYPES[0]?.type ?? "rotate_pipes";
 
 function asNumber(value: unknown, fallback = 0) {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return fallback;
 }
 
 function asString(value: unknown, fallback = "") {
@@ -164,6 +260,35 @@ function toDifficulty(value: unknown): 1 | 2 | 3 | 4 | 5 {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function firstRelation<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+  return value ?? null;
+}
+
+function toTitleCase(value: string) {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function formatSignedValue(value: number, label: string) {
+  if (!value) {
+    return null;
+  }
+
+  return `${value > 0 ? "+" : ""}${value} ${label}`;
+}
+
+function formatCurrencyAmount(value: number | string, currency: string) {
+  const amount = asNumber(value, 0);
+  if (currency === "USD") {
+    return `$${amount.toFixed(2)}`;
+  }
+  return `${currency} ${amount.toFixed(2)}`;
 }
 
 function cloneDailyChallenge(challenge: DailyChallenge): DailyChallenge {
@@ -208,6 +333,10 @@ function cloneSocialEntry(entry: ProfileSocialDirectoryEntry): ProfileSocialDire
   return { ...entry };
 }
 
+function cloneActivityEvent(entry: ProfileActivityEvent): ProfileActivityEvent {
+  return { ...entry };
+}
+
 function cloneVipMembership(membership: VipMembership): VipMembership {
   return {
     ...membership,
@@ -219,7 +348,9 @@ function cloneStorefrontSnapshot(snapshot: StorefrontSnapshot): StorefrontSnapsh
   return {
     items: snapshot.items.map((item) => ({ ...item })),
     vipProduct: snapshot.vipProduct ? { ...snapshot.vipProduct } : null,
+    vipMembership: snapshot.vipMembership ? cloneVipMembership(snapshot.vipMembership) : null,
     wallet: snapshot.wallet ? { ...snapshot.wallet } : null,
+    source: snapshot.source,
   };
 }
 
@@ -235,6 +366,44 @@ function buildSeedSocialDirectory(currentUserId?: string): ProfileSocialDirector
       facebook_handle: player.socialLinks.facebook ?? null,
       tiktok_handle: player.socialLinks.tiktok ?? null,
     }));
+}
+
+function buildSeedActivityFeed(currentUserId?: string): ProfileActivityEvent[] {
+  const socialPreview = buildSeedSocialDirectory(currentUserId).find(
+    (entry) => entry.facebook_handle || entry.tiktok_handle,
+  );
+
+  return [
+    {
+      id: "seed-match-victory",
+      type: "match",
+      label: "Ranked Match",
+      title: "Won a ranked Pipe Flow round",
+      description: "#1 finish � +180 XP � +90 Coins � +28 ELO",
+      occurredAt: "2026-03-19T20:15:00Z",
+      isRead: false,
+    },
+    {
+      id: "seed-purchase-pass",
+      type: "purchase",
+      label: "Purchase",
+      title: "Unlocked Season XI Battle Pass",
+      description: "$9.99 � battle_pass � captured",
+      occurredAt: "2026-03-19T18:40:00Z",
+      isRead: false,
+    },
+    {
+      id: "seed-social-rival",
+      type: "social",
+      label: "Social",
+      title: socialPreview ? `${socialPreview.username} is active in the rival directory` : "Social identity connected",
+      description: socialPreview
+        ? `Creator handle: ${socialPreview.facebook_handle ?? socialPreview.tiktok_handle}`
+        : "Linked profiles and creator handles appear here once the account is live.",
+      occurredAt: "2026-03-19T17:05:00Z",
+      isRead: false,
+    },
+  ];
 }
 
 function mapMatchReward(value: Record<string, unknown> | null): MatchReward {
@@ -367,6 +536,153 @@ function mapSeason(row: SeasonRow): SeasonPass {
   };
 }
 
+function mapRoundActivity(
+  row: ProfileRoundActivityRow,
+  puzzleLabelByType: Map<PuzzleType, string>,
+): ProfileActivityEvent {
+  const round = firstRelation(row.rounds);
+  const lobby = firstRelation(round?.lobbies ?? null);
+  const puzzleType = asPuzzleType(round?.puzzle_type);
+  const puzzleLabel = puzzleLabelByType.get(puzzleType) ?? PUZZLE_TYPES.find((entry) => entry.type === puzzleType)?.label ?? puzzleType;
+  const modeLabel = lobby?.mode ? toTitleCase(lobby.mode) : "Live";
+  const performanceBits = [
+    row.placement ? `#${row.placement} finish` : null,
+    formatSignedValue(row.xp_delta, "XP"),
+    formatSignedValue(row.coin_delta, "Coins"),
+    formatSignedValue(row.elo_delta, "ELO"),
+    !row.placement && row.live_progress ? `${row.live_progress}% progress` : null,
+  ].filter((entry): entry is string => Boolean(entry));
+
+  const title = row.placement === 1
+    ? `Won a ${modeLabel.toLowerCase()} ${puzzleLabel} round`
+    : row.placement
+      ? `Finished #${row.placement} in ${puzzleLabel}`
+      : row.live_progress >= 100
+        ? `Solved ${puzzleLabel}`
+        : `Played ${puzzleLabel}`;
+
+  return {
+    id: `match-${row.round_id}`,
+    type: "match",
+    label: `${modeLabel} Match`,
+    title,
+    description: [performanceBits.join(" � "), round?.round_no ? `Round ${round.round_no}` : null]
+      .filter((entry): entry is string => Boolean(entry))
+      .join(" � "),
+    occurredAt: row.created_at,
+    isRead: false,
+  };
+}
+
+function mapPurchaseActivity(row: PurchaseActivityRow): ProfileActivityEvent {
+  const firstItem = row.purchase_items?.[0] ?? null;
+  const product = firstRelation(firstItem?.products ?? null);
+  const productName = asString(product?.metadata?.name, firstItem?.product_id ?? "Store item");
+  const productKind = asString(product?.kind, "purchase");
+  const status = asString(row.status, "created");
+  const occurredAt = row.captured_at ?? row.created_at;
+
+  const title = status === "captured"
+    ? `Unlocked ${productName}`
+    : status === "approved"
+      ? `Purchase approved for ${productName}`
+      : status === "failed"
+        ? `Purchase failed for ${productName}`
+        : `Checkout started for ${productName}`;
+
+  return {
+    id: `purchase-${row.id}`,
+    type: "purchase",
+    label: status === "captured" ? "Purchase" : "Checkout",
+    title,
+    description: [formatCurrencyAmount(row.amount, row.currency), productKind, status]
+      .filter((entry): entry is string => Boolean(entry))
+      .join(" � "),
+    occurredAt,
+    isRead: false,
+  };
+}
+
+function mapSelfSocialActivity(row: SocialProfileActivityRow, platform: "facebook" | "tiktok"): ProfileActivityEvent {
+  const handle = platform === "facebook" ? row.facebook_handle : row.tiktok_handle;
+  const platformLabel = platform === "facebook" ? "Facebook" : "TikTok";
+
+  return {
+    id: `social-self-${platform}`,
+    type: "social",
+    label: "Social",
+    title: `${platformLabel} identity linked`,
+    description: `${handle} is visible in your live rival profile.`,
+    occurredAt: row.updated_at ?? row.created_at,
+    isRead: false,
+  };
+}
+
+function mapRivalSocialActivity(row: SocialProfileActivityRow): ProfileActivityEvent | null {
+  const handle = row.tiktok_handle ?? row.facebook_handle;
+  const platformLabel = row.tiktok_handle ? "TikTok" : row.facebook_handle ? "Facebook" : null;
+
+  if (!handle || !platformLabel) {
+    return null;
+  }
+
+  return {
+    id: `social-rival-${row.id}`,
+    type: "social",
+    label: "Social",
+    title: `${row.username} is active on ${platformLabel}`,
+    description: `Creator handle: ${handle}`,
+    occurredAt: row.updated_at ?? row.created_at,
+    isRead: false,
+  };
+}
+
+function sortActivityFeed(entries: ProfileActivityEvent[]) {
+  return [...entries].sort((left, right) => right.occurredAt.localeCompare(left.occurredAt));
+}
+
+function mapPersistedActivityEvent(row: ProfileActivityEventRow): ProfileActivityEvent {
+  const type = row.event_type === "match" || row.event_type === "purchase" || row.event_type === "social"
+    ? row.event_type
+    : "social";
+
+  return {
+    id: row.id,
+    type,
+    label: row.label,
+    title: row.title,
+    description: row.description,
+    occurredAt: row.occurred_at,
+    isRead: Boolean(row.is_read),
+  };
+}
+
+async function loadPersistedProfileActivity(currentUserId: string): Promise<ProfileActivityEvent[] | null> {
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("profile_activity_events")
+    .select("id, event_type, label, title, description, occurred_at, is_read, metadata")
+    .eq("user_id", currentUserId)
+    .order("occurred_at", { ascending: false })
+    .limit(12);
+
+  if (error) {
+    if (isSupabaseSchemaSetupIssue(error)) {
+      return null;
+    }
+    throw error;
+  }
+
+  const rows = (data ?? []) as ProfileActivityEventRow[];
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return rows.map(mapPersistedActivityEvent);
+}
 async function loadLivePuzzleCatalog(): Promise<PuzzleMeta[] | null> {
   if (!supabase) {
     return null;
@@ -470,6 +786,161 @@ async function loadLiveSeason(): Promise<SeasonPass | null> {
   return row ? mapSeason(row) : null;
 }
 
+async function loadLiveMatchActivity(
+  currentUserId: string,
+  puzzleLabelByType: Map<PuzzleType, string>,
+): Promise<ProfileActivityEvent[] | null> {
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("round_results")
+    .select("round_id, created_at, placement, xp_delta, coin_delta, elo_delta, live_progress, solved_at_ms, rounds!inner(round_no, puzzle_type, difficulty, lobbies!inner(mode))")
+    .eq("user_id", currentUserId)
+    .order("created_at", { ascending: false })
+    .limit(6);
+
+  if (error) {
+    if (isSupabaseSchemaSetupIssue(error)) {
+      return null;
+    }
+    throw error;
+  }
+
+  const rows = (data ?? []) as ProfileRoundActivityRow[];
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return rows.map((row) => mapRoundActivity(row, puzzleLabelByType));
+}
+
+async function loadLivePurchaseActivity(currentUserId: string): Promise<ProfileActivityEvent[] | null> {
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("purchases")
+    .select("id, status, amount, currency, created_at, captured_at, purchase_items(product_id, quantity, unit_amount, products(id, kind, metadata))")
+    .eq("user_id", currentUserId)
+    .order("created_at", { ascending: false })
+    .limit(6);
+
+  if (error) {
+    if (isSupabaseSchemaSetupIssue(error)) {
+      return null;
+    }
+    throw error;
+  }
+
+  const rows = (data ?? []) as PurchaseActivityRow[];
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return rows.map(mapPurchaseActivity);
+}
+
+async function loadLiveSocialActivity(currentUserId: string): Promise<ProfileActivityEvent[] | null> {
+  if (!supabase) {
+    return null;
+  }
+
+  const [{ data: selfRows, error: selfError }, { data: socialRows, error: socialError }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, username, facebook_handle, tiktok_handle, created_at, updated_at")
+      .eq("id", currentUserId)
+      .limit(1),
+    supabase
+      .from("profiles")
+      .select("id, username, facebook_handle, tiktok_handle, created_at, updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(8),
+  ]);
+
+  if (selfError) {
+    if (isSupabaseSchemaSetupIssue(selfError)) {
+      return null;
+    }
+    throw selfError;
+  }
+
+  if (socialError) {
+    if (isSupabaseSchemaSetupIssue(socialError)) {
+      return null;
+    }
+    throw socialError;
+  }
+
+  const selfProfile = ((selfRows ?? []) as SocialProfileActivityRow[])[0] ?? null;
+  const recentProfiles = ((socialRows ?? []) as SocialProfileActivityRow[])
+    .filter((row) => row.id !== currentUserId && (row.facebook_handle || row.tiktok_handle))
+    .slice(0, 2);
+
+  const events: ProfileActivityEvent[] = [];
+
+  if (selfProfile?.facebook_handle) {
+    events.push(mapSelfSocialActivity(selfProfile, "facebook"));
+  }
+  if (selfProfile?.tiktok_handle) {
+    events.push(mapSelfSocialActivity(selfProfile, "tiktok"));
+  }
+
+  for (const row of recentProfiles) {
+    const event = mapRivalSocialActivity(row);
+    if (event) {
+      events.push(event);
+    }
+  }
+
+  return events.length > 0 ? sortActivityFeed(events) : null;
+}
+
+async function loadLiveProfileActivity(
+  currentUserId: string,
+  puzzleTypes: PuzzleMeta[],
+): Promise<ProfileActivityEvent[] | null> {
+  const persistedActivity = await loadPersistedProfileActivity(currentUserId);
+  if (persistedActivity && persistedActivity.length > 0) {
+    return persistedActivity.slice(0, 8);
+  }
+
+  const puzzleLabelByType = new Map(puzzleTypes.map((entry) => [entry.type, entry.label] as const));
+  const [matchActivity, purchaseActivity, socialActivity] = await Promise.all([
+    loadLiveMatchActivity(currentUserId, puzzleLabelByType),
+    loadLivePurchaseActivity(currentUserId),
+    loadLiveSocialActivity(currentUserId),
+  ]);
+
+  const activityFeed = sortActivityFeed([
+    ...(matchActivity ?? []),
+    ...(purchaseActivity ?? []),
+    ...(socialActivity ?? []),
+  ]).slice(0, 8);
+
+  return activityFeed.length > 0 ? activityFeed : null;
+}
+
+
+export async function markProfileActivityEventsRead(currentUserId: string, eventIds: string[]) {
+  if (!supabase || !currentUserId || eventIds.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("profile_activity_events")
+    .update({ is_read: true })
+    .eq("user_id", currentUserId)
+    .in("id", eventIds)
+    .eq("is_read", false);
+
+  if (error && !isSupabaseSchemaSetupIssue(error)) {
+    throw error;
+  }
+}
 export async function loadDiscoveryContent(): Promise<DiscoveryContentSnapshot> {
   const [dailyChallenges, tournaments, puzzleTypes] = await Promise.all([
     loadLiveDailyChallenges(),
@@ -515,52 +986,66 @@ export async function loadSeasonContent(user: UserProfile | null): Promise<Seaso
 }
 
 export async function loadProfileContent(currentUserId?: string): Promise<ProfileContentSnapshot> {
-  const canUseLiveData = Boolean(supabase && currentUserId && currentUserId !== "guest-player");
+  const canUseLiveDiscovery = Boolean(supabase);
+  const canUseLiveActivity = Boolean(supabase && currentUserId && currentUserId !== "guest-player");
   const livePuzzleTypes = await loadLivePuzzleCatalog();
+  const resolvedPuzzleTypes = (livePuzzleTypes ?? PUZZLE_TYPES).map(clonePuzzleMeta);
 
-  if (!canUseLiveData) {
+  if (!canUseLiveDiscovery) {
     return {
       leaderboard: LEADERBOARD.slice(0, 8).map(cloneLeaderboardEntry),
       socialDirectory: buildSeedSocialDirectory(currentUserId).map(cloneSocialEntry),
-      puzzleTypes: (livePuzzleTypes ?? PUZZLE_TYPES).map(clonePuzzleMeta),
+      puzzleTypes: resolvedPuzzleTypes,
+      activityFeed: buildSeedActivityFeed(currentUserId).map(cloneActivityEvent),
       sources: {
         leaderboard: "seed",
         socialDirectory: "seed",
         puzzleTypes: livePuzzleTypes ? "supabase" : "seed",
+        activityFeed: "seed",
       },
     };
   }
 
-  const [leaderboard, socialDirectory] = await Promise.all([
+  const [leaderboard, socialDirectory, activityFeed] = await Promise.all([
     fetchLeaderboard(8),
-    fetchSocialDirectory(currentUserId),
+    fetchSocialDirectory(canUseLiveActivity ? currentUserId : undefined),
+    canUseLiveActivity ? loadLiveProfileActivity(currentUserId, resolvedPuzzleTypes) : Promise.resolve(null),
   ]);
 
   const resolvedLeaderboard = leaderboard.length > 0 ? leaderboard : LEADERBOARD.slice(0, 8);
   const resolvedSocialDirectory = socialDirectory.length > 0 ? socialDirectory : buildSeedSocialDirectory(currentUserId);
+  const resolvedActivityFeed = activityFeed ?? buildSeedActivityFeed(currentUserId);
 
   return {
     leaderboard: resolvedLeaderboard.map(cloneLeaderboardEntry),
     socialDirectory: resolvedSocialDirectory.map(cloneSocialEntry),
-    puzzleTypes: (livePuzzleTypes ?? PUZZLE_TYPES).map(clonePuzzleMeta),
+    puzzleTypes: resolvedPuzzleTypes,
+    activityFeed: resolvedActivityFeed.map(cloneActivityEvent),
     sources: {
       leaderboard: leaderboard.length > 0 ? "supabase" : "seed",
       socialDirectory: socialDirectory.length > 0 ? "supabase" : "seed",
       puzzleTypes: livePuzzleTypes ? "supabase" : "seed",
+      activityFeed: activityFeed ? "supabase" : "seed",
     },
   };
 }
 
 export async function loadStoreContent(user: UserProfile | null): Promise<StoreContentSnapshot> {
   const storefront = await fetchStorefront(user);
-  const usesLiveProfileData = Boolean(supabase && user && !user.isGuest);
+  const vipMembership = storefront.vipMembership ?? cloneVipMembership(VIP_MEMBERSHIP);
 
   return {
     storefront: cloneStorefrontSnapshot(storefront),
-    vipMembership: cloneVipMembership(VIP_MEMBERSHIP),
+    vipMembership: cloneVipMembership(vipMembership),
     sources: {
-      storefront: usesLiveProfileData ? "supabase" : "seed",
-      vipMembership: "seed",
+      storefront: storefront.source,
+      vipMembership: storefront.vipMembership && storefront.source === "supabase" ? "supabase" : "seed",
     },
   };
 }
+
+
+
+
+
+

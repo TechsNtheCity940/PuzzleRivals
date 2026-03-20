@@ -63,7 +63,7 @@ function sourceLabel(source: GameContentSource) {
 export default function StorePage() {
   const [tab, setTab] = useState<Tab>("all");
   const [page, setPage] = useState(0);
-  const [snapshot, setSnapshot] = useState<StorefrontSnapshot>({ items: [], vipProduct: null, wallet: null });
+  const [snapshot, setSnapshot] = useState<StorefrontSnapshot>({ items: [], vipProduct: null, vipMembership: null, wallet: null, source: "seed" });
   const [vipMembership, setVipMembership] = useState<VipMembership | null>(null);
   const [storefrontSource, setStorefrontSource] = useState<GameContentSource>("seed");
   const [isLoading, setIsLoading] = useState(true);
@@ -416,3 +416,4 @@ export default function StorePage() {
     </div>
   );
 }
+

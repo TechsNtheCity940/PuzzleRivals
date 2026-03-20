@@ -65,6 +65,8 @@ Then deploy the needed functions with `supabase functions deploy ...`.
 ## Important operational notes
 
 - Keep hosted schema and local repo migrations in sync.
+- The profile activity stream now includes a rerunnable SQL backfill helper: `select public.backfill_profile_activity_events();` or `select public.backfill_profile_activity_events('<user-id>');`.
 - Redeploy affected Edge Functions after changing shared logic under `functions/_shared/`.
 - Keep browser code on the anon/publishable key only.
 - Treat replay-prevention, validation, and deterministic puzzle selection as authoritative backend concerns here.
+

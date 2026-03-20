@@ -14,6 +14,7 @@ import {
   getNextDailyWinState,
   grantQuestItems,
 } from "./economy.ts";
+import { recordMatchActivity } from "./activity.ts";
 
 type LobbyRow = {
   id: string;
@@ -578,6 +579,19 @@ async function finalizeLiveRound(lobby: LobbyRow, activePlayers: PlayerRow[], ro
         rank_points: nextRankPoints,
         puzzle_shards: nextShards,
       }).eq("id", entry.userId);
+      await recordMatchActivity(admin, {
+        userId: entry.userId,
+        roundId: round.id,
+        roundNo: round.round_no,
+        mode: lobby.mode,
+        puzzleType: round.puzzle_type,
+        placement: index + 1,
+        liveProgress: entry.liveProgress,
+        xpDelta: reward.xp,
+        coinDelta: reward.coins,
+        eloDelta: reward.elo,
+        occurredAt: new Date().toISOString(),
+      });
       await admin.from("player_stats").update({
         wins: Number(stats.wins) + (isWinner ? 1 : 0),
         losses: Number(stats.losses) + (isWinner ? 0 : 1),
@@ -735,4 +749,7 @@ export async function advanceLobbyState(lobbyId: string) {
 
   return broadcastLobbySnapshot(lobbyId);
 }
+
+
+
 

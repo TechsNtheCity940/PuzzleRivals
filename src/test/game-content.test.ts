@@ -35,9 +35,14 @@ describe("game content service", () => {
     expect(snapshot.leaderboard.length).toBeGreaterThan(0);
     expect(snapshot.socialDirectory.length).toBeGreaterThan(0);
     expect(snapshot.puzzleTypes.length).toBeGreaterThan(0);
+    expect(snapshot.activityFeed.length).toBeGreaterThan(0);
+    expect(snapshot.activityFeed.some((entry) => entry.type === "match")).toBe(true);
+    expect(snapshot.activityFeed.some((entry) => entry.type === "purchase")).toBe(true);
+    expect(snapshot.activityFeed.some((entry) => entry.type === "social")).toBe(true);
     expect(snapshot.sources.leaderboard).toBe("seed");
     expect(snapshot.sources.socialDirectory).toBe("seed");
     expect(snapshot.sources.puzzleTypes).toBe("seed");
+    expect(snapshot.sources.activityFeed).toBe("seed");
   });
 
   it("loads store content with explicit storefront and VIP sources", async () => {

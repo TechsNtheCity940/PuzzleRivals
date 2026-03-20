@@ -340,16 +340,13 @@ export async function fetchLeaderboard(limit = 10): Promise<LeaderboardEntry[]> 
     return [];
   }
 
-  const { data: sessionData } = await supabase.auth.getSession();
-  if (!sessionData.session) {
-    return [];
-  }
-
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("player_stats")
     .select("user_id, wins, matches_played, profiles!inner(id, username, rank, elo, avatar_id)")
     .gt("matches_played", 0)
     .limit(Math.max(limit, 10));
+
+  throwIfUnexpected(error, "public.player_stats");
 
   return (data ?? [])
     .map((row) => {
@@ -380,11 +377,6 @@ export async function fetchSocialDirectory(currentUserId?: string): Promise<Soci
     return [];
   }
 
-  const { data: sessionData } = await supabase.auth.getSession();
-  if (!sessionData.session) {
-    return [];
-  }
-
   let query = supabase
     .from("profiles")
     .select("id, username, avatar_id, rank, elo, facebook_handle, tiktok_handle");
@@ -393,6 +385,9 @@ export async function fetchSocialDirectory(currentUserId?: string): Promise<Soci
     query = query.neq("id", currentUserId);
   }
 
-  const { data } = await query.order("elo", { ascending: false });
+  const { data, error } = await query.order("elo", { ascending: false });
+  throwIfUnexpected(error, "public.profiles");
   return (data ?? []) as SocialDirectoryEntry[];
 }
+
+

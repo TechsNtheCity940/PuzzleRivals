@@ -345,6 +345,16 @@ export interface GameNotification {
   isRead: boolean;
 }
 
+export interface ProfileActivityEvent {
+  id: string;
+  type: "match" | "purchase" | "social";
+  label: string;
+  title: string;
+  description: string;
+  occurredAt: string;
+  isRead: boolean;
+}
+
 // ---------- Puzzle Royale ----------
 export interface RoyaleRound {
   roundNumber: number;
@@ -362,3 +372,5 @@ export interface RoyaleMatch {
   status: "waiting" | "in_progress" | "completed";
   winnerId?: string;
 }
+
+

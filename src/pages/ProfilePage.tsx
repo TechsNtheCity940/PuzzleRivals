@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, KeyRound, Link2, Shield, Users } from "lucide-react";
+import { Bell, KeyRound, Link2, Shield, ShoppingBag, Trophy, Users } from "lucide-react";
 import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
 import CosmeticPreview from "@/components/cosmetics/CosmeticPreview";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
@@ -10,13 +10,14 @@ import { Button } from "@/components/ui/button";
 import { saveSecurityQuestions, SECURITY_QUESTION_OPTIONS } from "@/lib/auth-security";
 import {
   loadProfileContent,
+  markProfileActivityEventsRead,
   type GameContentSource,
   type ProfileSocialDirectoryEntry,
 } from "@/lib/game-content";
 import { DEFAULT_AVATAR_ID, STOCK_AVATARS } from "@/lib/profile-customization";
 import { getRankBand, getRankColor } from "@/lib/seed-data";
 import { isSupabaseConfigured, supabaseConfigErrorMessage } from "@/lib/supabase-client";
-import type { LeaderboardEntry, PuzzleMeta } from "@/lib/types";
+import type { LeaderboardEntry, ProfileActivityEvent, PuzzleMeta } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
 
 type Tab = "stats" | "social" | "security" | "inbox";
@@ -26,6 +27,33 @@ const DEFAULT_QUESTION_TWO = SECURITY_QUESTION_OPTIONS[1];
 
 function sourceLabel(source: GameContentSource) {
   return source === "supabase" ? "Live" : "Demo";
+}
+
+function activityIcon(eventType: ProfileActivityEvent["type"]) {
+  if (eventType === "match") return Trophy;
+  if (eventType === "purchase") return ShoppingBag;
+  return Users;
+}
+
+function formatActivityTime(value: string) {
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) {
+    return "Recent";
+  }
+
+  const diffMs = Date.now() - timestamp;
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60_000));
+
+  if (diffMinutes < 1) return "Just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 export default function ProfilePage() {
@@ -43,8 +71,10 @@ export default function ProfilePage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [socialDirectory, setSocialDirectory] = useState<ProfileSocialDirectoryEntry[]>([]);
   const [puzzleTypes, setPuzzleTypes] = useState<PuzzleMeta[]>([]);
+  const [activityFeed, setActivityFeed] = useState<ProfileActivityEvent[]>([]);
   const [leaderboardSource, setLeaderboardSource] = useState<GameContentSource>("seed");
   const [socialSource, setSocialSource] = useState<GameContentSource>("seed");
+  const [activitySource, setActivitySource] = useState<GameContentSource>("seed");
   const [isContentLoading, setIsContentLoading] = useState(true);
   const [contentError, setContentError] = useState<string | null>(null);
   const [securityQuestionOne, setSecurityQuestionOne] = useState(DEFAULT_QUESTION_ONE);
@@ -74,8 +104,10 @@ export default function ProfilePage() {
         setLeaderboard(snapshot.leaderboard);
         setSocialDirectory(snapshot.socialDirectory);
         setPuzzleTypes(snapshot.puzzleTypes);
+        setActivityFeed(snapshot.activityFeed);
         setLeaderboardSource(snapshot.sources.leaderboard);
         setSocialSource(snapshot.sources.socialDirectory);
+        setActivitySource(snapshot.sources.activityFeed);
       } catch (error) {
         if (cancelled) return;
         setContentError(error instanceof Error ? error.message : "Could not load profile content.");
@@ -96,7 +128,7 @@ export default function ProfilePage() {
     { id: "stats", label: "Stats" },
     { id: "social", label: "Links" },
     { id: "security", label: "Security" },
-    { id: "inbox", label: "Inbox" },
+    { id: "inbox", label: "Activity" },
   ];
   const worstPuzzleLabel = useMemo(
     () => puzzleTypes.find((entry) => entry.type === user?.worstPuzzleType)?.label ?? "No completed matches yet",
@@ -105,6 +137,24 @@ export default function ProfilePage() {
   const linkedFacebookPlayers = socialDirectory.filter((entry) => entry.facebook_handle).slice(0, 2);
   const linkedTikTokPlayers = socialDirectory.filter((entry) => entry.tiktok_handle).slice(0, 2);
 
+  useEffect(() => {
+    if (tab !== "inbox" || activitySource !== "supabase" || !user?.id || isGuest) {
+      return;
+    }
+
+    const unreadIds = activityFeed.filter((entry) => !entry.isRead).map((entry) => entry.id);
+    if (unreadIds.length === 0) {
+      return;
+    }
+
+    setActivityFeed((current) => current.map((entry) => (
+      unreadIds.includes(entry.id) ? { ...entry, isRead: true } : entry
+    )));
+
+    void markProfileActivityEventsRead(user.id, unreadIds).catch(() => {
+      // Leave optimistic read state in place; the next refresh will reconcile if needed.
+    });
+  }, [activityFeed, activitySource, isGuest, tab, user?.id]);
   async function handleSaveProfile() {
     setIsWorking(true);
     setProfileStatus(null);
@@ -525,26 +575,49 @@ export default function ProfilePage() {
               <>
                 <div className="section-header">
                   <div>
-                    <p className="section-kicker">Inbox</p>
-                    <h2 className="section-title">Signals and notices</h2>
+                    <p className="section-kicker">Activity Feed</p>
+                    <h2 className="section-title">{sourceLabel(activitySource)} match, purchase, and social signals</h2>
                   </div>
                   <Bell size={18} className="text-primary" />
                 </div>
                 <div className="section-stack">
-                  <div className="command-panel-soft flex min-h-[220px] flex-col items-center justify-center gap-4 p-6 text-center">
-                    <Users size={24} className="text-primary" />
-                    <div>
-                      <p className="text-base font-black">Inbox cleared</p>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        Real notifications will appear here after live matches, purchases, and social activity.
-                      </p>
+                  {contentError ? (
+                    <div className="command-panel-soft px-4 py-3 text-sm text-muted-foreground">{contentError}</div>
+                  ) : isContentLoading ? (
+                    <div className="command-panel-soft flex min-h-[220px] items-center justify-center p-6 text-sm text-muted-foreground">
+                      Loading activity feed...
                     </div>
-                    {!isGuest ? (
-                      <Button onClick={() => void signOut()} variant="outline" size="lg">
-                        Sign Out
-                      </Button>
-                    ) : null}
-                  </div>
+                  ) : activityFeed.length > 0 ? (
+                    activityFeed.map((entry) => (
+                      <PuzzleTileButton
+                        key={entry.id}
+                        icon={activityIcon(entry.type)}
+                        title={entry.title}
+                        description={entry.description}
+                        right={
+                          <div>
+                            <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{entry.label}</p>
+                            <p className="mt-1 text-xs font-black text-primary">{entry.isRead ? formatActivityTime(entry.occurredAt) : `New · ${formatActivityTime(entry.occurredAt)}`}</p>
+                          </div>
+                        }
+                      />
+                    ))
+                  ) : (
+                    <div className="command-panel-soft flex min-h-[220px] flex-col items-center justify-center gap-4 p-6 text-center">
+                      <Users size={24} className="text-primary" />
+                      <div>
+                        <p className="text-base font-black">No recent activity yet</p>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                          Recent results, purchases, and social updates will appear here as your live profile picks them up.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {!isGuest ? (
+                    <Button onClick={() => void signOut()} variant="outline" size="lg" className="w-full">
+                      Sign Out
+                    </Button>
+                  ) : null}
                 </div>
               </>
             )}
@@ -556,3 +629,7 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+
+
+

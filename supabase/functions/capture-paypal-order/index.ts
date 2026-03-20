@@ -2,6 +2,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { requireUser } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { capturePayPalOrder } from "../_shared/paypal.ts";
+import { recordPurchaseActivity } from "../_shared/activity.ts";
 import { applyProductGrant, assertPurchasable, getActiveProduct } from "../_shared/store.ts";
 
 Deno.serve(async (req) => {
@@ -20,7 +21,7 @@ Deno.serve(async (req) => {
     const admin = createAdminClient();
     const { data: purchase, error: purchaseError } = await admin
       .from("purchases")
-      .select("id, user_id, paypal_order_id, status")
+      .select("id, user_id, paypal_order_id, status, amount, currency")
       .eq("id", purchaseId)
       .single();
 
@@ -56,6 +57,16 @@ Deno.serve(async (req) => {
 
       if (updateError) throw updateError;
     }
+
+    await recordPurchaseActivity(admin, {
+      userId: user.id,
+      purchaseId,
+      product,
+      status: "captured",
+      currency: String(purchase.currency ?? "USD"),
+      amount: purchase.amount,
+      occurredAt: new Date().toISOString(),
+    });
 
     return Response.json({ ok: true }, { headers: corsHeaders });
   } catch (error) {

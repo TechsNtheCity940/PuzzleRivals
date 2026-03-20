@@ -1,6 +1,16 @@
 import { STORE_ITEMS, VIP_MEMBERSHIP } from "@/lib/seed-data";
-import { supabase, supabaseConfigErrorMessage } from "@/lib/supabase-client";
-import type { ItemCategory, ItemRarity, StoreItem, UserProfile } from "@/lib/types";
+import {
+  isSupabaseSchemaSetupIssue,
+  supabase,
+  supabaseConfigErrorMessage,
+} from "@/lib/supabase-client";
+import type {
+  ItemCategory,
+  ItemRarity,
+  StoreItem,
+  UserProfile,
+  VipMembership,
+} from "@/lib/types";
 
 type ProductRow = {
   id: string;
@@ -34,6 +44,8 @@ type WalletRow = {
   title_id: string | null;
 };
 
+export type StorefrontSource = "supabase" | "seed";
+
 export interface StorefrontWallet {
   coins: number;
   gems: number;
@@ -59,7 +71,9 @@ export interface StorefrontItem extends StoreItem {
 export interface StorefrontSnapshot {
   items: StorefrontItem[];
   vipProduct: StorefrontItem | null;
+  vipMembership: VipMembership | null;
   wallet: StorefrontWallet | null;
+  source: StorefrontSource;
 }
 
 function asString(value: unknown, fallback = "") {
@@ -71,7 +85,32 @@ function asBoolean(value: unknown, fallback = false) {
 }
 
 function asNumber(value: unknown, fallback = 0) {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return fallback;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
 }
 
 function asCategory(value: unknown): ItemCategory {
@@ -113,6 +152,39 @@ function toWallet(profile?: UserProfile | null): StorefrontWallet | null {
   };
 }
 
+function mapWallet(wallet: WalletRow | null, profile?: UserProfile | null): StorefrontWallet | null {
+  if (wallet) {
+    return {
+      coins: wallet.coins,
+      gems: wallet.gems,
+      puzzleShards: wallet.puzzle_shards,
+      rankPoints: wallet.rank_points,
+      passXp: wallet.pass_xp,
+      hintBalance: wallet.hint_balance,
+      hasSeasonPass: wallet.has_season_pass,
+      isVip: wallet.is_vip,
+      vipExpiresAt: wallet.vip_expires_at,
+      themeId: wallet.theme_id,
+      frameId: wallet.frame_id,
+      playerCardId: wallet.player_card_id,
+      bannerId: wallet.banner_id,
+      emblemId: wallet.emblem_id,
+      titleId: wallet.title_id,
+    };
+  }
+
+  return toWallet(profile);
+}
+
+function buildFallbackVipMembership(profile?: UserProfile | null): VipMembership {
+  return {
+    isActive: Boolean(profile?.isVip),
+    expiresAt: profile?.vipExpiresAt ?? undefined,
+    perks: [...VIP_MEMBERSHIP.perks],
+    priceUsd: VIP_MEMBERSHIP.priceUsd,
+  };
+}
+
 function getFallbackSnapshot(profile?: UserProfile | null): StorefrontSnapshot {
   const wallet = toWallet(profile);
   const items: StorefrontItem[] = STORE_ITEMS.map((item) => ({
@@ -149,29 +221,31 @@ function getFallbackSnapshot(profile?: UserProfile | null): StorefrontSnapshot {
       isOwned: Boolean(profile?.isVip),
       isFeatured: true,
     },
+    vipMembership: buildFallbackVipMembership(profile),
     wallet,
+    source: "seed",
   };
 }
 
 function mapProduct(
   product: ProductRow,
   ownedIds: Set<string>,
-  wallet: WalletRow | null,
+  wallet: StorefrontWallet | null,
 ): StorefrontItem {
-  const metadata = product.metadata ?? {};
+  const metadata = asRecord(product.metadata);
   const kind = product.kind;
   const category = asCategory(metadata.category);
   const owned =
     ownedIds.has(product.id) ||
-    (kind === "battle_pass" && Boolean(wallet?.has_season_pass)) ||
-    (kind === "vip" && Boolean(wallet?.is_vip));
+    (kind === "battle_pass" && Boolean(wallet?.hasSeasonPass)) ||
+    (kind === "vip" && Boolean(wallet?.isVip));
   const equipped =
-    product.id === wallet?.theme_id ||
-    product.id === wallet?.frame_id ||
-    product.id === wallet?.player_card_id ||
-    product.id === wallet?.banner_id ||
-    product.id === wallet?.emblem_id ||
-    product.id === wallet?.title_id;
+    product.id === wallet?.themeId ||
+    product.id === wallet?.frameId ||
+    product.id === wallet?.playerCardId ||
+    product.id === wallet?.bannerId ||
+    product.id === wallet?.emblemId ||
+    product.id === wallet?.titleId;
 
   return {
     id: product.id,
@@ -190,6 +264,27 @@ function mapProduct(
   };
 }
 
+function mapVipMembership(
+  product: ProductRow | null,
+  wallet: StorefrontWallet | null,
+  profile?: UserProfile | null,
+): VipMembership | null {
+  if (!product) {
+    return null;
+  }
+
+  const metadata = asRecord(product.metadata);
+  const perks = asStringArray(metadata.perks);
+  const fallbackDescription = asString(metadata.description);
+
+  return {
+    isActive: Boolean(wallet?.isVip ?? profile?.isVip),
+    expiresAt: wallet?.vipExpiresAt ?? profile?.vipExpiresAt ?? undefined,
+    perks: perks.length > 0 ? perks : fallbackDescription ? [fallbackDescription] : [...VIP_MEMBERSHIP.perks],
+    priceUsd: product.price_usd ?? VIP_MEMBERSHIP.priceUsd,
+  };
+}
+
 async function invoke<T>(functionName: string, body: Record<string, unknown>) {
   if (!supabase) {
     throw new Error(supabaseConfigErrorMessage);
@@ -204,62 +299,72 @@ async function invoke<T>(functionName: string, body: Record<string, unknown>) {
 }
 
 export async function fetchStorefront(profile?: UserProfile | null): Promise<StorefrontSnapshot> {
-  if (!supabase || !profile || profile.isGuest) {
+  if (!supabase) {
     return getFallbackSnapshot(profile);
   }
 
-  const [{ data: products, error: productsError }, { data: inventory, error: inventoryError }, { data: wallet, error: walletError }] =
-    await Promise.all([
-      supabase
-        .from("products")
-        .select("id, kind, price_usd, price_coins, price_gems, metadata")
-        .eq("active", true)
-        .order("id"),
-      supabase
-        .from("user_inventory")
-        .select("product_id, is_equipped")
-        .eq("user_id", profile.id),
-      supabase
-        .from("profiles")
-        .select("coins, gems, puzzle_shards, rank_points, pass_xp, hint_balance, has_season_pass, is_vip, vip_expires_at, theme_id, frame_id, player_card_id, banner_id, emblem_id, title_id")
-        .eq("id", profile.id)
-        .single<WalletRow>(),
-    ]);
+  const shouldLoadProfileState = Boolean(profile && !profile.isGuest);
 
-  if (productsError) throw productsError;
-  if (inventoryError) throw inventoryError;
-  if (walletError) throw walletError;
+  const [{ data: products, error: productsError }, inventoryResult, walletResult] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, kind, price_usd, price_coins, price_gems, metadata")
+      .eq("active", true)
+      .order("id"),
+    shouldLoadProfileState
+      ? supabase
+          .from("user_inventory")
+          .select("product_id, is_equipped")
+          .eq("user_id", profile!.id)
+      : Promise.resolve({ data: [] as InventoryRow[], error: null }),
+    shouldLoadProfileState
+      ? supabase
+          .from("profiles")
+          .select("coins, gems, puzzle_shards, rank_points, pass_xp, hint_balance, has_season_pass, is_vip, vip_expires_at, theme_id, frame_id, player_card_id, banner_id, emblem_id, title_id")
+          .eq("id", profile!.id)
+          .single<WalletRow>()
+      : Promise.resolve({ data: null as WalletRow | null, error: null }),
+  ]);
 
-  const ownedIds = new Set((inventory ?? []).map((entry) => entry.product_id));
-  const items = ((products ?? []) as ProductRow[])
-    .map((product) => mapProduct(product, ownedIds, wallet))
-    .filter((product) => product.kind !== "vip");
-  const vipProduct = ((products ?? []) as ProductRow[])
-    .filter((product) => product.kind === "vip")
-    .map((product) => mapProduct(product, ownedIds, wallet))[0] ?? null;
+  if (productsError) {
+    if (isSupabaseSchemaSetupIssue(productsError)) {
+      return getFallbackSnapshot(profile);
+    }
+    throw productsError;
+  }
+
+  const productRows = (products ?? []) as ProductRow[];
+  if (productRows.length === 0) {
+    return getFallbackSnapshot(profile);
+  }
+
+  if (inventoryResult.error) {
+    if (isSupabaseSchemaSetupIssue(inventoryResult.error)) {
+      return getFallbackSnapshot(profile);
+    }
+    throw inventoryResult.error;
+  }
+
+  if (walletResult.error) {
+    if (isSupabaseSchemaSetupIssue(walletResult.error)) {
+      return getFallbackSnapshot(profile);
+    }
+    throw walletResult.error;
+  }
+
+  const wallet = mapWallet((walletResult.data ?? null) as WalletRow | null, profile);
+  const ownedIds = new Set(((inventoryResult.data ?? []) as InventoryRow[]).map((entry) => entry.product_id));
+  const vipRow = productRows.find((product) => product.kind === "vip") ?? null;
+  const items = productRows
+    .filter((product) => product.kind !== "vip")
+    .map((product) => mapProduct(product, ownedIds, wallet));
 
   return {
     items,
-    vipProduct,
-    wallet: wallet
-      ? {
-          coins: wallet.coins,
-          gems: wallet.gems,
-          puzzleShards: wallet.puzzle_shards,
-          rankPoints: wallet.rank_points,
-          passXp: wallet.pass_xp,
-          hintBalance: wallet.hint_balance,
-          hasSeasonPass: wallet.has_season_pass,
-          isVip: wallet.is_vip,
-          vipExpiresAt: wallet.vip_expires_at,
-          themeId: wallet.theme_id,
-          frameId: wallet.frame_id,
-          playerCardId: wallet.player_card_id,
-          bannerId: wallet.banner_id,
-          emblemId: wallet.emblem_id,
-          titleId: wallet.title_id,
-        }
-      : null,
+    vipProduct: vipRow ? mapProduct(vipRow, ownedIds, wallet) : null,
+    vipMembership: mapVipMembership(vipRow, wallet, profile) ?? buildFallbackVipMembership(profile),
+    wallet,
+    source: "supabase",
   };
 }
 
