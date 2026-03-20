@@ -1,5 +1,6 @@
 import {
   loadDiscoveryContent,
+  loadNotificationSummary,
   loadProfileContent,
   loadSeasonContent,
   loadStoreContent,
@@ -43,6 +44,14 @@ describe("game content service", () => {
     expect(snapshot.sources.socialDirectory).toBe("seed");
     expect(snapshot.sources.puzzleTypes).toBe("seed");
     expect(snapshot.sources.activityFeed).toBe("seed");
+  });
+
+  it("builds a seed notification summary when live activity is unavailable", async () => {
+    const summary = await loadNotificationSummary();
+
+    expect(summary.source).toBe("seed");
+    expect(summary.recent.length).toBeGreaterThan(0);
+    expect(summary.unreadCount).toBeGreaterThan(0);
   });
 
   it("loads store content with explicit storefront and VIP sources", async () => {

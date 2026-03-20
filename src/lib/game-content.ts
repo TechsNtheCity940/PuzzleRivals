@@ -84,6 +84,12 @@ export interface StoreContentSnapshot {
   };
 }
 
+export interface NotificationSummarySnapshot {
+  unreadCount: number;
+  recent: ProfileActivityEvent[];
+  source: GameContentSource;
+}
+
 type PuzzleCatalogRow = {
   type: string;
   sort_order: number;
@@ -337,6 +343,20 @@ function cloneActivityEvent(entry: ProfileActivityEvent): ProfileActivityEvent {
   return { ...entry };
 }
 
+function buildNotificationSummary(
+  activityFeed: ProfileActivityEvent[],
+  source: GameContentSource,
+): NotificationSummarySnapshot {
+  const recent = activityFeed.slice(0, 3).map(cloneActivityEvent);
+  const unreadCount = activityFeed.filter((entry) => !entry.isRead).length;
+
+  return {
+    unreadCount,
+    recent,
+    source,
+  };
+}
+
 function cloneVipMembership(membership: VipMembership): VipMembership {
   return {
     ...membership,
@@ -379,7 +399,7 @@ function buildSeedActivityFeed(currentUserId?: string): ProfileActivityEvent[] {
       type: "match",
       label: "Ranked Match",
       title: "Won a ranked Pipe Flow round",
-      description: "#1 finish · +180 XP · +90 Coins · +28 ELO",
+      description: "#1 finish ï¿½ +180 XP ï¿½ +90 Coins ï¿½ +28 ELO",
       occurredAt: "2026-03-19T20:15:00Z",
       isRead: false,
     },
@@ -388,7 +408,7 @@ function buildSeedActivityFeed(currentUserId?: string): ProfileActivityEvent[] {
       type: "purchase",
       label: "Purchase",
       title: "Unlocked Season XI Battle Pass",
-      description: "$9.99 · battle_pass · captured",
+      description: "$9.99 ï¿½ battle_pass ï¿½ captured",
       occurredAt: "2026-03-19T18:40:00Z",
       isRead: false,
     },
@@ -566,9 +586,9 @@ function mapRoundActivity(
     type: "match",
     label: `${modeLabel} Match`,
     title,
-    description: [performanceBits.join(" · "), round?.round_no ? `Round ${round.round_no}` : null]
+    description: [performanceBits.join(" ï¿½ "), round?.round_no ? `Round ${round.round_no}` : null]
       .filter((entry): entry is string => Boolean(entry))
-      .join(" · "),
+      .join(" ï¿½ "),
     occurredAt: row.created_at,
     isRead: false,
   };
@@ -597,7 +617,7 @@ function mapPurchaseActivity(row: PurchaseActivityRow): ProfileActivityEvent {
     title,
     description: [formatCurrencyAmount(row.amount, row.currency), productKind, status]
       .filter((entry): entry is string => Boolean(entry))
-      .join(" · "),
+      .join(" ï¿½ "),
     occurredAt,
     isRead: false,
   };
@@ -1028,6 +1048,21 @@ export async function loadProfileContent(currentUserId?: string): Promise<Profil
       activityFeed: activityFeed ? "supabase" : "seed",
     },
   };
+}
+
+export async function loadNotificationSummary(currentUserId?: string): Promise<NotificationSummarySnapshot> {
+  const canUseLiveActivity = Boolean(supabase && currentUserId && currentUserId !== "guest-player");
+
+  if (!canUseLiveActivity) {
+    return buildNotificationSummary(buildSeedActivityFeed(currentUserId), "seed");
+  }
+
+  const livePuzzleTypes = await loadLivePuzzleCatalog();
+  const resolvedPuzzleTypes = (livePuzzleTypes ?? PUZZLE_TYPES).map(clonePuzzleMeta);
+  const activityFeed = await loadLiveProfileActivity(currentUserId, resolvedPuzzleTypes);
+  const resolvedActivityFeed = (activityFeed ?? buildSeedActivityFeed(currentUserId)).map(cloneActivityEvent);
+
+  return buildNotificationSummary(resolvedActivityFeed, activityFeed ? "supabase" : "seed");
 }
 
 export async function loadStoreContent(user: UserProfile | null): Promise<StoreContentSnapshot> {

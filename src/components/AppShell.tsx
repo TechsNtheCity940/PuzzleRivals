@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Bell, Sparkles } from "lucide-react";
 import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
@@ -6,14 +6,35 @@ import StockAvatar from "@/components/profile/StockAvatar";
 import { Button } from "@/components/ui/button";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import { getThemeVisual } from "@/lib/cosmetics";
+import { loadNotificationSummary } from "@/lib/game-content";
 import { useAuth } from "@/providers/AuthProvider";
 import BottomNav from "./BottomNav";
+
+function unreadBadgeLabel(unreadCount: number) {
+  if (unreadCount <= 0) return "Account";
+  if (unreadCount === 1) return "1 new alert";
+  return `${unreadCount} new alerts`;
+}
+
+function UnreadBell({ unreadCount }: { unreadCount: number }) {
+  return (
+    <span className="relative inline-flex items-center justify-center">
+      <Bell size={16} className="text-white/55" />
+      {unreadCount > 0 ? (
+        <span className="absolute -right-2 -top-2 inline-flex min-w-[18px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-black leading-none text-primary-foreground shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
+          {unreadCount > 9 ? "9+" : unreadCount}
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isGuest, isReady, backendWarning } = useAuth();
   const { openSignIn, openSignUp } = useAuthDialog();
+  const [unreadCount, setUnreadCount] = useState(0);
   const isMatchRoute = location.pathname.startsWith("/match");
   const hideHeader = isMatchRoute;
   const theme = getThemeVisual(user?.themeId);
@@ -21,6 +42,35 @@ export default function AppShell({ children }: { children: ReactNode }) {
     "--theme-shell-art": theme.shellArt ? `url("${theme.shellArt}")` : "none",
     "--theme-board-art": theme.boardArt ? `url("${theme.boardArt}")` : "none",
   } as CSSProperties;
+
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      if (!isReady || isGuest) {
+        if (active) {
+          setUnreadCount(0);
+        }
+        return;
+      }
+
+      try {
+        const summary = await loadNotificationSummary(user?.id);
+        if (active) {
+          setUnreadCount(summary.unreadCount);
+        }
+      } catch {
+        if (active) {
+          setUnreadCount(0);
+        }
+      }
+    }
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [isGuest, isReady, location.pathname, user?.id]);
 
   return (
     <div className={`app-shell bg-background ${theme.shellClass}`} style={themeVars}>
@@ -71,7 +121,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   <div className="hidden sm:block">
                     <IdentityLoadoutCard
                       username={user?.username ?? "Profile"}
-                      subtitle="Account"
+                      subtitle={unreadBadgeLabel(unreadCount)}
                       avatarId={user?.avatarId}
                       frameId={user?.frameId}
                       playerCardId={user?.playerCardId}
@@ -79,12 +129,17 @@ export default function AppShell({ children }: { children: ReactNode }) {
                       emblemId={user?.emblemId}
                       titleId={user?.titleId}
                       compact
-                      right={<Bell size={16} className="text-white/55" />}
+                      right={<UnreadBell unreadCount={unreadCount} />}
                       className="min-w-[280px]"
                     />
                   </div>
-                  <div className="sm:hidden">
+                  <div className="sm:hidden relative">
                     <StockAvatar avatarId={user?.avatarId} frameId={user?.frameId} size="sm" />
+                    {unreadCount > 0 ? (
+                      <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-black leading-none text-primary-foreground shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    ) : null}
                   </div>
                 </button>
               )}

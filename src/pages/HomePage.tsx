@@ -7,14 +7,36 @@ import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import PuzzleRivalsLogo from "@/components/branding/PuzzleRivalsLogo";
 import StockAvatar from "@/components/profile/StockAvatar";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
-import { loadDiscoveryContent, type GameContentSource } from "@/lib/game-content";
-import { fetchLeaderboard } from "@/lib/player-data";
-import { LEADERBOARD, getRankBand, getRankColor } from "@/lib/seed-data";
-import type { DailyChallenge, LeaderboardEntry } from "@/lib/types";
+import {
+  loadDiscoveryContent,
+  loadProfileContent,
+  type GameContentSource,
+} from "@/lib/game-content";
+import { getRankBand, getRankColor } from "@/lib/seed-data";
+import type { DailyChallenge, LeaderboardEntry, ProfileActivityEvent } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
 
 function sourceLabel(source: GameContentSource) {
   return source === "supabase" ? "Live" : "Demo";
+}
+
+function formatActivityTime(value: string) {
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) {
+    return "Recent";
+  }
+
+  const diffMinutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
+  if (diffMinutes < 1) return "Just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 export default function HomePage() {
@@ -24,8 +46,11 @@ export default function HomePage() {
   const rankBand = getRankBand(user?.elo ?? 0);
   const [featuredPlayers, setFeaturedPlayers] = useState<LeaderboardEntry[]>([]);
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
+  const [activityPreview, setActivityPreview] = useState<ProfileActivityEvent[]>([]);
   const [challengeSource, setChallengeSource] = useState<GameContentSource>("seed");
   const [leaderboardSource, setLeaderboardSource] = useState<GameContentSource>("seed");
+  const [activitySource, setActivitySource] = useState<GameContentSource>("seed");
+  const [unreadCount, setUnreadCount] = useState(0);
   const [isContentLoading, setIsContentLoading] = useState(true);
   const [contentError, setContentError] = useState<string | null>(null);
   const winRate = user && user.matchesPlayed > 0 ? Math.round((user.wins / user.matchesPlayed) * 100) : 0;
@@ -38,17 +63,20 @@ export default function HomePage() {
       setContentError(null);
 
       try {
-        const [entries, discovery] = await Promise.all([
-          fetchLeaderboard(4),
+        const [discovery, profile] = await Promise.all([
           loadDiscoveryContent(),
+          loadProfileContent(user?.id),
         ]);
 
         if (cancelled) return;
 
-        setFeaturedPlayers(entries.length > 0 ? entries : LEADERBOARD.slice(0, 4));
-        setLeaderboardSource(entries.length > 0 ? "supabase" : "seed");
+        setFeaturedPlayers(profile.leaderboard.slice(0, 4));
+        setLeaderboardSource(profile.sources.leaderboard);
         setChallenge(discovery.dailyChallenges.find((entry) => !entry.isCompleted) ?? discovery.dailyChallenges[0] ?? null);
         setChallengeSource(discovery.sources.dailyChallenges);
+        setActivityPreview(profile.activityFeed.slice(0, 2));
+        setActivitySource(profile.sources.activityFeed);
+        setUnreadCount(profile.activityFeed.filter((entry) => !entry.isRead).length);
       } catch (error) {
         if (cancelled) return;
         setContentError(error instanceof Error ? error.message : "Failed to load command deck content.");
@@ -63,7 +91,9 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user?.id]);
+
+  const primaryAlert = activityPreview[0] ?? null;
 
   return (
     <div className="page-screen">
@@ -86,10 +116,15 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => navigate("/profile")}
-                className="profile-badge shrink-0"
+                className="profile-badge relative shrink-0"
               >
                 <StockAvatar avatarId={user?.avatarId} size="sm" />
                 <Bell size={16} className="text-white/55" />
+                {canSave && unreadCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-black leading-none text-primary-foreground shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                ) : null}
               </button>
             </div>
           }
@@ -190,16 +225,47 @@ export default function HomePage() {
                     <TimerReset size={18} />
                   </div>
                   <div>
-                    <p className="section-kicker">Match of the Day</p>
-                    <p className="text-lg font-black">Puzzle Rivals broadcast</p>
+                    <p className="section-kicker">Command Alerts</p>
+                    <p className="text-lg font-black">
+                      {isContentLoading
+                        ? "Syncing activity"
+                        : unreadCount > 0
+                          ? `${unreadCount} new updates`
+                          : primaryAlert
+                            ? "Recent account activity"
+                            : "Activity stream standing by"}
+                    </p>
                   </div>
                 </div>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Featured logo slot stays branded here and acts as the app's spotlight panel.
+                  {contentError ??
+                    (isContentLoading
+                      ? "Pulling your latest match, purchase, and social signals."
+                      : primaryAlert
+                        ? `${primaryAlert.title} · ${formatActivityTime(primaryAlert.occurredAt)}`
+                        : "Recent results, purchases, and social updates will surface here as they land.")}
                 </p>
-                <Button onClick={() => navigate("/play")} variant="outline" size="lg" className="w-full">
+                <div className="grid gap-2">
+                  {activityPreview.length > 0 ? activityPreview.map((entry) => (
+                    <div key={entry.id} className="command-panel-soft flex items-center justify-between gap-3 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black">{entry.title}</p>
+                        <p className="truncate text-xs text-muted-foreground">{entry.description}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">{sourceLabel(activitySource)}</p>
+                        <p className="mt-1 text-xs font-black text-muted-foreground">{formatActivityTime(entry.occurredAt)}</p>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="command-panel-soft px-4 py-3 text-sm text-muted-foreground">
+                      {isContentLoading ? "Loading alerts..." : "No recent alerts yet."}
+                    </div>
+                  )}
+                </div>
+                <Button onClick={() => navigate("/profile")} variant="outline" size="lg" className="w-full">
                   <Eye size={16} />
-                  Explore Queue Modes
+                  Review Activity
                 </Button>
               </div>
             </div>
@@ -282,5 +348,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-

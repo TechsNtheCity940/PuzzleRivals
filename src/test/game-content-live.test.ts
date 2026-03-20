@@ -61,7 +61,7 @@ vi.mock("@/lib/player-data", () => ({
   fetchSocialDirectory: mocks.fetchSocialDirectory,
 }));
 
-import { loadDiscoveryContent, loadProfileContent, loadSeasonContent, loadStoreContent } from "@/lib/game-content";
+import { loadDiscoveryContent, loadNotificationSummary, loadProfileContent, loadSeasonContent, loadStoreContent } from "@/lib/game-content";
 
 describe("game content live feeds", () => {
   beforeEach(() => {
@@ -300,7 +300,7 @@ describe("game content live feeds", () => {
             event_type: "purchase",
             label: "Purchase",
             title: "Unlocked VIP Membership",
-            description: "$7.99 · vip · captured",
+            description: "$7.99 | vip | captured",
             occurred_at: "2026-03-20T20:00:00Z",
             is_read: false,
             metadata: { productId: "vip_monthly" },
@@ -310,7 +310,7 @@ describe("game content live feeds", () => {
             event_type: "match",
             label: "Ranked Match",
             title: "Won a ranked Maze Rush round",
-            description: "#1 finish · +120 XP · +80 Coins · +24 ELO · Round 2",
+            description: "#1 finish | +120 XP | +80 Coins | +24 ELO | Round 2",
             occurred_at: "2026-03-20T19:30:00Z",
             is_read: true,
             metadata: { roundId: "round-1" },
@@ -328,7 +328,7 @@ describe("game content live feeds", () => {
         type: "purchase",
         label: "Purchase",
         title: "Unlocked VIP Membership",
-        description: "$7.99 · vip · captured",
+        description: "$7.99 | vip | captured",
         occurredAt: "2026-03-20T20:00:00Z",
         isRead: false,
       },
@@ -337,12 +337,52 @@ describe("game content live feeds", () => {
         type: "match",
         label: "Ranked Match",
         title: "Won a ranked Maze Rush round",
-        description: "#1 finish · +120 XP · +80 Coins · +24 ELO · Round 2",
+        description: "#1 finish | +120 XP | +80 Coins | +24 ELO | Round 2",
         occurredAt: "2026-03-20T19:30:00Z",
         isRead: true,
       },
     ]);
   });
+  it("summarizes unread live notification activity", async () => {
+    mocks.responses.profile_activity_events = [
+      {
+        data: [
+          {
+            id: "activity-1",
+            event_type: "purchase",
+            label: "Purchase",
+            title: "Unlocked VIP Membership",
+            description: "$7.99 | vip | captured",
+            occurred_at: "2026-03-20T20:00:00Z",
+            is_read: false,
+            metadata: { productId: "vip_monthly" },
+          },
+          {
+            id: "activity-2",
+            event_type: "match",
+            label: "Ranked Match",
+            title: "Won a ranked Maze Rush round",
+            description: "#1 finish | +120 XP | +80 Coins | +24 ELO | Round 2",
+            occurred_at: "2026-03-20T19:30:00Z",
+            is_read: true,
+            metadata: { roundId: "round-1" },
+          },
+        ],
+      },
+    ];
+
+    const summary = await loadNotificationSummary("user-1");
+
+    expect(summary.source).toBe("supabase");
+    expect(summary.unreadCount).toBe(1);
+    expect(summary.recent).toHaveLength(2);
+    expect(summary.recent[0]).toMatchObject({
+      id: "activity-1",
+      title: "Unlocked VIP Membership",
+      isRead: false,
+    });
+  });
+
   it("builds a live profile activity feed from matches, purchases, and social signals", async () => {
     mocks.fetchLeaderboard.mockResolvedValue([
       {
@@ -485,7 +525,7 @@ describe("game content live feeds", () => {
     });
     expect(snapshot.activityFeed.find((entry) => entry.type === "purchase")).toMatchObject({
       title: "Unlocked Season XI Battle Pass",
-      description: "$9.99 · battle_pass · captured",
+      description: "$9.99 ï¿½ battle_pass ï¿½ captured",
     });
     expect(snapshot.activityFeed.find((entry) => entry.id === "social-self-facebook")).toMatchObject({
       title: "Facebook identity linked",
@@ -608,6 +648,7 @@ describe("game content live feeds", () => {
     expect(snapshot.activityFeed.some((entry) => entry.type === "purchase")).toBe(true);
   });
 });
+
 
 
 
