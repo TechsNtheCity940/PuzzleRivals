@@ -1,12 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Crown, Flame, Sparkles, Swords, Target, Users, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import { Button } from "@/components/ui/button";
+import { loadDiscoveryContent, type GameContentSource } from "@/lib/game-content";
 import { useAuth } from "@/providers/AuthProvider";
-import { DAILY_CHALLENGES, getRankBand, getRankColor } from "@/lib/seed-data";
+import { getRankBand, getRankColor } from "@/lib/seed-data";
+import type { DailyChallenge } from "@/lib/types";
 
 type PlayMode = "ranked" | "casual" | "royale" | "revenge" | "challenge" | "daily";
 
@@ -19,12 +21,49 @@ const MODES = [
   { id: "daily" as PlayMode, label: "Daily", icon: Users, desc: "Elite daily variant", status: "Queue" },
 ];
 
+function sourceLabel(source: GameContentSource) {
+  return source === "supabase" ? "Live" : "Demo";
+}
+
 export default function PlayPage() {
   const navigate = useNavigate();
   const { openSignUp } = useAuthDialog();
   const { user, canSave, isReady } = useAuth();
   const [selectedMode, setSelectedMode] = useState<PlayMode>("ranked");
+  const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
+  const [dailySource, setDailySource] = useState<GameContentSource>("seed");
+  const [isContentLoading, setIsContentLoading] = useState(true);
+  const [contentError, setContentError] = useState<string | null>(null);
   const rankBand = getRankBand(user?.elo ?? 0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setIsContentLoading(true);
+      setContentError(null);
+
+      try {
+        const discovery = await loadDiscoveryContent();
+        if (cancelled) return;
+
+        setDailyChallenge(discovery.dailyChallenges[0] ?? null);
+        setDailySource(discovery.sources.dailyChallenges);
+      } catch (error) {
+        if (cancelled) return;
+        setContentError(error instanceof Error ? error.message : "Failed to load today's challenge.");
+      } finally {
+        if (!cancelled) {
+          setIsContentLoading(false);
+        }
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const selectedConfig = useMemo(() => {
     const revenge = selectedMode === "revenge";
@@ -171,12 +210,20 @@ export default function PlayPage() {
             <section className="section-panel">
               <div className="section-header">
                 <div>
-                  <p className="section-kicker">Today&apos;s Variant</p>
-                  <h2 className="section-title">{DAILY_CHALLENGES[0]?.title ?? "Daily 1%"}</h2>
+                  <p className="section-kicker">Today's Variant</p>
+                  <h2 className="section-title">
+                    {isContentLoading ? "Loading challenge..." : dailyChallenge?.title ?? "Daily 1%"}
+                  </h2>
                 </div>
+                <span className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">
+                  {isContentLoading ? "Syncing" : sourceLabel(dailySource)}
+                </span>
               </div>
               <p className="text-sm leading-6 text-muted-foreground">
-                {DAILY_CHALLENGES[0]?.description ?? "Generated elite challenge."}
+                {contentError ??
+                  (isContentLoading
+                    ? "Pulling the latest challenge feed for this queue screen."
+                    : dailyChallenge?.description ?? "Generated elite challenge.")}
               </p>
             </section>
           </div>
@@ -185,3 +232,4 @@ export default function PlayPage() {
     </div>
   );
 }
+

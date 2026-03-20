@@ -19,8 +19,8 @@ afterEach(() => {
   }
 });
 
-describe("backend scaffold", () => {
-  it("creates a guest session and joins matchmaking", async () => {
+describe("legacy Fastify backend scaffold", () => {
+  it("still supports guest auth and matchmaking in the legacy local server", async () => {
     const dbPath = path.resolve(`./server/data/test-${randomUUID()}.sqlite`);
     tempPaths.push(dbPath);
 

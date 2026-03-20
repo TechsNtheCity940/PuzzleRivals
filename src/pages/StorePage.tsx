@@ -9,18 +9,20 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { isRenderableCosmeticCategory } from "@/lib/cosmetics";
 import { STORE_TABS } from "@/lib/economy";
-import { useAuth } from "@/providers/AuthProvider";
-import { VIP_MEMBERSHIP, romanNumeral } from "@/lib/seed-data";
+import {
+  loadStoreContent,
+  type GameContentSource,
+} from "@/lib/game-content";
 import {
   capturePayPalCheckout,
   createPayPalCheckout,
   equipStoreItem,
-  fetchStorefront,
   purchaseStoreItem,
   type StorefrontItem,
   type StorefrontSnapshot,
 } from "@/lib/storefront";
-import type { ItemCategory } from "@/lib/types";
+import type { ItemCategory, VipMembership } from "@/lib/types";
+import { useAuth } from "@/providers/AuthProvider";
 
 type Tab = "all" | ItemCategory;
 
@@ -50,11 +52,22 @@ function clearCheckoutParams(params: URLSearchParams, setParams: ReturnType<type
   setParams(next, { replace: true });
 }
 
+function romanNumeral(n: number): string {
+  return ["", "I", "II", "III", "IV", "V", "VI"][n] || String(n);
+}
+
+function sourceLabel(source: GameContentSource) {
+  return source === "supabase" ? "Live" : "Demo";
+}
+
 export default function StorePage() {
   const [tab, setTab] = useState<Tab>("all");
   const [page, setPage] = useState(0);
   const [snapshot, setSnapshot] = useState<StorefrontSnapshot>({ items: [], vipProduct: null, wallet: null });
+  const [vipMembership, setVipMembership] = useState<VipMembership | null>(null);
+  const [storefrontSource, setStorefrontSource] = useState<GameContentSource>("seed");
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busyProductId, setBusyProductId] = useState<string | null>(null);
   const [params, setParams] = useSearchParams();
   const { user, canSave, refreshUser } = useAuth();
@@ -64,13 +77,20 @@ export default function StorePage() {
 
     async function load() {
       setIsLoading(true);
+      setLoadError(null);
       try {
-        const next = await fetchStorefront(user);
+        const next = await loadStoreContent(user);
         if (active) {
-          setSnapshot(next);
+          setSnapshot(next.storefront);
+          setVipMembership(next.vipMembership);
+          setStorefrontSource(next.sources.storefront);
         }
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to load store.");
+        if (active) {
+          const message = error instanceof Error ? error.message : "Failed to load store.";
+          setLoadError(message);
+          toast.error(message);
+        }
       } finally {
         if (active) {
           setIsLoading(false);
@@ -108,9 +128,11 @@ export default function StorePage() {
       try {
         await capturePayPalCheckout(purchaseId);
         await refreshUser();
-        const next = await fetchStorefront(user);
+        const next = await loadStoreContent(user);
         if (active) {
-          setSnapshot(next);
+          setSnapshot(next.storefront);
+          setVipMembership(next.vipMembership);
+          setStorefrontSource(next.sources.storefront);
         }
         toast.success("Purchase completed.");
       } catch (error) {
@@ -149,7 +171,10 @@ export default function StorePage() {
       if (item.isOwned && isEquipable(item)) {
         await equipStoreItem(item.id);
         await refreshUser();
-        setSnapshot(await fetchStorefront(user));
+        const next = await loadStoreContent(user);
+        setSnapshot(next.storefront);
+        setVipMembership(next.vipMembership);
+        setStorefrontSource(next.sources.storefront);
         toast.success(`${item.name} equipped.`);
         return;
       }
@@ -162,7 +187,10 @@ export default function StorePage() {
 
       await purchaseStoreItem(item.id);
       await refreshUser();
-      setSnapshot(await fetchStorefront(user));
+      const next = await loadStoreContent(user);
+      setSnapshot(next.storefront);
+      setVipMembership(next.vipMembership);
+      setStorefrontSource(next.sources.storefront);
       toast.success(`${item.name} added to your account.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Purchase failed.");
@@ -177,7 +205,11 @@ export default function StorePage() {
         <PageHeader
           eyebrow="Customization Market"
           title="Store"
-          subtitle={canSave ? "Live purchases and account-bound items." : "Browse as guest. Purchases require sign-in."}
+          subtitle={
+            canSave
+              ? `${sourceLabel(storefrontSource)} purchases and account-bound items.`
+              : "Browse as guest. Purchases require sign-in."
+          }
           right={
             <div className="spotlight-panel">
               <div className="grid grid-cols-2 gap-3 text-center">
@@ -213,7 +245,7 @@ export default function StorePage() {
                 <Crown size={18} className="text-primary" />
               </div>
               <p className="text-sm leading-6 text-muted-foreground">
-                {vip ? formatPrice(vip) : `$${VIP_MEMBERSHIP.priceUsd.toFixed(2)}/month`} - {snapshot.wallet?.hintBalance ?? 0} hints banked
+                {vip ? formatPrice(vip) : vipMembership ? `$${vipMembership.priceUsd.toFixed(2)}/month` : "Unavailable"} - {snapshot.wallet?.hintBalance ?? 0} hints banked
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <div className="rich-stat">
@@ -306,41 +338,55 @@ export default function StorePage() {
               </div>
             </div>
             <div className="deck-grid">
-              {visibleItems.map((item) => (
-                <PuzzleTileButton
-                  key={item.id}
-                  title={item.name}
-                  description={item.description}
-                  media={
-                    isRenderableCosmeticCategory(item.kind) ? (
-                      <CosmeticPreview kind={item.kind} productId={item.id} label={item.name} className="store-item-preview" />
-                    ) : undefined
-                  }
-                  icon={ShoppingBag}
-                  right={
-                    item.isOwned ? (
-                      <div className="text-right">
-                        <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                          {item.isEquipped ? "Loadout" : "Owned"}
-                        </p>
-                        <p className="mt-1 text-xs font-black text-primary">
-                          {item.isEquipped ? "Equipped" : isEquipable(item) ? "Tap to equip" : "Collected"}
-                        </p>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                          {item.collection ? `${item.collection} - ` : ""}Tier {romanNumeral(item.rarity)}
-                        </p>
-                        <p className="mt-1 text-xs font-black text-primary">{formatPrice(item)}</p>
-                      </div>
-                    )
-                  }
-                  className="h-full"
-                  onClick={() => void handleItemAction(item)}
-                  disabled={isLoading || busyProductId === item.id || (item.isOwned && !isEquipable(item))}
-                />
-              ))}
+              {loadError ? (
+                <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
+                  {loadError}
+                </div>
+              ) : isLoading ? (
+                <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
+                  Loading store inventory...
+                </div>
+              ) : visibleItems.length > 0 ? (
+                visibleItems.map((item) => (
+                  <PuzzleTileButton
+                    key={item.id}
+                    title={item.name}
+                    description={item.description}
+                    media={
+                      isRenderableCosmeticCategory(item.kind) ? (
+                        <CosmeticPreview kind={item.kind} productId={item.id} label={item.name} className="store-item-preview" />
+                      ) : undefined
+                    }
+                    icon={ShoppingBag}
+                    right={
+                      item.isOwned ? (
+                        <div className="text-right">
+                          <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                            {item.isEquipped ? "Loadout" : "Owned"}
+                          </p>
+                          <p className="mt-1 text-xs font-black text-primary">
+                            {item.isEquipped ? "Equipped" : isEquipable(item) ? "Tap to equip" : "Collected"}
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                            {item.collection ? `${item.collection} - ` : ""}Tier {romanNumeral(item.rarity)}
+                          </p>
+                          <p className="mt-1 text-xs font-black text-primary">{formatPrice(item)}</p>
+                        </div>
+                      )
+                    }
+                    className="h-full"
+                    onClick={() => void handleItemAction(item)}
+                    disabled={isLoading || busyProductId === item.id || (item.isOwned && !isEquipable(item))}
+                  />
+                ))
+              ) : (
+                <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
+                  No items match the current filter.
+                </div>
+              )}
             </div>
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-white/10 bg-white/5 px-4 py-3">

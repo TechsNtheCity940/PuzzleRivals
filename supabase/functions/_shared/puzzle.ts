@@ -345,8 +345,24 @@ const VOCABULARY_DUEL_BANK: QuizRound[] = [
   { prompt: "Which word best completes: The puzzle's elegant design was ____.", options: ["clumsy", "ingenious", "fragile", "ordinary"], correctOption: 1 },
 ];
 
-function randomSeed() {
-  return Math.floor(Math.random() * 2147483646) + 1;
+function createSeededRandom(seed: number) {
+  let current = seed > 0 ? seed : 1;
+  return () => {
+    current = (current * 48271) % 2147483647;
+    return (current - 1) / 2147483646;
+  };
+}
+
+function hashSelectionKey(value: string) {
+  let seed = 0;
+  for (const character of value) {
+    seed = (seed * 31 + character.charCodeAt(0)) % 2147483647;
+  }
+  return seed || 1;
+}
+
+function randomSeed(nextRandom: () => number = () => Math.random()) {
+  return Math.floor(nextRandom() * 2147483646) + 1;
 }
 
 function clampProgress(value: number) {
@@ -372,14 +388,18 @@ export function createAuthoritativePuzzleSelection(
   averageElo: number,
   mode: string,
   preferredPuzzleType?: MatchPlayablePuzzleType | null,
+  selectionKey?: string,
 ): AuthoritativePuzzleSelection {
+  const nextRandom = selectionKey
+    ? createSeededRandom(hashSelectionKey(`${selectionKey}:selection`))
+    : () => Math.random();
   const puzzleType =
     preferredPuzzleType && MATCH_PLAYABLE_PUZZLES.includes(preferredPuzzleType)
       ? preferredPuzzleType
-      : MATCH_PLAYABLE_PUZZLES[Math.floor(Math.random() * MATCH_PLAYABLE_PUZZLES.length)];
-  const practiceSeed = randomSeed();
-  let liveSeed = randomSeed();
-  while (liveSeed === practiceSeed) liveSeed = randomSeed();
+      : MATCH_PLAYABLE_PUZZLES[Math.floor(nextRandom() * MATCH_PLAYABLE_PUZZLES.length)];
+  const practiceSeed = randomSeed(nextRandom);
+  let liveSeed = randomSeed(nextRandom);
+  while (liveSeed === practiceSeed) liveSeed = randomSeed(nextRandom);
 
   return {
     puzzleType,
@@ -976,3 +996,4 @@ export function isSolvedPuzzleSubmission(
 ) {
   return evaluatePuzzleSubmission(puzzleType, seed, difficulty, submission) >= 100;
 }
+

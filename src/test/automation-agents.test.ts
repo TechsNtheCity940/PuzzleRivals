@@ -19,8 +19,8 @@ afterEach(() => {
   }
 });
 
-describe("automation agent routes", () => {
-  it("lists registered automation agents", async () => {
+describe("legacy Fastify automation scaffold", () => {
+  it("lists registered automation agents on the legacy local server", async () => {
     const dbPath = path.resolve(`./server/data/test-${randomUUID()}.sqlite`);
     tempPaths.push(dbPath);
 
@@ -55,7 +55,7 @@ describe("automation agent routes", () => {
     }
   }, 20000);
 
-  it("executes deterministic generator and search agents", async () => {
+  it("executes deterministic generator and search agents on the legacy local server", async () => {
     const dbPath = path.resolve(`./server/data/test-${randomUUID()}.sqlite`);
     tempPaths.push(dbPath);
 
@@ -131,3 +131,4 @@ describe("automation agent routes", () => {
     }
   }, 20000);
 });
+

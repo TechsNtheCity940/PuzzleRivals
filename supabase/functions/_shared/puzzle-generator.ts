@@ -14,6 +14,9 @@ export interface PuzzleGeneratorContext {
   averageElo: number;
   players: PuzzleGeneratorPlayerProfile[];
   lastLossByUserId?: Partial<Record<string, MatchPlayablePuzzleType>>;
+  recentPuzzleTypes?: MatchPlayablePuzzleType[];
+  sameModeRecentPuzzleTypes?: MatchPlayablePuzzleType[];
+  selectionSeed?: string;
 }
 
 export interface GeneratedPuzzleTemplate {
@@ -60,6 +63,21 @@ const ALL_PUZZLE_TYPES: MatchPlayablePuzzleType[] = [
   "vocabulary_duel",
 ];
 
+const MIN_WEIGHT = 0.05;
+
+class DeterministicRandom {
+  private seed: number;
+
+  constructor(seed: number) {
+    this.seed = seed > 0 ? seed : 1;
+  }
+
+  next() {
+    this.seed = (this.seed * 48271) % 2147483647;
+    return (this.seed - 1) / 2147483646;
+  }
+}
+
 function createWeightMap(baseWeight = 1) {
   return Object.fromEntries(
     ALL_PUZZLE_TYPES.map((type) => [type, baseWeight]),
@@ -70,15 +88,33 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function weightedPick(weights: Record<MatchPlayablePuzzleType, number>) {
-  const entries = ALL_PUZZLE_TYPES.map((type) => [type, Math.max(0, weights[type] ?? 0)] as const);
-  const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
+function seedFromString(value: string) {
+  let seed = 0;
+  for (const character of value) {
+    seed = (seed * 31 + character.charCodeAt(0)) % 2147483647;
+  }
+  return seed || 1;
+}
 
-  if (total <= 0) {
-    return ALL_PUZZLE_TYPES[Math.floor(Math.random() * ALL_PUZZLE_TYPES.length)];
+function createRandomSource(selectionSeed?: string) {
+  if (!selectionSeed) {
+    return () => Math.random();
   }
 
-  let cursor = Math.random() * total;
+  const rng = new DeterministicRandom(seedFromString(selectionSeed));
+  return () => rng.next();
+}
+
+function weightedPick(weights: Record<MatchPlayablePuzzleType, number>, selectionSeed?: string) {
+  const entries = ALL_PUZZLE_TYPES.map((type) => [type, Math.max(0, weights[type] ?? 0)] as const);
+  const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
+  const nextRandom = createRandomSource(selectionSeed);
+
+  if (total <= 0) {
+    return ALL_PUZZLE_TYPES[Math.floor(nextRandom() * ALL_PUZZLE_TYPES.length)];
+  }
+
+  let cursor = nextRandom() * total;
   for (const [type, weight] of entries) {
     cursor -= weight;
     if (cursor <= 0) return type;
@@ -100,8 +136,69 @@ function weakestTypes(profile: PuzzleGeneratorPlayerProfile) {
     });
 }
 
+function applyReplayPrevention(
+  weights: Record<MatchPlayablePuzzleType, number>,
+  recentPuzzleTypes: MatchPlayablePuzzleType[] | undefined,
+  rationale: string[],
+) {
+  if (!recentPuzzleTypes || recentPuzzleTypes.length === 0) {
+    return weights;
+  }
+
+  const nextWeights = { ...weights };
+  const repeatCounts = new Map<MatchPlayablePuzzleType, number>();
+
+  recentPuzzleTypes.slice(0, 6).forEach((type, index) => {
+    const priorRepeats = repeatCounts.get(type) ?? 0;
+    const recencyPenalty = clamp(4.5 - index * 0.6, 1.25, 4.5);
+    const repeatPenalty = priorRepeats * 1.4;
+    nextWeights[type] = Math.max(MIN_WEIGHT, nextWeights[type] - recencyPenalty - repeatPenalty);
+    repeatCounts.set(type, priorRepeats + 1);
+  });
+
+  const repeatedRecentTypes = [...repeatCounts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([type, count]) => `${type} x${count}`);
+
+  rationale.push(
+    repeatedRecentTypes.length > 0
+      ? `recent puzzle history penalizes repeats (${repeatedRecentTypes.join(", ")})`
+      : "recent puzzle history penalizes immediate repeats",
+  );
+
+  return nextWeights;
+}
+
+function applyModeCooldown(
+  weights: Record<MatchPlayablePuzzleType, number>,
+  sameModeRecentPuzzleTypes: MatchPlayablePuzzleType[] | undefined,
+  rationale: string[],
+) {
+  if (!sameModeRecentPuzzleTypes || sameModeRecentPuzzleTypes.length === 0) {
+    return weights;
+  }
+
+  const nextWeights = { ...weights };
+  const cooldownWindow = sameModeRecentPuzzleTypes.slice(0, 5);
+  const recentlyBlocked = new Set(cooldownWindow.slice(0, 2));
+
+  for (const [index, type] of cooldownWindow.entries()) {
+    if (recentlyBlocked.has(type)) {
+      nextWeights[type] = MIN_WEIGHT;
+      continue;
+    }
+
+    const cooldownPenalty = clamp(3.25 - index * 0.45, 1.1, 3.25);
+    nextWeights[type] = Math.max(MIN_WEIGHT, nextWeights[type] - cooldownPenalty);
+  }
+
+  rationale.push("same-mode cooldown strongly suppresses puzzle types used in this queue recently");
+  return nextWeights;
+}
+
 function buildBalancedWeights(context: PuzzleGeneratorContext) {
-  const weights = createWeightMap(1);
+  const baseWeights = createWeightMap(1);
+  const rationale = ["ranked mode balances variety against overplayed puzzle types"];
 
   for (const type of ALL_PUZZLE_TYPES) {
     const lobbyMatches = context.players.reduce(
@@ -109,10 +206,14 @@ function buildBalancedWeights(context: PuzzleGeneratorContext) {
       0,
     );
     const averageMatches = lobbyMatches / Math.max(context.players.length, 1);
-    weights[type] += clamp(4 - averageMatches, 0, 3) * 0.65;
+    baseWeights[type] += clamp(4 - averageMatches, 0, 3) * 0.65;
   }
 
-  return weights;
+  const replayAdjusted = applyReplayPrevention(baseWeights, context.recentPuzzleTypes, rationale);
+  return {
+    weights: applyModeCooldown(replayAdjusted, context.sameModeRecentPuzzleTypes, rationale),
+    rationale,
+  };
 }
 
 function buildChallengeWeights(context: PuzzleGeneratorContext) {
@@ -138,7 +239,11 @@ function buildChallengeWeights(context: PuzzleGeneratorContext) {
     rationale.push("challenge mode fell back to a broad training mix");
   }
 
-  return { weights, rationale };
+  const replayAdjusted = applyReplayPrevention(weights, context.recentPuzzleTypes, rationale);
+  return {
+    weights: applyModeCooldown(replayAdjusted, context.sameModeRecentPuzzleTypes, rationale),
+    rationale,
+  };
 }
 
 function buildRevengeWeights(context: PuzzleGeneratorContext) {
@@ -168,7 +273,11 @@ function buildRevengeWeights(context: PuzzleGeneratorContext) {
     }
   }
 
-  return { weights, rationale };
+  const replayAdjusted = applyReplayPrevention(weights, context.recentPuzzleTypes, rationale);
+  return {
+    weights: applyModeCooldown(replayAdjusted, context.sameModeRecentPuzzleTypes, rationale),
+    rationale,
+  };
 }
 
 export function generatePuzzleTemplate(context: PuzzleGeneratorContext): GeneratedPuzzleTemplate {
@@ -176,7 +285,7 @@ export function generatePuzzleTemplate(context: PuzzleGeneratorContext): Generat
     const revenge = buildRevengeWeights(context);
     return {
       strategy: "revenge",
-      primaryType: weightedPick(revenge.weights),
+      primaryType: weightedPick(revenge.weights, context.selectionSeed),
       weights: revenge.weights,
       rationale: revenge.rationale,
       parameters: {
@@ -191,7 +300,7 @@ export function generatePuzzleTemplate(context: PuzzleGeneratorContext): Generat
     const challenge = buildChallengeWeights(context);
     return {
       strategy: "training",
-      primaryType: weightedPick(challenge.weights),
+      primaryType: weightedPick(challenge.weights, context.selectionSeed),
       weights: challenge.weights,
       rationale: challenge.rationale,
       parameters: {
@@ -203,12 +312,12 @@ export function generatePuzzleTemplate(context: PuzzleGeneratorContext): Generat
   }
 
   if (context.mode === "ranked") {
-    const weights = buildBalancedWeights(context);
+    const balanced = buildBalancedWeights(context);
     return {
       strategy: "balanced",
-      primaryType: weightedPick(weights),
-      weights,
-      rationale: ["ranked mode balances variety against overplayed puzzle types"],
+      primaryType: weightedPick(balanced.weights, context.selectionSeed),
+      weights: balanced.weights,
+      rationale: balanced.rationale,
       parameters: {
         volatility: 0.55,
         logicLoad: clamp(0.5 + context.averageElo / 5500, 0.4, 1),
@@ -217,12 +326,14 @@ export function generatePuzzleTemplate(context: PuzzleGeneratorContext): Generat
     };
   }
 
-  const weights = createWeightMap(1);
+  const rationale = ["non-ranked modes default to a broad procedural mix"];
+  const replayAdjusted = applyReplayPrevention(createWeightMap(1), context.recentPuzzleTypes, rationale);
+  const weights = applyModeCooldown(replayAdjusted, context.sameModeRecentPuzzleTypes, rationale);
   return {
     strategy: "random",
-    primaryType: weightedPick(weights),
+    primaryType: weightedPick(weights, context.selectionSeed),
     weights,
-    rationale: ["non-ranked modes default to a broad procedural mix"],
+    rationale,
     parameters: {
       volatility: 0.45,
       logicLoad: 0.5,

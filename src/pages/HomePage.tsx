@@ -7,10 +7,15 @@ import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import PuzzleRivalsLogo from "@/components/branding/PuzzleRivalsLogo";
 import StockAvatar from "@/components/profile/StockAvatar";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
+import { loadDiscoveryContent, type GameContentSource } from "@/lib/game-content";
 import { fetchLeaderboard } from "@/lib/player-data";
-import { DAILY_CHALLENGES, getRankBand, getRankColor } from "@/lib/seed-data";
-import type { LeaderboardEntry } from "@/lib/types";
+import { getRankBand, getRankColor } from "@/lib/seed-data";
+import type { DailyChallenge, LeaderboardEntry } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
+
+function sourceLabel(source: GameContentSource) {
+  return source === "supabase" ? "Live" : "Demo";
+}
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -18,21 +23,45 @@ export default function HomePage() {
   const { user, canSave } = useAuth();
   const rankBand = getRankBand(user?.elo ?? 0);
   const [featuredPlayers, setFeaturedPlayers] = useState<LeaderboardEntry[]>([]);
+  const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
+  const [challengeSource, setChallengeSource] = useState<GameContentSource>("seed");
+  const [isContentLoading, setIsContentLoading] = useState(true);
+  const [contentError, setContentError] = useState<string | null>(null);
   const winRate = user && user.matchesPlayed > 0 ? Math.round((user.wins / user.matchesPlayed) * 100) : 0;
 
   useEffect(() => {
     let cancelled = false;
-    void fetchLeaderboard(4).then((entries) => {
-      if (!cancelled) {
+
+    async function load() {
+      setIsContentLoading(true);
+      setContentError(null);
+
+      try {
+        const [entries, discovery] = await Promise.all([
+          fetchLeaderboard(4),
+          loadDiscoveryContent(),
+        ]);
+
+        if (cancelled) return;
+
         setFeaturedPlayers(entries);
+        setChallenge(discovery.dailyChallenges.find((entry) => !entry.isCompleted) ?? discovery.dailyChallenges[0] ?? null);
+        setChallengeSource(discovery.sources.dailyChallenges);
+      } catch (error) {
+        if (cancelled) return;
+        setContentError(error instanceof Error ? error.message : "Failed to load command deck content.");
+      } finally {
+        if (!cancelled) {
+          setIsContentLoading(false);
+        }
       }
-    });
+    }
+
+    void load();
     return () => {
       cancelled = true;
     };
   }, []);
-
-  const challenge = DAILY_CHALLENGES.find((entry) => !entry.isCompleted) ?? DAILY_CHALLENGES[0];
 
   return (
     <div className="page-screen">
@@ -98,8 +127,17 @@ export default function HomePage() {
                   />
                   <PuzzleTileButton
                     icon={Flame}
-                    title={challenge?.title ?? "Daily Challenge"}
-                    description={challenge?.description ?? "A fresh daily puzzle run."}
+                    title={
+                      isContentLoading
+                        ? "Loading daily challenge..."
+                        : challenge?.title ?? "Daily Challenge"
+                    }
+                    description={
+                      contentError ??
+                      (isContentLoading
+                        ? "Syncing the latest command deck snapshot."
+                        : challenge?.description ?? "A fresh daily puzzle run.")
+                    }
                     onClick={() => {
                       if (canSave) {
                         navigate("/match?mode=daily");
@@ -107,7 +145,11 @@ export default function HomePage() {
                       }
                       openSignUp();
                     }}
-                    right={<span className="font-hud text-[10px] uppercase tracking-[0.18em] text-primary">Daily</span>}
+                    right={
+                      <span className="font-hud text-[10px] uppercase tracking-[0.18em] text-primary">
+                        {isContentLoading ? "Syncing" : sourceLabel(challengeSource)}
+                      </span>
+                    }
                   />
                 </div>
               </div>
@@ -151,7 +193,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Featured logo slot stays branded here and acts as the app&apos;s spotlight panel.
+                  Featured logo slot stays branded here and acts as the app's spotlight panel.
                 </p>
                 <Button onClick={() => navigate("/play")} variant="outline" size="lg" className="w-full">
                   <Eye size={16} />
@@ -175,7 +217,7 @@ export default function HomePage() {
               </Button>
             </div>
             <div className="section-stack">
-              {featuredPlayers.slice(0, 4).map((entry, index) => (
+              {featuredPlayers.length > 0 ? featuredPlayers.slice(0, 4).map((entry, index) => (
                 <div key={entry.userId} className="command-panel-soft flex items-center gap-4 p-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-[18px] border border-primary/20 bg-primary/10 font-hud text-sm font-semibold text-primary">
                     #{index + 1}
@@ -192,7 +234,11 @@ export default function HomePage() {
                     <p className="text-xs text-muted-foreground">{entry.wins} wins</p>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
+                  Leaderboard sync is still warming up.
+                </div>
+              )}
             </div>
           </section>
 
@@ -234,3 +280,4 @@ export default function HomePage() {
     </div>
   );
 }
+

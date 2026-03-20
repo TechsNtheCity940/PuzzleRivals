@@ -1,21 +1,61 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Trophy, Users, Zap } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
-import { TOURNAMENTS, PUZZLE_TYPES } from "@/lib/seed-data";
+import { loadDiscoveryContent, type GameContentSource } from "@/lib/game-content";
+import type { PuzzleMeta, Tournament } from "@/lib/types";
 
 type Tab = "upcoming" | "live" | "completed";
 
+function sourceLabel(source: GameContentSource) {
+  return source === "supabase" ? "Live circuit" : "Demo circuit";
+}
+
 export default function TournamentsPage() {
   const [tab, setTab] = useState<Tab>("live");
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [puzzleTypes, setPuzzleTypes] = useState<PuzzleMeta[]>([]);
+  const [tournamentSource, setTournamentSource] = useState<GameContentSource>("seed");
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const filtered = useMemo(() => TOURNAMENTS.filter((tournament) => tournament.status === tab), [tab]);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setIsLoading(true);
+      setLoadError(null);
+
+      try {
+        const discovery = await loadDiscoveryContent();
+        if (cancelled) return;
+
+        setTournaments(discovery.tournaments);
+        setPuzzleTypes(discovery.puzzleTypes);
+        setTournamentSource(discovery.sources.tournaments);
+      } catch (error) {
+        if (cancelled) return;
+        setLoadError(error instanceof Error ? error.message : "Failed to load tournament circuit.");
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filtered = useMemo(() => tournaments.filter((tournament) => tournament.status === tab), [tab, tournaments]);
   const tabs: { id: Tab; label: string }[] = [
     { id: "live", label: "Live" },
     { id: "upcoming", label: "Upcoming" },
     { id: "completed", label: "Completed" },
   ];
-  const liveTournament = TOURNAMENTS.find((tournament) => tournament.status === "live");
+  const liveTournament = tournaments.find((tournament) => tournament.status === "live");
   const visible = filtered.slice(0, 6);
 
   return (
@@ -24,11 +64,11 @@ export default function TournamentsPage() {
         <PageHeader
           eyebrow="Competitive Circuit"
           title="Tournaments"
-          subtitle="Fast snapshots of active, upcoming, and finished events."
+          subtitle={`${sourceLabel(tournamentSource)} snapshot for active, upcoming, and finished events.`}
           right={
             <div className="spotlight-panel text-center">
               <p className="section-kicker">Events</p>
-              <p className="mt-2 text-3xl font-black">{TOURNAMENTS.length}</p>
+              <p className="mt-2 text-3xl font-black">{isLoading ? "--" : tournaments.length}</p>
             </div>
           }
         />
@@ -96,13 +136,21 @@ export default function TournamentsPage() {
           </div>
 
           <div className="deck-grid">
-            {visible.length === 0 ? (
+            {loadError ? (
+              <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
+                {loadError}
+              </div>
+            ) : isLoading ? (
+              <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
+                Loading tournament circuit...
+              </div>
+            ) : visible.length === 0 ? (
               <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
                 No {tab} tournaments.
               </div>
             ) : (
               visible.map((tournament) => {
-                const puzzle = PUZZLE_TYPES.find((entry) => entry.type === tournament.puzzleType);
+                const puzzle = puzzleTypes.find((entry) => entry.type === tournament.puzzleType);
                 return (
                   <PuzzleTileButton
                     key={tournament.id}

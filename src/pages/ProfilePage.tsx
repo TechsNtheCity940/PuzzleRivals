@@ -2,24 +2,31 @@ import { useEffect, useMemo, useState } from "react";
 import { Bell, KeyRound, Link2, Shield, Users } from "lucide-react";
 import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
 import CosmeticPreview from "@/components/cosmetics/CosmeticPreview";
+import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import StockAvatar from "@/components/profile/StockAvatar";
 import { Button } from "@/components/ui/button";
-import { fetchLeaderboard, fetchSocialDirectory } from "@/lib/player-data";
 import { saveSecurityQuestions, SECURITY_QUESTION_OPTIONS } from "@/lib/auth-security";
+import {
+  loadProfileContent,
+  type GameContentSource,
+  type ProfileSocialDirectoryEntry,
+} from "@/lib/game-content";
 import { DEFAULT_AVATAR_ID, STOCK_AVATARS } from "@/lib/profile-customization";
-import { getRankBand, getRankColor, PUZZLE_TYPES } from "@/lib/seed-data";
+import { getRankBand, getRankColor } from "@/lib/seed-data";
 import { isSupabaseConfigured, supabaseConfigErrorMessage } from "@/lib/supabase-client";
-import type { LeaderboardEntry } from "@/lib/types";
+import type { LeaderboardEntry, PuzzleMeta } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
-import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 
 type Tab = "stats" | "social" | "security" | "inbox";
-type SocialDirectoryEntry = Awaited<ReturnType<typeof fetchSocialDirectory>>[number];
 
 const DEFAULT_QUESTION_ONE = SECURITY_QUESTION_OPTIONS[0];
 const DEFAULT_QUESTION_TWO = SECURITY_QUESTION_OPTIONS[1];
+
+function sourceLabel(source: GameContentSource) {
+  return source === "supabase" ? "Live" : "Demo";
+}
 
 export default function ProfilePage() {
   const [tab, setTab] = useState<Tab>("stats");
@@ -34,7 +41,12 @@ export default function ProfilePage() {
   const [accountStatus, setAccountStatus] = useState<string | null>(null);
   const [isWorking, setIsWorking] = useState(false);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [socialDirectory, setSocialDirectory] = useState<SocialDirectoryEntry[]>([]);
+  const [socialDirectory, setSocialDirectory] = useState<ProfileSocialDirectoryEntry[]>([]);
+  const [puzzleTypes, setPuzzleTypes] = useState<PuzzleMeta[]>([]);
+  const [leaderboardSource, setLeaderboardSource] = useState<GameContentSource>("seed");
+  const [socialSource, setSocialSource] = useState<GameContentSource>("seed");
+  const [isContentLoading, setIsContentLoading] = useState(true);
+  const [contentError, setContentError] = useState<string | null>(null);
   const [securityQuestionOne, setSecurityQuestionOne] = useState(DEFAULT_QUESTION_ONE);
   const [securityQuestionTwo, setSecurityQuestionTwo] = useState(DEFAULT_QUESTION_TWO);
   const [securityAnswerOne, setSecurityAnswerOne] = useState("");
@@ -50,12 +62,31 @@ export default function ProfilePage() {
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.all([fetchLeaderboard(8), fetchSocialDirectory(user?.id)]).then(([nextLeaderboard, nextSocial]) => {
-      if (!cancelled) {
-        setLeaderboard(nextLeaderboard);
-        setSocialDirectory(nextSocial);
+
+    async function load() {
+      setIsContentLoading(true);
+      setContentError(null);
+
+      try {
+        const snapshot = await loadProfileContent(user?.id);
+        if (cancelled) return;
+
+        setLeaderboard(snapshot.leaderboard);
+        setSocialDirectory(snapshot.socialDirectory);
+        setPuzzleTypes(snapshot.puzzleTypes);
+        setLeaderboardSource(snapshot.sources.leaderboard);
+        setSocialSource(snapshot.sources.socialDirectory);
+      } catch (error) {
+        if (cancelled) return;
+        setContentError(error instanceof Error ? error.message : "Could not load profile content.");
+      } finally {
+        if (!cancelled) {
+          setIsContentLoading(false);
+        }
       }
-    });
+    }
+
+    void load();
     return () => {
       cancelled = true;
     };
@@ -68,8 +99,8 @@ export default function ProfilePage() {
     { id: "inbox", label: "Inbox" },
   ];
   const worstPuzzleLabel = useMemo(
-    () => PUZZLE_TYPES.find((entry) => entry.type === user?.worstPuzzleType)?.label ?? "No completed matches yet",
-    [user?.worstPuzzleType],
+    () => puzzleTypes.find((entry) => entry.type === user?.worstPuzzleType)?.label ?? "No completed matches yet",
+    [puzzleTypes, user?.worstPuzzleType],
   );
   const linkedFacebookPlayers = socialDirectory.filter((entry) => entry.facebook_handle).slice(0, 2);
   const linkedTikTokPlayers = socialDirectory.filter((entry) => entry.tiktok_handle).slice(0, 2);
@@ -318,19 +349,31 @@ export default function ProfilePage() {
                 <div className="section-header">
                   <div>
                     <p className="section-kicker">Stats Board</p>
-                    <h2 className="section-title">Current ladder pressure</h2>
+                    <h2 className="section-title">{sourceLabel(leaderboardSource)} ladder pressure</h2>
                   </div>
                 </div>
                 <div className="section-stack">
-                  {leaderboard.slice(0, 5).map((entry, index) => (
-                    <PuzzleTileButton
-                      key={entry.userId}
-                      title={entry.username}
-                      description={`${entry.rankTier} - ${entry.wins} wins`}
-                      active={entry.userId === user?.id}
-                      right={<span className="text-sm font-black text-primary">#{index + 1}</span>}
-                    />
-                  ))}
+                  {contentError ? (
+                    <div className="command-panel-soft px-4 py-3 text-sm text-muted-foreground">{contentError}</div>
+                  ) : isContentLoading ? (
+                    <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
+                      Loading ladder snapshot...
+                    </div>
+                  ) : leaderboard.length > 0 ? (
+                    leaderboard.slice(0, 5).map((entry, index) => (
+                      <PuzzleTileButton
+                        key={entry.userId}
+                        title={entry.username}
+                        description={`${entry.rankTier} - ${entry.wins} wins`}
+                        active={entry.userId === user?.id}
+                        right={<span className="text-sm font-black text-primary">#{index + 1}</span>}
+                      />
+                    ))
+                  ) : (
+                    <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
+                      No leaderboard entries are available yet.
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -340,7 +383,7 @@ export default function ProfilePage() {
                 <div className="section-header">
                   <div>
                     <p className="section-kicker">Social Links</p>
-                    <h2 className="section-title">Connected identities</h2>
+                    <h2 className="section-title">{sourceLabel(socialSource)} connected identities</h2>
                   </div>
                 </div>
                 <div className="section-stack">
@@ -393,17 +436,23 @@ export default function ProfilePage() {
                     </>
                   )}
                   <div className="deck-grid">
-                    {[...linkedFacebookPlayers, ...linkedTikTokPlayers].slice(0, 4).map((entry) => (
-                      <div key={entry.id} className="command-panel-soft flex items-center gap-3 p-4">
-                        <StockAvatar avatarId={entry.avatar_id ?? DEFAULT_AVATAR_ID} size="sm" />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-black">{entry.username}</p>
-                          <p className="truncate text-[10px] font-hud uppercase tracking-[0.16em] text-muted-foreground">
-                            {entry.facebook_handle ?? entry.tiktok_handle}
-                          </p>
+                    {[...linkedFacebookPlayers, ...linkedTikTokPlayers].slice(0, 4).length > 0 ? (
+                      [...linkedFacebookPlayers, ...linkedTikTokPlayers].slice(0, 4).map((entry) => (
+                        <div key={entry.id} className="command-panel-soft flex items-center gap-3 p-4">
+                          <StockAvatar avatarId={entry.avatar_id ?? DEFAULT_AVATAR_ID} size="sm" />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black">{entry.username}</p>
+                            <p className="truncate text-[10px] font-hud uppercase tracking-[0.16em] text-muted-foreground">
+                              {entry.facebook_handle ?? entry.tiktok_handle}
+                            </p>
+                          </div>
                         </div>
+                      ))
+                    ) : (
+                      <div className="command-panel-soft flex min-h-[140px] items-center justify-center p-6 text-sm text-muted-foreground">
+                        {isContentLoading ? "Loading social directory..." : "No linked player identities are available yet."}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               </>

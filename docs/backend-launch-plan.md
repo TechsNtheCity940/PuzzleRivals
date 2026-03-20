@@ -1,140 +1,117 @@
-# Backend Launch Plan
+# Backend Architecture And Launch Notes
 
-## Current state
+## Current backend architecture
 
-This project now includes a local Fastify backend scaffold with:
+Puzzle Rivals now runs on a Supabase-first backend architecture.
 
-- in-memory authoritative 4-player lobbies
-- server-side puzzle type selection and distinct practice/live seeds
-- WebSocket lobby subscriptions
-- PayPal order creation and capture endpoints
+The active production-facing path is:
+- Supabase Auth for guest and account-backed sessions
+- Supabase Postgres for profiles, lobbies, rounds, results, economy, and progression data
+- Supabase Edge Functions for matchmaking, round progression, solve submission, payments, store actions, and account recovery flows
+- Supabase Realtime for lobby snapshot broadcasts
 
-It is still not production-ready because the current scaffold does not yet include:
+The React client is already wired to this path through:
+- `src/lib/supabase-client.ts`
+- `src/lib/api-client.ts`
+- `src/pages/MatchPage.tsx`
+- the shared content/service layer used by the main product surfaces
 
-- persistent player accounts and progression
-- database-backed lobby/match storage
-- anti-cheat solve validation
-- deployment/runtime secrets management
-- frontend integration against the real API
-- scaled WebSocket fan-out across instances
+## Legacy backend note
 
-## Cheapest practical stack
+`server/` still exists, but it should be treated as a legacy Fastify/SQLite scaffold.
 
-Recommended lowest-friction launch stack:
+It remains useful for:
+- isolated local scaffold tests
+- automation-agent routes
+- reference implementations during migration comparisons
 
-- Frontend hosting: Cloudflare Pages
-- Backend runtime: Cloudflare Workers
-- Realtime lobby state: Durable Objects
-- Database: D1 to start, or Neon/Supabase Postgres if relational features grow
-- Payments: PayPal Checkout JavaScript SDK + Orders API
-- Mobile wrapper: Capacitor
+It should not be treated as the primary gameplay backend when planning new product work.
 
-Why this is the cheapest practical path:
+## Active Supabase function surface
 
-- one vendor can cover static hosting, backend functions, realtime coordination, and custom domains
-- Durable Objects are purpose-built for room/lobby style state and WebSocket fan-out
-- D1 is good enough for early user/profile/match metadata
-- the paid Workers plan starts at a low monthly floor compared with many always-on VM hosts
+Gameplay and progression:
+- `join-lobby`
+- `ready-lobby`
+- `sync-lobby`
+- `submit-progress`
+- `submit-solve`
+- `vote-next-round`
 
-## Alternative cheap stack
+Commerce and identity:
+- `create-paypal-order`
+- `capture-paypal-order`
+- `purchase-store-item`
+- `equip-store-item`
+- `set-security-questions`
+- `get-security-questions`
+- `reset-password-with-security-questions`
 
-If you want a more conventional Node backend:
+## What matters most before launch
 
-- Frontend hosting: Cloudflare Pages or Netlify
-- Backend host: Railway
-- Backend framework: Fastify or NestJS + Socket.IO
-- Database: Supabase Postgres or Neon Postgres
-- Cache/pubsub later: Upstash Redis
+1. Keep the hosted Supabase schema up to date with repo migrations.
+2. Redeploy changed Edge Functions after shared backend logic updates.
+3. Maintain deterministic puzzle selection, replay prevention, and solve validation on the authoritative backend path.
+4. Keep the main product surfaces wired to real backend-backed content instead of static-only placeholders.
+5. Verify both mobile and desktop flows against the live Supabase-backed app.
 
-This is usually easier if you want a traditional Express/Fastify app, background jobs, and Socket.IO without adapting to the Workers runtime.
+## Deployment checklist
 
-## Public-launch checklist
+### 1. Configure the frontend
 
-### 1. Host backend
+Set:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
 
-Pick one:
+Use only the anon or publishable browser key in client env vars.
 
-- Cloudflare Workers + Durable Objects if you want the cheapest globally distributed realtime path
-- Railway if you want the simplest traditional Node deployment
+### 2. Configure Supabase project settings
 
-### 2. Add PayPal API keys
+Enable:
+- Anonymous auth
 
-You need:
+Set secrets as needed:
+- `PAYPAL_CLIENT_ID`
+- `PAYPAL_CLIENT_SECRET`
+- `PAYPAL_WEBHOOK_ID`
 
-- sandbox `client_id`
-- sandbox `client_secret`
-- live `client_id`
-- live `client_secret`
+### 3. Push database changes
 
-Keep them in server-side secrets only.
+```sh
+supabase db push
+```
 
-### 3. Connect domain
+### 4. Deploy Edge Functions
 
-Suggested flow:
+Deploy whichever functions changed, especially any that depend on `functions/_shared/`.
 
-- point DNS to Cloudflare
-- connect the production domain to the frontend
-- attach API subdomain such as `api.yourdomain.com`
+### 5. Run verification
 
-### 4. Configure database
+Primary verification for the active app path:
 
-Minimum production tables:
+```sh
+npm run build
+npm run test
+```
 
-- users
-- player_profiles
-- inventories
-- seasons
-- match_lobbies
-- matches
-- match_players
-- puzzle_seeds
-- purchases
+Optional legacy verification when touching `server/`:
 
-### 5. Enable WebSocket scaling
+```sh
+npm run build:legacy-server
+```
 
-For the first public version:
+### 6. Perform live smoke checks
 
-- if using Cloudflare, keep lobby state in Durable Objects
-- if using Railway/Node, start with Socket.IO and add Redis adapter only when you need multi-instance fan-out
+Confirm these work end to end on the hosted Supabase project:
+- sign-in or guest auth
+- join lobby
+- practice round
+- live round
+- result settlement
+- store or payment flow if touched
+- profile/progression reads if touched
 
-### 6. Build mobile wrapper
+## Current documentation stance
 
-Optional:
+When docs or tests disagree, treat the Supabase path as the source of truth for the shipped gameplay architecture.
+Fastify references should be labeled as legacy or reference-only unless a task explicitly targets them.
 
-- Capacitor for iOS/Android packaging
-- keep the game web-first until retention justifies native polish
-
-## Backend responsibilities
-
-The backend should own:
-
-- creating 4-player lobbies
-- choosing the shared puzzle type
-- generating separate practice/live seeds
-- storing match results
-- validating solves
-- awarding XP, coins, and ELO
-- handling payments and entitlements
-
-## AI puzzle generation roadmap
-
-The frontend now supports seeded procedural puzzle selection, but a real backend should expand this into a proper generation service:
-
-- infinite Sudoku seeds
-- infinite maze/path puzzles
-- adaptive difficulty per lobby skill band
-- logic-template trick puzzles
-- anti-repeat history per player or per region
-- daily featured puzzle batches
-
-## Suggested next implementation step
-
-Build a backend service with these first endpoints:
-
-- `POST /matchmaking/join`
-- `GET /matchmaking/lobby/:id`
-- `POST /matchmaking/lobby/:id/ready`
-- `POST /matches/:id/progress`
-- `POST /matches/:id/solve`
-- `POST /payments/paypal/order`
-- `POST /payments/paypal/capture`

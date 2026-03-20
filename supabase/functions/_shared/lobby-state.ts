@@ -84,8 +84,20 @@ type HistoryResultRow = {
 
 type HistoryRoundRow = {
   id: string;
+  lobby_id: string;
   puzzle_type: MatchPlayablePuzzleType;
   finished_at: string | null;
+};
+
+type HistoryLobbyRow = {
+  id: string;
+  mode: string;
+};
+
+type HistoryParticipationRow = {
+  round_id: string;
+  user_id: string;
+  created_at: string;
 };
 
 const PRACTICE_DURATION_MS = 12_000;
@@ -217,6 +229,96 @@ async function getLastLossByUserId(
   return lastLossByUserId;
 }
 
+async function getRecentPuzzleHistory(
+  playerIds: string[],
+  mode: string,
+  limit = 6,
+): Promise<{
+  recentPuzzleTypes: MatchPlayablePuzzleType[];
+  sameModeRecentPuzzleTypes: MatchPlayablePuzzleType[];
+}> {
+  if (playerIds.length === 0) {
+    return {
+      recentPuzzleTypes: [],
+      sameModeRecentPuzzleTypes: [],
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data: participationRows } = await admin
+    .from("round_results")
+    .select("round_id, user_id, created_at")
+    .in("user_id", playerIds)
+    .order("created_at", { ascending: false })
+    .limit(Math.max(limit * playerIds.length * 4, 24));
+
+  const normalizedRows = (participationRows ?? []) as HistoryParticipationRow[];
+  if (normalizedRows.length === 0) {
+    return {
+      recentPuzzleTypes: [],
+      sameModeRecentPuzzleTypes: [],
+    };
+  }
+
+  const roundIds = [...new Set(normalizedRows.map((row) => row.round_id))];
+  const { data: roundRows } = await admin
+    .from("rounds")
+    .select("id, lobby_id, puzzle_type, finished_at")
+    .in("id", roundIds);
+
+  const normalizedRounds = (roundRows ?? []) as HistoryRoundRow[];
+  if (normalizedRounds.length === 0) {
+    return {
+      recentPuzzleTypes: [],
+      sameModeRecentPuzzleTypes: [],
+    };
+  }
+
+  const lobbyIds = [...new Set(normalizedRounds.map((row) => row.lobby_id).filter(Boolean))];
+  const { data: lobbyRows } = lobbyIds.length === 0
+    ? { data: [] as HistoryLobbyRow[] }
+    : await admin
+      .from("lobbies")
+      .select("id, mode")
+      .in("id", lobbyIds);
+
+  const roundsById = new Map(normalizedRounds.map((row) => [row.id, row]));
+  const lobbyModeById = new Map(((lobbyRows ?? []) as HistoryLobbyRow[]).map((row) => [row.id, row.mode]));
+  const participationByRound = new Map<string, HistoryParticipationRow[]>();
+
+  for (const row of normalizedRows) {
+    const bucket = participationByRound.get(row.round_id) ?? [];
+    bucket.push(row);
+    participationByRound.set(row.round_id, bucket);
+  }
+
+  const sortedRoundIds = [...roundIds].sort((left, right) => {
+    const leftRound = roundsById.get(left);
+    const rightRound = roundsById.get(right);
+    const leftTs = new Date(leftRound?.finished_at ?? participationByRound.get(left)?.[0]?.created_at ?? 0).getTime();
+    const rightTs = new Date(rightRound?.finished_at ?? participationByRound.get(right)?.[0]?.created_at ?? 0).getTime();
+    return rightTs - leftTs;
+  });
+
+  const recentPuzzleTypes = sortedRoundIds
+    .map((roundId) => roundsById.get(roundId)?.puzzle_type)
+    .filter((puzzleType): puzzleType is MatchPlayablePuzzleType => Boolean(puzzleType))
+    .slice(0, limit);
+
+  const sameModeRecentPuzzleTypes = sortedRoundIds
+    .map((roundId) => roundsById.get(roundId))
+    .filter((round): round is HistoryRoundRow => Boolean(round))
+    .filter((round) => lobbyModeById.get(round.lobby_id) === mode)
+    .map((round) => round.puzzle_type)
+    .slice(0, limit);
+
+  return {
+    recentPuzzleTypes,
+    sameModeRecentPuzzleTypes,
+  };
+}
+
+
 function getRankTier(elo: number) {
   if (elo >= 3200) return "master";
   if (elo >= 2600) return "diamond";
@@ -277,6 +379,11 @@ async function ensureRoundSelection(lobby: LobbyRow, activePlayers: PlayerRow[])
     normalizedProfiles.reduce((sum, profile) => sum + profile.elo, 0) /
       Math.max(normalizedProfiles.length, 1),
   );
+  const nextRoundNumber = lobby.current_round + 1;
+  const { recentPuzzleTypes, sameModeRecentPuzzleTypes } = await getRecentPuzzleHistory(
+    playerIds,
+    lobby.mode,
+  );
   const lastLossByUserId =
     lobby.mode === "revenge" ? await getLastLossByUserId(playerIds) : {};
 
@@ -291,29 +398,34 @@ async function ensureRoundSelection(lobby: LobbyRow, activePlayers: PlayerRow[])
     };
   });
 
+  const selectionSeed = `${lobby.id}:${nextRoundNumber}:${[...playerIds].sort().join("|")}:${lobby.mode}`;
   const template = generatePuzzleTemplate({
     mode: lobby.mode,
     averageElo,
     players: generatorPlayers,
     lastLossByUserId,
+    recentPuzzleTypes,
+    sameModeRecentPuzzleTypes,
+    selectionSeed,
   });
 
   const selection = createAuthoritativePuzzleSelection(
     averageElo,
     lobby.mode,
     template.primaryType,
+    `${selectionSeed}:${template.primaryType}`,
   );
 
   await admin.from("lobbies").update({
     status: "ready",
-    current_round: lobby.current_round + 1,
+    current_round: nextRoundNumber,
     selected_puzzle_type: selection.puzzleType,
     selected_difficulty: selection.difficulty,
   }).eq("id", lobby.id);
 
   await admin.from("rounds").insert({
     lobby_id: lobby.id,
-    round_no: lobby.current_round + 1,
+    round_no: nextRoundNumber,
     puzzle_type: selection.puzzleType,
     difficulty: selection.difficulty,
     practice_seed: selection.practiceSeed,
@@ -623,3 +735,4 @@ export async function advanceLobbyState(lobbyId: string) {
 
   return broadcastLobbySnapshot(lobbyId);
 }
+
