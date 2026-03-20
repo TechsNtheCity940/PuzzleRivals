@@ -9,6 +9,7 @@ import {
 import type { MatchPlayablePuzzleType } from "@/lib/ai-puzzle-service";
 import type { PuzzleSubmission } from "@/lib/backend";
 import { buildGeneratedQuizRounds, type QuizPuzzleKind } from "@/lib/match-quiz-content";
+import { buildMaze, buildMemoryGrid, buildPathfinder, buildWordle, canMoveInMaze, getMazeProgress } from "@/lib/match-puzzle-contract";
 import NeonPuzzleShell, { type NeonPuzzleFamily } from "@/components/match/NeonPuzzleShell";
 import { Button } from "@/components/ui/button";
 
@@ -75,63 +76,6 @@ interface SudokuPuzzle {
   solution: number[];
 }
 
-interface MazeCell {
-  top: boolean;
-  right: boolean;
-  bottom: boolean;
-  left: boolean;
-}
-
-interface MazePuzzle {
-  size: number;
-  cells: MazeCell[];
-  goalIndex: number;
-}
-
-interface CrosswordEntry {
-  clue: string;
-  answer: string;
-}
-
-interface MatchingPair {
-  pairId: number;
-  left: string;
-  right: string;
-}
-
-interface WordSearchPlacement {
-  word: string;
-  start: number;
-  end: number;
-  cells: number[];
-}
-
-interface WordSearchPuzzle {
-  size: number;
-  grid: string[];
-  placements: WordSearchPlacement[];
-}
-
-type ShapeCells = Array<[number, number]>;
-
-interface SpatialRound {
-  base: ShapeCells;
-  options: ShapeCells[];
-  correctOption: number;
-  instruction: string;
-}
-
-interface PathfinderPuzzle {
-  size: number;
-  blocked: number[];
-  solutionPath: number[];
-}
-
-interface MemoryGridPuzzle {
-  size: number;
-  targets: number[];
-}
-
 const WORD_BANK = [
   "BRAIN", "SPEED", "QUICK", "FLASH", "POWER", "SMART", "BLAZE", "STORM",
   "CLASH", "RIVAL", "CROWN", "DREAM", "FLAME", "GLEAM", "HEART", "JOLTS",
@@ -139,7 +83,6 @@ const WORD_BANK = [
   "PIXEL", "DRIFT", "SPARK", "CHASE", "PULSE", "TIGER", "GIANT", "NOBLE",
 ];
 
-const WORDLE_BANK = ["SPARK", "BRAIN", "QUEST", "PRISM", "CROWN", "ORBIT", "GLINT", "SHARD"];
 const CROSSWORD_BANK: CrosswordEntry[] = [
   { clue: "Fast-thinking organ", answer: "BRAIN" },
   { clue: "A clue-solving contest can feel like a ____", answer: "RACE" },
@@ -532,53 +475,6 @@ function buildSpatialRounds(seed: number, difficulty: number): SpatialRound[] {
   });
 }
 
-function buildPathfinder(seed: number, difficulty: number): PathfinderPuzzle {
-  const rng = new SeededRandom(seed);
-  const size = difficulty >= 4 ? 7 : 6;
-  const pathLength = size + 3 + difficulty;
-  const blocked = new Set<number>();
-  const solutionPath = [0];
-  let current = 0;
-
-  while (solutionPath.length < pathLength && current !== size * size - 1) {
-    const row = Math.floor(current / size);
-    const col = current % size;
-    const candidates = rng.shuffle([
-      row < size - 1 ? current + size : -1,
-      col < size - 1 ? current + 1 : -1,
-      row > 0 ? current - size : -1,
-      col > 0 ? current - 1 : -1,
-    ]).filter((next) => next >= 0 && !solutionPath.includes(next));
-
-    if (candidates.length === 0) break;
-
-    current = candidates[0];
-    solutionPath.push(current);
-  }
-
-  if (solutionPath[solutionPath.length - 1] !== size * size - 1) {
-    let cursor = solutionPath[solutionPath.length - 1];
-    while (cursor % size < size - 1) {
-      cursor += 1;
-      if (!solutionPath.includes(cursor)) solutionPath.push(cursor);
-    }
-    while (cursor < size * (size - 1)) {
-      cursor += size;
-      if (!solutionPath.includes(cursor)) solutionPath.push(cursor);
-    }
-  }
-
-  for (let index = 0; index < size * size; index += 1) {
-    if (!solutionPath.includes(index) && rng.next() > 0.28) {
-      blocked.add(index);
-    }
-  }
-
-  blocked.delete(0);
-  blocked.delete(size * size - 1);
-  return { size, blocked: [...blocked], solutionPath };
-}
-
 function buildTilePuzzle(seed: number, difficulty: number) {
   const rng = new SeededRandom(seed);
   const size = 3;
@@ -653,48 +549,6 @@ function buildSudokuMini(seed: number, difficulty: number): SudokuPuzzle {
   const removableSet = new Set(removable);
   const puzzle = solution.map((value, index) => (removableSet.has(index) ? null : value));
   return { puzzle, solution };
-}
-
-function buildMaze(seed: number, difficulty: number): MazePuzzle {
-  const rng = new SeededRandom(seed);
-  const size = Math.min(7, Math.max(5, difficulty + 3));
-  const cells = Array.from({ length: size * size }, () => ({ top: true, right: true, bottom: true, left: true }));
-  const visited = new Set<number>();
-
-  function carve(index: number) {
-    visited.add(index);
-    const row = Math.floor(index / size);
-    const col = index % size;
-    const neighbors = rng.shuffle([
-      { next: row > 0 ? index - size : -1, wall: "top", opposite: "bottom" },
-      { next: col < size - 1 ? index + 1 : -1, wall: "right", opposite: "left" },
-      { next: row < size - 1 ? index + size : -1, wall: "bottom", opposite: "top" },
-      { next: col > 0 ? index - 1 : -1, wall: "left", opposite: "right" },
-    ]);
-
-    for (const neighbor of neighbors) {
-      if (neighbor.next < 0 || visited.has(neighbor.next)) continue;
-      cells[index][neighbor.wall as keyof MazeCell] = false;
-      cells[neighbor.next][neighbor.opposite as keyof MazeCell] = false;
-      carve(neighbor.next);
-    }
-  }
-
-  carve(0);
-  return { size, cells, goalIndex: size * size - 1 };
-}
-
-function buildMemoryGrid(seed: number, difficulty: number): MemoryGridPuzzle {
-  const rng = new SeededRandom(seed);
-  return {
-    size: 4,
-    targets: rng.shuffle(Array.from({ length: 16 }, (_, index) => index)).slice(0, Math.min(7, Math.max(4, difficulty + 2))),
-  };
-}
-
-function buildWordle(seed: number) {
-  const rng = new SeededRandom(seed);
-  return WORDLE_BANK[rng.nextInt(0, WORDLE_BANK.length - 1)];
 }
 
 function isTilePuzzleSolved(tiles: number[]) {
@@ -1561,23 +1415,13 @@ function SudokuMiniBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
   );
 }
 
-function canMoveInMaze(maze: MazePuzzle, fromIndex: number, toIndex: number) {
-  const from = maze.cells[fromIndex];
-  const delta = toIndex - fromIndex;
-  if (delta === -maze.size) return !from.top;
-  if (delta === 1) return !from.right;
-  if (delta === maze.size) return !from.bottom;
-  if (delta === -1) return !from.left;
-  return false;
-}
-
 function MazeBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
   const [maze] = useState(() => buildMaze(props.seed, props.difficulty));
   const [position, setPosition] = useState(0);
   const [solved, setSolved] = useState(false);
 
   useEffect(() => {
-    const progress = clampProgress((position / Math.max(maze.goalIndex, 1)) * 100);
+    const progress = getMazeProgress(maze, position);
     props.onProgress(progress);
     props.onStateChange?.({ kind: "maze", position }, progress);
   }, [maze.goalIndex, position, props]);
