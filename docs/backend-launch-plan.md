@@ -97,7 +97,10 @@ Optional legacy verification when touching `server/`:
 
 ```sh
 npm run build:legacy-server
+npm run test:legacy-server
 ```
+
+Use `npm run test:all` only when you explicitly want both the active Supabase path and the legacy Fastify scaffold covered in one run.
 
 ### 6. Perform live smoke checks
 
@@ -114,4 +117,5 @@ Confirm these work end to end on the hosted Supabase project:
 
 When docs or tests disagree, treat the Supabase path as the source of truth for the shipped gameplay architecture.
 Fastify references should be labeled as legacy or reference-only unless a task explicitly targets them.
+
 

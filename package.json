@@ -17,8 +17,10 @@
     "preview": "vite preview",
     "start:legacy-server": "node server/dist/index.js",
     "start:server": "npm run start:legacy-server",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest run --exclude src/test/server-backend.test.ts --exclude src/test/automation-agents.test.ts",
+    "test:watch": "vitest",
+    "test:legacy-server": "vitest run src/test/server-backend.test.ts src/test/automation-agents.test.ts",
+    "test:all": "npm run test && npm run test:legacy-server"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",

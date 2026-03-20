@@ -104,6 +104,13 @@ Optional legacy verification if you changed `server/`:
 
 ```sh
 npm run build:legacy-server
+npm run test:legacy-server
+```
+
+Run both active and legacy checks together only when you intentionally need both paths:
+
+```sh
+npm run test:all
 ```
 
 ## Supabase Edge Functions
@@ -130,5 +137,6 @@ This repo still contains two backend implementations, but they are not equal in 
 - `server/` is the older Fastify/SQLite scaffold kept as a legacy reference and isolated local test surface.
 
 See [docs/backend-launch-plan.md](./docs/backend-launch-plan.md) for the current backend architecture, deployment checklist, and verification guidance.
+
 
 
