@@ -9,7 +9,7 @@ import {
 import type { MatchPlayablePuzzleType } from "@/lib/ai-puzzle-service";
 import type { PuzzleSubmission } from "@/lib/backend";
 import { buildGeneratedQuizRounds, type QuizPuzzleKind } from "@/lib/match-quiz-content";
-import { buildCrosswordMini, buildMatchingPairs, buildMaze, buildMemoryGrid, buildNumberGrid, buildPathfinder, buildPatternRounds, buildSpatialRounds, buildSudokuMini, buildWordScramble, buildWordSearch, buildWordle, canMoveInMaze, getMazeProgress, normalizeSegment, type PatternItem, type ShapeCells } from "@/lib/match-puzzle-contract";
+import { buildCrosswordMini, buildMatchingPairs, buildMaze, buildMemoryGrid, buildNumberGrid, buildPathfinder, buildPatternRounds, buildSpatialRounds, buildSudokuMini, buildTilePuzzle, buildWordScramble, buildWordSearch, buildWordle, canMoveInMaze, getMazeProgress, isTilePuzzleSolved, normalizeSegment, type PatternItem, type ShapeCells } from "@/lib/match-puzzle-contract";
 import NeonPuzzleShell, { type NeonPuzzleFamily } from "@/components/match/NeonPuzzleShell";
 import { Button } from "@/components/ui/button";
 
@@ -177,39 +177,6 @@ const VOCABULARY_DUEL_BANK: QuizRound[] = [
 
 function clampProgress(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-function buildTilePuzzle(seed: number, difficulty: number) {
-  const rng = new SeededRandom(seed);
-  const size = 3;
-  const tiles = [...Array.from({ length: size * size - 1 }, (_, index) => index + 1), 0];
-  let emptyIndex = tiles.length - 1;
-  const scrambleMoves = 24 + difficulty * 8;
-
-  for (let step = 0; step < scrambleMoves; step += 1) {
-    const row = Math.floor(emptyIndex / size);
-    const col = emptyIndex % size;
-    const neighbors: number[] = [];
-
-    if (row > 0) neighbors.push(emptyIndex - size);
-    if (row < size - 1) neighbors.push(emptyIndex + size);
-    if (col > 0) neighbors.push(emptyIndex - 1);
-    if (col < size - 1) neighbors.push(emptyIndex + 1);
-
-    const swapIndex = neighbors[rng.nextInt(0, neighbors.length - 1)];
-    [tiles[emptyIndex], tiles[swapIndex]] = [tiles[swapIndex], tiles[emptyIndex]];
-    emptyIndex = swapIndex;
-  }
-
-  return { size, tiles };
-}
-
-function isTilePuzzleSolved(tiles: number[]) {
-  for (let index = 0; index < tiles.length - 1; index += 1) {
-    if (tiles[index] !== index + 1) return false;
-  }
-
-  return tiles[tiles.length - 1] === 0;
 }
 
 function PatternIcon({ item }: { item: PatternItem }) {

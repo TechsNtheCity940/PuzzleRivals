@@ -9,10 +9,12 @@ import {
   buildPatternRounds,
   buildSpatialRounds,
   buildSudokuMini,
+  buildTilePuzzle,
   buildWordScramble,
   buildWordSearch,
   buildWordle,
   getMazeProgress,
+  isTilePuzzleSolved,
   normalizeSegment,
 } from "@/lib/match-puzzle-contract";
 import {
@@ -25,10 +27,12 @@ import {
   buildPatternRounds as buildBackendPatternRounds,
   buildSpatialRounds as buildBackendSpatialRounds,
   buildSudokuMini as buildBackendSudokuMini,
+  buildTilePuzzle as buildBackendTilePuzzle,
   buildWordScramble as buildBackendWordScramble,
   buildWordSearch as buildBackendWordSearch,
   buildWordle as buildBackendWordle,
   getMazeProgress as getBackendMazeProgress,
+  isTilePuzzleSolved as isBackendTilePuzzleSolved,
   normalizeSegment as normalizeBackendSegment,
 } from "../../supabase/functions/_shared/match-puzzle-contract.ts";
 
@@ -69,6 +73,15 @@ describe("match puzzle contract", () => {
   it("matches the authoritative backend pattern and spatial contracts", () => {
     expect(buildPatternRounds(48211, 4)).toEqual(buildBackendPatternRounds(48211, 4));
     expect(buildSpatialRounds(71643, 3)).toEqual(buildBackendSpatialRounds(71643, 3));
+  });
+
+  it("matches the authoritative backend tile-slide contract and solved-state logic", () => {
+    const clientPuzzle = buildTilePuzzle(55412, 4);
+    const backendPuzzle = buildBackendTilePuzzle(55412, 4);
+
+    expect(clientPuzzle).toEqual(backendPuzzle);
+    expect(isTilePuzzleSolved([1, 2, 3, 4, 5, 6, 7, 8, 0])).toBe(true);
+    expect(isTilePuzzleSolved(clientPuzzle.tiles)).toBe(isBackendTilePuzzleSolved(backendPuzzle.tiles));
   });
 
   it("normalizes word-search segments the same way as the backend", () => {

@@ -1,5 +1,5 @@
 import { buildGeneratedQuizRounds } from "./match-quiz-content.ts";
-import { buildCrosswordMini, buildMatchingPairs, buildMaze, buildMemoryGrid, buildNumberGrid, buildPathfinder, buildPatternRounds, buildSpatialRounds, buildSudokuMini, buildWordScramble, buildWordSearch, buildWordle, getMazeProgress, normalizeSegment } from "./match-puzzle-contract.ts";
+import { buildCrosswordMini, buildMatchingPairs, buildMaze, buildMemoryGrid, buildNumberGrid, buildPathfinder, buildPatternRounds, buildSpatialRounds, buildSudokuMini, buildTilePuzzle, buildWordScramble, buildWordSearch, buildWordle, getMazeProgress, normalizeSegment } from "./match-puzzle-contract.ts";
 
 export type MatchPlayablePuzzleType =
   | "rotate_pipes"
@@ -380,26 +380,6 @@ function checkPipeConnections(grid: PipeCell[][]) {
   }
   flood(0, 0);
   return grid.map((row, rowIndex) => row.map((cell, columnIndex) => ({ ...cell, isConnected: connected.has(`${rowIndex},${columnIndex}`) })));
-}
-
-function buildTilePuzzle(seed: number, difficulty: number) {
-  const rng = new SeededRandom(seed);
-  const size = 3;
-  const tiles = [...Array.from({ length: size * size - 1 }, (_, index) => index + 1), 0];
-  let emptyIndex = tiles.length - 1;
-  for (let step = 0; step < 24 + difficulty * 8; step += 1) {
-    const row = Math.floor(emptyIndex / size);
-    const col = emptyIndex % size;
-    const neighbors: number[] = [];
-    if (row > 0) neighbors.push(emptyIndex - size);
-    if (row < size - 1) neighbors.push(emptyIndex + size);
-    if (col > 0) neighbors.push(emptyIndex - 1);
-    if (col < size - 1) neighbors.push(emptyIndex + 1);
-    const swapIndex = neighbors[rng.nextInt(0, neighbors.length - 1)];
-    [tiles[emptyIndex], tiles[swapIndex]] = [tiles[swapIndex], tiles[emptyIndex]];
-    emptyIndex = swapIndex;
-  }
-  return { tiles };
 }
 
 function buildQuizRounds(seed: number, bank: QuizRound[], totalRounds: number) {

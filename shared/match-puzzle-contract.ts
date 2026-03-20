@@ -41,6 +41,11 @@ export interface MatchingPair {
   right: string;
 }
 
+export interface TilePuzzle {
+  size: number;
+  tiles: number[];
+}
+
 export type PatternShape = "circle" | "square" | "triangle" | "diamond";
 
 export interface PatternItem {
@@ -552,4 +557,37 @@ export function buildSpatialRounds(seed: number, difficulty: number): SpatialRou
             : "Mirror across a vertical line",
     };
   });
+}
+
+export function buildTilePuzzle(seed: number, difficulty: number): TilePuzzle {
+  const rng = new SeededRandom(seed);
+  const size = 3;
+  const tiles = [...Array.from({ length: size * size - 1 }, (_, index) => index + 1), 0];
+  let emptyIndex = tiles.length - 1;
+  const scrambleMoves = 24 + difficulty * 8;
+
+  for (let step = 0; step < scrambleMoves; step += 1) {
+    const row = Math.floor(emptyIndex / size);
+    const col = emptyIndex % size;
+    const neighbors: number[] = [];
+
+    if (row > 0) neighbors.push(emptyIndex - size);
+    if (row < size - 1) neighbors.push(emptyIndex + size);
+    if (col > 0) neighbors.push(emptyIndex - 1);
+    if (col < size - 1) neighbors.push(emptyIndex + 1);
+
+    const swapIndex = neighbors[rng.nextInt(0, neighbors.length - 1)];
+    [tiles[emptyIndex], tiles[swapIndex]] = [tiles[swapIndex], tiles[emptyIndex]];
+    emptyIndex = swapIndex;
+  }
+
+  return { size, tiles };
+}
+
+export function isTilePuzzleSolved(tiles: number[]) {
+  for (let index = 0; index < tiles.length - 1; index += 1) {
+    if (tiles[index] !== index + 1) return false;
+  }
+
+  return tiles[tiles.length - 1] === 0;
 }
