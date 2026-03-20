@@ -1,5 +1,5 @@
 import { buildGeneratedQuizRounds } from "./match-quiz-content.ts";
-import { buildCrosswordMini, buildMatchingPairs, buildMaze, buildMemoryGrid, buildNumberGrid, buildPathfinder, buildSudokuMini, buildWordScramble, buildWordSearch, buildWordle, getMazeProgress, normalizeSegment } from "./match-puzzle-contract.ts";
+import { buildCrosswordMini, buildMatchingPairs, buildMaze, buildMemoryGrid, buildNumberGrid, buildPathfinder, buildPatternRounds, buildSpatialRounds, buildSudokuMini, buildWordScramble, buildWordSearch, buildWordle, getMazeProgress, normalizeSegment } from "./match-puzzle-contract.ts";
 
 export type MatchPlayablePuzzleType =
   | "rotate_pipes"
@@ -79,7 +79,6 @@ export type PuzzleSubmission =
   | { kind: "chess_mate_net"; answers: number[] }
   | { kind: "vocabulary_duel"; answers: number[] };
 
-type PatternShape = "circle" | "square" | "triangle" | "diamond";
 type PipeType = "straight" | "corner" | "tee" | "cross" | "end" | "empty";
 
 interface PipeCell {
@@ -87,31 +86,6 @@ interface PipeCell {
   rotation: number;
   connections: boolean[];
   isConnected: boolean;
-}
-
-interface PatternItem {
-  shape: PatternShape;
-  color: string;
-}
-
-interface PatternRound {
-  pattern: PatternItem[];
-  missingIndex: number;
-  options: PatternItem[];
-  correctOption: number;
-}
-
-interface QuizRound {
-  prompt: string;
-  options: string[];
-  correctOption: number;
-}
-
-interface SpatialRound {
-  base: Array<[number, number]>;
-  options: Array<Array<[number, number]>>;
-  correctOption: number;
-  instruction: string;
 }
 
 class SeededRandom {
@@ -204,14 +178,6 @@ const PUZZLE_CATALOG: Record<MatchPlayablePuzzleType, PuzzleCatalogEntry> = {
   vocabulary_duel: { type: "vocabulary_duel", label: "Vocab Duel", icon: "Book", description: "Choose the strongest synonym, definition, or word fit." },
 };
 
-const SPATIAL_BASE_SHAPES: Array<Array<[number, number]>> = [
-  [[1, 0], [0, 1], [1, 1], [2, 1]],
-  [[0, 0], [0, 1], [0, 2], [1, 2]],
-  [[0, 0], [1, 0], [1, 1], [2, 1]],
-  [[1, 0], [0, 1], [1, 1], [1, 2]],
-];
-const PATTERN_SHAPES: PatternShape[] = ["circle", "square", "triangle", "diamond"];
-const PATTERN_COLORS = ["hsl(72 100% 50%)", "hsl(269 100% 58%)", "hsl(0 100% 65%)", "hsl(200 100% 60%)", "hsl(45 100% 55%)"];
 const RIDDLE_BANK: QuizRound[] = [
   { prompt: "What has keys but cannot open locks?", options: ["A piano", "A map", "A castle", "A deck of cards"], correctOption: 0 },
   { prompt: "The more you take, the more you leave behind. What are they?", options: ["Footsteps", "Coins", "Hints", "Breaths"], correctOption: 0 },
@@ -414,93 +380,6 @@ function checkPipeConnections(grid: PipeCell[][]) {
   }
   flood(0, 0);
   return grid.map((row, rowIndex) => row.map((cell, columnIndex) => ({ ...cell, isConnected: connected.has(`${rowIndex},${columnIndex}`) })));
-}
-
-function buildPatternRound(rng: SeededRandom): PatternRound {
-  const rowShapes = rng.shuffle([...PATTERN_SHAPES]).slice(0, 3);
-  const colColors = rng.shuffle([...PATTERN_COLORS]).slice(0, 3);
-  const pattern: PatternItem[] = [];
-  for (let row = 0; row < 3; row += 1) {
-    for (let col = 0; col < 3; col += 1) pattern.push({ shape: rowShapes[row], color: colColors[col] });
-  }
-  const missingIndex = rng.nextInt(0, pattern.length - 1);
-  const correct = pattern[missingIndex];
-  const options: PatternItem[] = [correct];
-  while (options.length < 4) {
-    const candidate = { shape: PATTERN_SHAPES[rng.nextInt(0, PATTERN_SHAPES.length - 1)], color: PATTERN_COLORS[rng.nextInt(0, PATTERN_COLORS.length - 1)] };
-    if (!options.some((entry) => entry.shape === candidate.shape && entry.color === candidate.color)) options.push(candidate);
-  }
-  const shuffledOptions = rng.shuffle(options);
-  return { pattern, missingIndex, options: shuffledOptions, correctOption: shuffledOptions.findIndex((option) => option.shape === correct.shape && option.color === correct.color) };
-}
-
-function buildPatternRounds(seed: number, difficulty: number) {
-  const rng = new SeededRandom(seed);
-  const totalRounds = Math.min(5, Math.max(3, difficulty + 1));
-  return Array.from({ length: totalRounds }, () => buildPatternRound(rng));
-}
-
-function normalizeCells(cells: Array<[number, number]>) {
-  const minRow = Math.min(...cells.map(([row]) => row));
-  const minCol = Math.min(...cells.map(([, col]) => col));
-  return cells
-    .map(([row, col]) => [row - minRow, col - minCol] as [number, number])
-    .sort((left, right) => (left[0] - right[0]) || (left[1] - right[1]));
-}
-
-function rotateCellsClockwise(cells: Array<[number, number]>) {
-  return normalizeCells(cells.map(([row, col]) => [col, -row] as [number, number]));
-}
-
-function mirrorCellsHorizontal(cells: Array<[number, number]>) {
-  return normalizeCells(cells.map(([row, col]) => [row, -col] as [number, number]));
-}
-
-function cellsEqual(left: Array<[number, number]>, right: Array<[number, number]>) {
-  return JSON.stringify(normalizeCells(left)) === JSON.stringify(normalizeCells(right));
-}
-
-function buildSpatialRounds(seed: number, difficulty: number) {
-  const rng = new SeededRandom(seed);
-  const totalRounds = Math.min(5, Math.max(3, difficulty));
-  return Array.from({ length: totalRounds }, () => {
-    const base = normalizeCells(SPATIAL_BASE_SHAPES[rng.nextInt(0, SPATIAL_BASE_SHAPES.length - 1)]);
-    const instructionMode = rng.nextInt(0, 2);
-    const correct =
-      instructionMode === 0
-        ? rotateCellsClockwise(base)
-        : instructionMode === 1
-          ? rotateCellsClockwise(rotateCellsClockwise(base))
-          : mirrorCellsHorizontal(base);
-
-    const pool = [
-      base,
-      rotateCellsClockwise(base),
-      rotateCellsClockwise(rotateCellsClockwise(base)),
-      rotateCellsClockwise(rotateCellsClockwise(rotateCellsClockwise(base))),
-      mirrorCellsHorizontal(base),
-      mirrorCellsHorizontal(rotateCellsClockwise(base)),
-    ];
-
-    const options: Array<Array<[number, number]>> = [correct];
-    for (const candidate of rng.shuffle(pool)) {
-      if (options.some((entry) => cellsEqual(entry, candidate))) continue;
-      options.push(candidate);
-      if (options.length === 4) break;
-    }
-    const shuffled = rng.shuffle(options);
-    return {
-      base,
-      options: shuffled,
-      correctOption: shuffled.findIndex((option) => cellsEqual(option, correct)),
-      instruction:
-        instructionMode === 0
-          ? "Rotate 90 degrees clockwise"
-          : instructionMode === 1
-            ? "Rotate 180 degrees"
-            : "Mirror across a vertical line",
-    } satisfies SpatialRound;
-  });
 }
 
 function buildTilePuzzle(seed: number, difficulty: number) {

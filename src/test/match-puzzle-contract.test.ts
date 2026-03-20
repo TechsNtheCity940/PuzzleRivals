@@ -6,6 +6,8 @@ import {
   buildMemoryGrid,
   buildNumberGrid,
   buildPathfinder,
+  buildPatternRounds,
+  buildSpatialRounds,
   buildSudokuMini,
   buildWordScramble,
   buildWordSearch,
@@ -20,6 +22,8 @@ import {
   buildMemoryGrid as buildBackendMemoryGrid,
   buildNumberGrid as buildBackendNumberGrid,
   buildPathfinder as buildBackendPathfinder,
+  buildPatternRounds as buildBackendPatternRounds,
+  buildSpatialRounds as buildBackendSpatialRounds,
   buildSudokuMini as buildBackendSudokuMini,
   buildWordScramble as buildBackendWordScramble,
   buildWordSearch as buildBackendWordSearch,
@@ -60,6 +64,11 @@ describe("match puzzle contract", () => {
     expect(buildWordScramble(61521, 3)).toEqual(buildBackendWordScramble(61521, 3));
     expect(buildCrosswordMini(93125, 4)).toEqual(buildBackendCrosswordMini(93125, 4));
     expect(buildMatchingPairs(81124, 3)).toEqual(buildBackendMatchingPairs(81124, 3));
+  });
+
+  it("matches the authoritative backend pattern and spatial contracts", () => {
+    expect(buildPatternRounds(48211, 4)).toEqual(buildBackendPatternRounds(48211, 4));
+    expect(buildSpatialRounds(71643, 3)).toEqual(buildBackendSpatialRounds(71643, 3));
   });
 
   it("normalizes word-search segments the same way as the backend", () => {

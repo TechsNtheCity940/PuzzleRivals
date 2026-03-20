@@ -41,6 +41,29 @@ export interface MatchingPair {
   right: string;
 }
 
+export type PatternShape = "circle" | "square" | "triangle" | "diamond";
+
+export interface PatternItem {
+  shape: PatternShape;
+  color: string;
+}
+
+export interface PatternRound {
+  pattern: PatternItem[];
+  missingIndex: number;
+  options: PatternItem[];
+  correctOption: number;
+}
+
+export type ShapeCells = Array<[number, number]>;
+
+export interface SpatialRound {
+  base: ShapeCells;
+  options: ShapeCells[];
+  correctOption: number;
+  instruction: string;
+}
+
 export interface SudokuPuzzle {
   puzzle: (number | null)[];
   solution: number[];
@@ -93,6 +116,20 @@ const MATCHING_PAIR_BANK = [
   ["Vertex", "Corner point of a shape"],
   ["Sahara", "Largest hot desert in Africa"],
   ["Canberra", "Capital of Australia"],
+];
+const SPATIAL_BASE_SHAPES: ShapeCells[] = [
+  [[1, 0], [0, 1], [1, 1], [2, 1]],
+  [[0, 0], [0, 1], [0, 2], [1, 2]],
+  [[0, 0], [1, 0], [1, 1], [2, 1]],
+  [[1, 0], [0, 1], [1, 1], [1, 2]],
+];
+const PATTERN_SHAPES: PatternShape[] = ["circle", "square", "triangle", "diamond"];
+const PATTERN_COLORS = [
+  "hsl(72 100% 50%)",
+  "hsl(269 100% 58%)",
+  "hsl(0 100% 65%)",
+  "hsl(200 100% 60%)",
+  "hsl(45 100% 55%)",
 ];
 const WORD_SEARCH_WORD_BANK = [
   "BRAIN", "QUEST", "SPARK", "GRID", "LOGIC", "MAZE", "ROOK", "CROWN",
@@ -407,4 +444,112 @@ export function buildMatchingPairs(seed: number, difficulty: number): MatchingPa
   const rng = new SeededRandom(seed);
   const totalPairs = Math.min(5, Math.max(3, difficulty));
   return rng.shuffle(MATCHING_PAIR_BANK).slice(0, totalPairs).map(([left, right], index) => ({ pairId: index, left, right }));
+}
+
+function buildPatternRound(rng: SeededRandom): PatternRound {
+  const rowShapes = rng.shuffle([...PATTERN_SHAPES]).slice(0, 3);
+  const colColors = rng.shuffle([...PATTERN_COLORS]).slice(0, 3);
+  const pattern: PatternItem[] = [];
+
+  for (let row = 0; row < 3; row += 1) {
+    for (let col = 0; col < 3; col += 1) {
+      pattern.push({ shape: rowShapes[row], color: colColors[col] });
+    }
+  }
+
+  const missingIndex = rng.nextInt(0, pattern.length - 1);
+  const correct = pattern[missingIndex];
+  const options: PatternItem[] = [correct];
+
+  while (options.length < 4) {
+    const candidate = {
+      shape: PATTERN_SHAPES[rng.nextInt(0, PATTERN_SHAPES.length - 1)],
+      color: PATTERN_COLORS[rng.nextInt(0, PATTERN_COLORS.length - 1)],
+    };
+
+    if (!options.some((option) => option.shape === candidate.shape && option.color === candidate.color)) {
+      options.push(candidate);
+    }
+  }
+
+  const shuffledOptions = rng.shuffle(options);
+  const correctOption = shuffledOptions.findIndex(
+    (option) => option.shape === correct.shape && option.color === correct.color,
+  );
+
+  return {
+    pattern,
+    missingIndex,
+    options: shuffledOptions,
+    correctOption,
+  };
+}
+
+export function buildPatternRounds(seed: number, difficulty: number) {
+  const rng = new SeededRandom(seed);
+  const totalRounds = Math.min(5, Math.max(3, difficulty + 1));
+  return Array.from({ length: totalRounds }, () => buildPatternRound(rng));
+}
+
+function normalizeShapeCells(cells: ShapeCells) {
+  const minRow = Math.min(...cells.map(([row]) => row));
+  const minCol = Math.min(...cells.map(([, col]) => col));
+  return cells
+    .map(([row, col]) => [row - minRow, col - minCol] as [number, number])
+    .sort((left, right) => (left[0] - right[0]) || (left[1] - right[1]));
+}
+
+function rotateShapeCells(cells: ShapeCells) {
+  return normalizeShapeCells(cells.map(([row, col]) => [col, -row] as [number, number]));
+}
+
+function mirrorShapeCells(cells: ShapeCells) {
+  return normalizeShapeCells(cells.map(([row, col]) => [row, -col] as [number, number]));
+}
+
+function shapeCellsEqual(left: ShapeCells, right: ShapeCells) {
+  return JSON.stringify(normalizeShapeCells(left)) === JSON.stringify(normalizeShapeCells(right));
+}
+
+export function buildSpatialRounds(seed: number, difficulty: number): SpatialRound[] {
+  const rng = new SeededRandom(seed);
+  const totalRounds = Math.min(5, Math.max(3, difficulty));
+  return Array.from({ length: totalRounds }, () => {
+    const base = normalizeShapeCells(SPATIAL_BASE_SHAPES[rng.nextInt(0, SPATIAL_BASE_SHAPES.length - 1)]);
+    const instructionMode = rng.nextInt(0, 2);
+    const correct =
+      instructionMode === 0
+        ? rotateShapeCells(base)
+        : instructionMode === 1
+          ? rotateShapeCells(rotateShapeCells(base))
+          : mirrorShapeCells(base);
+    const pool = [
+      base,
+      rotateShapeCells(base),
+      rotateShapeCells(rotateShapeCells(base)),
+      rotateShapeCells(rotateShapeCells(rotateShapeCells(base))),
+      mirrorShapeCells(base),
+      mirrorShapeCells(rotateShapeCells(base)),
+    ];
+
+    const options: ShapeCells[] = [correct];
+    for (const candidate of rng.shuffle(pool)) {
+      if (options.some((entry) => shapeCellsEqual(entry, candidate))) continue;
+      options.push(candidate);
+      if (options.length === 4) break;
+    }
+
+    const shuffled = rng.shuffle(options);
+    return {
+      base,
+      options: shuffled,
+      correctOption: shuffled.findIndex((option) => shapeCellsEqual(option, correct)),
+      instruction:
+        instructionMode === 0
+          ? "Rotate 90 degrees clockwise"
+          : instructionMode === 1
+            ? "Rotate 180 degrees"
+            : "Mirror across a vertical line",
+    };
+  });
 }
