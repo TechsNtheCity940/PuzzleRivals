@@ -8,6 +8,7 @@ import {
   createPurchaseRecord,
   getActiveProduct,
   getProfileWallet,
+  isPrivilegedStoreAccount,
 } from "../_shared/store.ts";
 
 Deno.serve(async (req) => {
@@ -25,34 +26,37 @@ Deno.serve(async (req) => {
 
     const admin = createAdminClient();
     const product = await getActiveProduct(admin, productId);
-    await assertPurchasable(admin, user.id, product);
+    const profile = await getProfileWallet(admin, user.id);
+    const privileged = await isPrivilegedStoreAccount(admin, user.id, profile);
+    await assertPurchasable(admin, user.id, product, profile);
 
-    if (!product.price_coins && !product.price_gems) {
+    if (!privileged && !product.price_coins && !product.price_gems) {
       throw new Error("This item must be purchased with PayPal.");
     }
 
-    const profile = await getProfileWallet(admin, user.id);
     const nextCoins = profile.coins - (product.price_coins ?? 0);
     const nextGems = profile.gems - (product.price_gems ?? 0);
 
-    if (nextCoins < 0) {
+    if (!privileged && nextCoins < 0) {
       throw new Error("Not enough coins.");
     }
 
-    if (nextGems < 0) {
+    if (!privileged && nextGems < 0) {
       throw new Error("Not enough gems.");
     }
 
-    const { error: walletError } = await admin.from("profiles").update({
-      coins: nextCoins,
-      gems: nextGems,
-    }).eq("id", user.id);
+    if (!privileged) {
+      const { error: walletError } = await admin.from("profiles").update({
+        coins: nextCoins,
+        gems: nextGems,
+      }).eq("id", user.id);
 
-    if (walletError) throw walletError;
+      if (walletError) throw walletError;
+    }
 
-    await applyProductGrant(admin, user.id, product, "virtual");
-    const currency = product.price_gems ? "GEMS" : "COINS";
-    const amount = product.price_gems ?? product.price_coins ?? 0;
+    await applyProductGrant(admin, user.id, product, privileged ? "owner_comp" : "virtual");
+    const currency = privileged ? "OWNER" : (product.price_gems ? "GEMS" : "COINS");
+    const amount = privileged ? 0 : (product.price_gems ?? product.price_coins ?? 0);
     const purchaseId = await createPurchaseRecord(admin, user.id, product, {
       currency,
       unitAmount: amount,

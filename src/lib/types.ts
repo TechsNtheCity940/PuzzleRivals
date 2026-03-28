@@ -69,10 +69,13 @@ export interface RankBand {
 }
 
 // ---------- User / Profile ----------
+export type UserAppRole = "player" | "admin" | "owner";
+
 export interface UserProfile {
   id: string;
   username: string;
   email?: string | null;
+  appRole?: UserAppRole | null;
   avatarId?: StockAvatarId;
   avatarUrl?: string;
   frameId?: string;
@@ -213,6 +216,7 @@ export interface StoreItem {
   priceCoins?: number;
   priceGems?: number;
   priceUsd?: number;
+  isComplimentary?: boolean;
   imageUrl?: string;
   isOwned?: boolean;
   isEquipped?: boolean;

@@ -1,3 +1,4 @@
+import { isPrivilegedUser } from "@/lib/dev-account";
 import { STORE_ITEMS, VIP_MEMBERSHIP } from "@/lib/seed-data";
 import {
   isSupabaseSchemaSetupIssue,
@@ -49,6 +50,7 @@ export type StorefrontSource = "supabase" | "seed";
 export interface StorefrontWallet {
   coins: number;
   gems: number;
+  isPrivileged: boolean;
   puzzleShards: number;
   rankPoints: number;
   passXp: number;
@@ -134,16 +136,19 @@ function asCategory(value: unknown): ItemCategory {
 
 function toWallet(profile?: UserProfile | null): StorefrontWallet | null {
   if (!profile) return null;
+
+  const privileged = isPrivilegedUser(profile);
   return {
     coins: profile.coins,
     gems: profile.gems,
+    isPrivileged: privileged,
     puzzleShards: profile.puzzleShards,
     rankPoints: profile.rankPoints,
     passXp: profile.passXp,
     hintBalance: profile.hintBalance ?? 0,
-    hasSeasonPass: profile.hasSeasonPass ?? false,
-    isVip: profile.isVip,
-    vipExpiresAt: profile.vipExpiresAt ?? null,
+    hasSeasonPass: privileged ? true : (profile.hasSeasonPass ?? false),
+    isVip: privileged ? true : profile.isVip,
+    vipExpiresAt: privileged ? (profile.vipExpiresAt ?? "2099-12-31T00:00:00Z") : (profile.vipExpiresAt ?? null),
     themeId: profile.themeId ?? null,
     frameId: profile.frameId ?? null,
     playerCardId: profile.playerCardId ?? null,
@@ -154,17 +159,20 @@ function toWallet(profile?: UserProfile | null): StorefrontWallet | null {
 }
 
 function mapWallet(wallet: WalletRow | null, profile?: UserProfile | null): StorefrontWallet | null {
+  const privileged = isPrivilegedUser(profile);
+
   if (wallet) {
     return {
       coins: wallet.coins,
       gems: wallet.gems,
+      isPrivileged: privileged,
       puzzleShards: wallet.puzzle_shards,
       rankPoints: wallet.rank_points,
       passXp: wallet.pass_xp,
       hintBalance: wallet.hint_balance,
-      hasSeasonPass: wallet.has_season_pass,
-      isVip: wallet.is_vip,
-      vipExpiresAt: wallet.vip_expires_at,
+      hasSeasonPass: privileged ? true : wallet.has_season_pass,
+      isVip: privileged ? true : wallet.is_vip,
+      vipExpiresAt: privileged ? (wallet.vip_expires_at ?? "2099-12-31T00:00:00Z") : wallet.vip_expires_at,
       themeId: wallet.theme_id,
       frameId: wallet.frame_id,
       playerCardId: wallet.player_card_id,
@@ -178,20 +186,23 @@ function mapWallet(wallet: WalletRow | null, profile?: UserProfile | null): Stor
 }
 
 function buildFallbackVipMembership(profile?: UserProfile | null): VipMembership {
+  const privileged = isPrivilegedUser(profile);
   return {
-    isActive: Boolean(profile?.isVip),
-    expiresAt: profile?.vipExpiresAt ?? undefined,
+    isActive: privileged ? true : Boolean(profile?.isVip),
+    expiresAt: privileged ? (profile?.vipExpiresAt ?? "2099-12-31T00:00:00Z") : profile?.vipExpiresAt ?? undefined,
     perks: [...VIP_MEMBERSHIP.perks],
     priceUsd: VIP_MEMBERSHIP.priceUsd,
   };
 }
 
 function getFallbackSnapshot(profile?: UserProfile | null): StorefrontSnapshot {
+  const privileged = isPrivilegedUser(profile);
   const wallet = toWallet(profile);
   const items: StorefrontItem[] = STORE_ITEMS.map((item) => ({
     ...item,
     kind: item.category,
     isOwned:
+      privileged ||
       item.id === profile?.themeId ||
       item.id === profile?.frameId ||
       item.id === profile?.playerCardId ||
@@ -207,6 +218,7 @@ function getFallbackSnapshot(profile?: UserProfile | null): StorefrontSnapshot {
       item.id === profile?.bannerId ||
       item.id === profile?.emblemId ||
       item.id === profile?.titleId,
+    isComplimentary: privileged,
   }));
 
   return {
@@ -219,8 +231,9 @@ function getFallbackSnapshot(profile?: UserProfile | null): StorefrontSnapshot {
       category: "bundle",
       rarity: 4,
       priceUsd: VIP_MEMBERSHIP.priceUsd,
-      isOwned: Boolean(profile?.isVip),
+      isOwned: privileged || Boolean(profile?.isVip),
       isFeatured: true,
+      isComplimentary: privileged,
     },
     vipMembership: buildFallbackVipMembership(profile),
     wallet,
@@ -232,11 +245,13 @@ function mapProduct(
   product: ProductRow,
   ownedIds: Set<string>,
   wallet: StorefrontWallet | null,
+  privileged = false,
 ): StorefrontItem {
   const metadata = asRecord(product.metadata);
   const kind = product.kind;
   const category = asCategory(metadata.category);
   const owned =
+    privileged ||
     ownedIds.has(product.id) ||
     (kind === "battle_pass" && Boolean(wallet?.hasSeasonPass)) ||
     (kind === "vip" && Boolean(wallet?.isVip));
@@ -262,6 +277,7 @@ function mapProduct(
     isEquipped: equipped,
     isFeatured: asBoolean(metadata.featured, false),
     collection: asString(metadata.collection) || undefined,
+    isComplimentary: privileged,
   };
 }
 
@@ -278,9 +294,11 @@ function mapVipMembership(
   const perks = asStringArray(metadata.perks);
   const fallbackDescription = asString(metadata.description);
 
+  const privileged = isPrivilegedUser(profile);
+
   return {
-    isActive: Boolean(wallet?.isVip ?? profile?.isVip),
-    expiresAt: wallet?.vipExpiresAt ?? profile?.vipExpiresAt ?? undefined,
+    isActive: privileged ? true : Boolean(wallet?.isVip ?? profile?.isVip),
+    expiresAt: privileged ? (wallet?.vipExpiresAt ?? profile?.vipExpiresAt ?? "2099-12-31T00:00:00Z") : wallet?.vipExpiresAt ?? profile?.vipExpiresAt ?? undefined,
     perks: perks.length > 0 ? perks : fallbackDescription ? [fallbackDescription] : [...VIP_MEMBERSHIP.perks],
     priceUsd: product.price_usd ?? VIP_MEMBERSHIP.priceUsd,
   };
@@ -353,16 +371,17 @@ export async function fetchStorefront(profile?: UserProfile | null): Promise<Sto
     throw walletResult.error;
   }
 
+  const privileged = isPrivilegedUser(profile);
   const wallet = mapWallet((walletResult.data ?? null) as WalletRow | null, profile);
   const ownedIds = new Set(((inventoryResult.data ?? []) as InventoryRow[]).map((entry) => entry.product_id));
   const vipRow = productRows.find((product) => product.kind === "vip") ?? null;
   const items = productRows
     .filter((product) => product.kind !== "vip")
-    .map((product) => mapProduct(product, ownedIds, wallet));
+    .map((product) => mapProduct(product, ownedIds, wallet, privileged));
 
   return {
     items,
-    vipProduct: vipRow ? mapProduct(vipRow, ownedIds, wallet) : null,
+    vipProduct: vipRow ? mapProduct(vipRow, ownedIds, wallet, privileged) : null,
     vipMembership: mapVipMembership(vipRow, wallet, profile),
     wallet,
     source: "supabase",

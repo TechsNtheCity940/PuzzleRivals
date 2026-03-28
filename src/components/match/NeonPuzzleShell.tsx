@@ -1,42 +1,41 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-
-export type NeonPuzzleFamily =
-  | "letter"
-  | "crossword"
-  | "logic"
-  | "match"
-  | "spatial"
-  | "maze";
-
-const FAMILY_LABELS: Record<NeonPuzzleFamily, string> = {
-  letter: "Letter Grid",
-  crossword: "Crossword Grid",
-  logic: "Logic Grid",
-  match: "Match Grid",
-  spatial: "Spatial Board",
-  maze: "Maze / Path Board",
-};
+import {
+  getNeonPuzzleThemeDefinition,
+  type NeonPuzzleThemeCategory,
+} from "@/lib/match-board-theme";
 
 function formatPuzzleLabel(puzzleType: string) {
   return puzzleType.replace(/_/g, " ");
 }
 
 export default function NeonPuzzleShell({
-  family,
+  category,
   puzzleType,
   children,
   className,
+  lowTime = false,
+  celebrating = false,
 }: {
-  family: NeonPuzzleFamily;
+  category: NeonPuzzleThemeCategory;
   puzzleType: string;
   children: ReactNode;
   className?: string;
+  lowTime?: boolean;
+  celebrating?: boolean;
 }) {
+  const theme = getNeonPuzzleThemeDefinition(category);
+
   return (
     <section
-      className={cn("neon-puzzle-shell", `neon-puzzle-shell--${family}`, className)}
-      data-family={family}
+      className={cn(
+        "neon-puzzle-shell",
+        `neon-puzzle-shell--${category}`,
+        lowTime && "neon-puzzle-shell--low-time",
+        celebrating && "neon-puzzle-shell--celebrating",
+        className,
+      )}
+      data-category={category}
       data-puzzle-type={puzzleType}
     >
       <div className="neon-puzzle-ambient" aria-hidden="true">
@@ -62,7 +61,10 @@ export default function NeonPuzzleShell({
       </div>
 
       <div className="neon-puzzle-trim">
-        <div className="neon-puzzle-chip">{FAMILY_LABELS[family]}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="neon-puzzle-chip">{theme.label}</div>
+          <div className="neon-puzzle-kicker">{theme.kicker}</div>
+        </div>
         <div className="neon-puzzle-kicker">{formatPuzzleLabel(puzzleType)}</div>
       </div>
 

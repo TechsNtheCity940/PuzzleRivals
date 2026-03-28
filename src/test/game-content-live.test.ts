@@ -78,6 +78,7 @@ describe("game content live feeds", () => {
       wallet: {
         coins: 1200,
         gems: 45,
+        isPrivileged: false,
         puzzleShards: 12,
         rankPoints: 310,
         passXp: 980,

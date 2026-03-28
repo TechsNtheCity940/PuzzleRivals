@@ -28,6 +28,7 @@ import { useAuth } from "@/providers/AuthProvider";
 type Tab = "all" | ItemCategory;
 
 function formatPrice(item: StorefrontItem) {
+  if (item.isComplimentary) return "Owner Complimentary";
   if (item.priceUsd) return `$${item.priceUsd.toFixed(2)}`;
   if (item.priceGems) return `${item.priceGems} Gems`;
   if (item.priceCoins) return `${item.priceCoins.toLocaleString()} Coins`;
@@ -165,7 +166,7 @@ export default function StorePage() {
   const pageCount = Math.max(1, Math.ceil(items.length / 6));
   const visibleItems = items.slice(page * 6, page * 6 + 6);
   const vip = snapshot.vipProduct;
-  const vipButtonLabel = snapshot.wallet?.isVip ? "Extend VIP" : "Subscribe";
+  const vipButtonLabel = snapshot.wallet?.isPrivileged ? "Owner Access" : snapshot.wallet?.isVip ? "Extend VIP" : "Subscribe";
 
   async function handleItemAction(item: StorefrontItem) {
     if (!canSave) {
@@ -175,6 +176,11 @@ export default function StorePage() {
 
     setBusyProductId(item.id);
     try {
+      if (item.isOwned && !isEquipable(item)) {
+        toast.message(`${item.name} is already available on this account.`);
+        return;
+      }
+
       if (item.isOwned && isEquipable(item)) {
         await equipStoreItem(item.id);
         await refreshUser();
@@ -315,7 +321,7 @@ export default function StorePage() {
                 variant="prestige"
                 size="xl"
                 className="w-full"
-                disabled={!vip || busyProductId === vip?.id}
+                disabled={!vip || busyProductId === vip?.id || Boolean(snapshot.wallet?.isPrivileged)}
                 onClick={() => vip && handleItemAction(vip)}
               >
                 <Crown size={14} />

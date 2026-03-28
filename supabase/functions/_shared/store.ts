@@ -12,6 +12,7 @@ export type ProductRow = {
 
 type ProfileWalletRow = {
   id: string;
+  app_role: string | null;
   coins: number;
   gems: number;
   puzzle_shards: number;
@@ -28,6 +29,27 @@ type ProfileWalletRow = {
   title_id: string | null;
   hint_balance: number;
 };
+
+const OWNER_EMAILS = new Set(["judgemrogan@gmail.com"]);
+
+function normalizeEmail(email: string | null | undefined) {
+  return (email ?? "").trim().toLowerCase();
+}
+
+export async function isPrivilegedStoreAccount(
+  admin: SupabaseClient,
+  userId: string,
+  profile?: Pick<ProfileWalletRow, "app_role"> | null,
+) {
+  if (profile?.app_role === "owner" || profile?.app_role === "admin") {
+    return true;
+  }
+
+  const { data, error } = await admin.auth.admin.getUserById(userId);
+  if (error) throw error;
+
+  return OWNER_EMAILS.has(normalizeEmail(data.user?.email));
+}
 
 function asNumber(value: unknown, fallback = 0) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -69,7 +91,7 @@ export async function getActiveProduct(admin: SupabaseClient, productId: string)
 export async function getProfileWallet(admin: SupabaseClient, userId: string) {
   const { data, error } = await admin
     .from("profiles")
-    .select("id, coins, gems, puzzle_shards, rank_points, pass_xp, is_vip, vip_expires_at, has_season_pass, theme_id, frame_id, player_card_id, banner_id, emblem_id, title_id, hint_balance")
+    .select("id, app_role, coins, gems, puzzle_shards, rank_points, pass_xp, is_vip, vip_expires_at, has_season_pass, theme_id, frame_id, player_card_id, banner_id, emblem_id, title_id, hint_balance")
     .eq("id", userId)
     .single();
 
@@ -77,10 +99,19 @@ export async function getProfileWallet(admin: SupabaseClient, userId: string) {
   return data as ProfileWalletRow;
 }
 
-export async function assertPurchasable(admin: SupabaseClient, userId: string, product: ProductRow) {
+export async function assertPurchasable(
+  admin: SupabaseClient,
+  userId: string,
+  product: ProductRow,
+  profile?: ProfileWalletRow | null,
+) {
+  const wallet = profile ?? await getProfileWallet(admin, userId);
+  if (await isPrivilegedStoreAccount(admin, userId, wallet)) {
+    return;
+  }
+
   if (product.kind === "battle_pass") {
-    const profile = await getProfileWallet(admin, userId);
-    if (profile.has_season_pass) {
+    if (wallet.has_season_pass) {
       throw new Error("Season pass already unlocked.");
     }
     return;

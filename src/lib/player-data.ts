@@ -1,5 +1,6 @@
 import type { Session } from "@supabase/supabase-js";
 import { CURRENT_USER, getRankBand } from "@/lib/seed-data";
+import { isOwnerEmail, isPrivilegedRole } from "@/lib/dev-account";
 import { DEFAULT_AVATAR_ID } from "@/lib/profile-customization";
 import {
   isSupabaseSchemaSetupIssue,
@@ -16,6 +17,7 @@ import type {
 type ProfileRow = {
   id: string;
   username: string;
+  app_role: UserProfile["appRole"] | null;
   avatar_id: StockAvatarId | null;
   rank: UserProfile["rank"];
   elo: number;
@@ -63,6 +65,7 @@ type PuzzleStatsRow = {
 type SocialDirectoryEntry = {
   id: string;
   username: string;
+  app_role: UserProfile["appRole"] | null;
   avatar_id: StockAvatarId | null;
   rank: UserProfile["rank"];
   elo: number;
@@ -161,6 +164,7 @@ export function buildGuestUser(overrides: Partial<UserProfile> = {}): UserProfil
     isGuest: true,
     authMethod: "guest",
     email: null,
+    appRole: null,
     linkedProviders: {
       email: false,
       facebook: false,
@@ -176,10 +180,16 @@ export function buildGuestUser(overrides: Partial<UserProfile> = {}): UserProfil
 
 export function buildAuthenticatedFallbackUser(session: Session, overrides: Partial<UserProfile> = {}): UserProfile {
   const linkedProviders = buildLinkedProviders(session);
+  const privilegedAccount = isOwnerEmail(session.user.email ?? null);
   return buildGuestUser({
     id: session.user.id,
     username: defaultUsernameForSession(session),
     email: session.user.email ?? null,
+    appRole: privilegedAccount ? "owner" : null,
+    hintBalance: privilegedAccount ? 99 : overrides.hintBalance,
+    hasSeasonPass: privilegedAccount ? true : overrides.hasSeasonPass,
+    vipExpiresAt: privilegedAccount ? "2099-12-31T00:00:00Z" : overrides.vipExpiresAt,
+    isVip: privilegedAccount ? true : overrides.isVip,
     joinedAt: session.user.created_at ?? new Date().toISOString(),
     isGuest: false,
     authMethod: resolvePrimaryAuthMethod(linkedProviders),
@@ -269,12 +279,14 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
 
   const computed = computePuzzleSnapshot((puzzleStatsError ? [] : puzzleStats ?? []) as PuzzleStatsRow[]);
   const linkedProviders = buildLinkedProviders(session);
+  const privilegedAccount = isPrivilegedRole(profile.app_role) || isOwnerEmail(session.user.email ?? null);
 
   return {
     ...CURRENT_USER,
     id: profile.id,
     username: profile.username,
     email: session.user.email ?? null,
+    appRole: profile.app_role ?? null,
     avatarId: profile.avatar_id ?? DEFAULT_AVATAR_ID,
     frameId: profile.frame_id ?? undefined,
     themeId: profile.theme_id ?? undefined,
@@ -282,9 +294,9 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
     bannerId: profile.banner_id ?? undefined,
     emblemId: profile.emblem_id ?? undefined,
     titleId: profile.title_id ?? undefined,
-    hintBalance: profile.hint_balance,
-    hasSeasonPass: profile.has_season_pass,
-    vipExpiresAt: profile.vip_expires_at,
+    hintBalance: privilegedAccount ? Math.max(profile.hint_balance, 99) : profile.hint_balance,
+    hasSeasonPass: privilegedAccount ? true : profile.has_season_pass,
+    vipExpiresAt: privilegedAccount ? (profile.vip_expires_at ?? "2099-12-31T00:00:00Z") : profile.vip_expires_at,
     elo: profile.elo,
     rank: getRankBand(profile.elo).tier,
     level: profile.level,
@@ -295,7 +307,7 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
     puzzleShards: profile.puzzle_shards,
     rankPoints: profile.rank_points,
     passXp: profile.pass_xp,
-    isVip: profile.is_vip,
+    isVip: privilegedAccount ? true : profile.is_vip,
     wins: stats?.wins ?? 0,
     losses: stats?.losses ?? 0,
     matchesPlayed: stats?.matches_played ?? 0,
@@ -389,5 +401,6 @@ export async function fetchSocialDirectory(currentUserId?: string): Promise<Soci
   throwIfUnexpected(error, "public.profiles");
   return (data ?? []) as SocialDirectoryEntry[];
 }
+
 
 

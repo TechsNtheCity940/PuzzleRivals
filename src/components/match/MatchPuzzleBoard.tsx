@@ -10,7 +10,8 @@ import type { MatchPlayablePuzzleType } from "@/lib/ai-puzzle-service";
 import type { PuzzleSubmission } from "@/lib/backend";
 import { buildGeneratedQuizRounds, type QuizPuzzleKind } from "@/lib/match-quiz-content";
 import { buildCrosswordMini, buildMatchingPairs, buildMaze, buildMemoryGrid, buildNumberGrid, buildPathfinder, buildPatternRounds, buildSpatialRounds, buildSudokuMini, buildTilePuzzle, buildWordScramble, buildWordSearch, buildWordle, canMoveInMaze, getMazeProgress, isTilePuzzleSolved, normalizeSegment, type PatternItem, type ShapeCells } from "@/lib/match-puzzle-contract";
-import NeonPuzzleShell, { type NeonPuzzleFamily } from "@/components/match/NeonPuzzleShell";
+import NeonPuzzleShell from "@/components/match/NeonPuzzleShell";
+import { getNeonPuzzleThemeCategory } from "@/lib/match-board-theme";
 import { Button } from "@/components/ui/button";
 
 interface MatchPuzzleBoardProps {
@@ -22,31 +23,7 @@ interface MatchPuzzleBoardProps {
   onSolve: () => void;
   onProgress: (progress: number) => void;
   onStateChange?: (submission: PuzzleSubmission, progress: number) => void;
-}
-
-function getPuzzleBoardFamily(puzzleType: MatchPlayablePuzzleType): NeonPuzzleFamily {
-  switch (puzzleType) {
-    case "word_scramble":
-    case "word_search":
-    case "wordle_guess":
-    case "vocabulary_duel":
-      return "letter";
-    case "crossword_mini":
-      return "crossword";
-    case "pattern_match":
-    case "matching_pairs":
-    case "memory_grid":
-      return "match";
-    case "rotate_pipes":
-    case "tile_slide":
-    case "spatial_reasoning":
-      return "spatial";
-    case "maze":
-    case "pathfinder":
-      return "maze";
-    default:
-      return "logic";
-  }
+  isLowTime?: boolean;
 }
 
 const RIDDLE_BANK: QuizRound[] = [
@@ -1399,50 +1376,65 @@ function WordleGuessBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
 }
 
 export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
-  const family = getPuzzleBoardFamily(props.puzzleType);
+  const category = getNeonPuzzleThemeCategory(props.puzzleType);
+  const [celebrating, setCelebrating] = useState(false);
+
+  useEffect(() => {
+    if (!celebrating) return;
+
+    const timeout = window.setTimeout(() => setCelebrating(false), 900);
+    return () => window.clearTimeout(timeout);
+  }, [celebrating]);
+
+  const handleSolve = () => {
+    setCelebrating(true);
+    props.onSolve();
+  };
+
+  const boardProps = { ...props, onSolve: handleSolve };
 
   let board: JSX.Element;
 
   if (props.puzzleType === "rotate_pipes") {
-    board = <RotatePipesBoard {...props} />;
+    board = <RotatePipesBoard {...boardProps} />;
   } else if (props.puzzleType === "number_grid") {
-    board = <NumberGridBoard {...props} />;
+    board = <NumberGridBoard {...boardProps} />;
   } else if (props.puzzleType === "pattern_match") {
-    board = <PatternMatchBoard {...props} />;
+    board = <PatternMatchBoard {...boardProps} />;
   } else if (props.puzzleType === "word_scramble") {
-    board = <WordScrambleBoard {...props} />;
+    board = <WordScrambleBoard {...boardProps} />;
   } else if (props.puzzleType === "crossword_mini") {
-    board = <CrosswordMiniBoard {...props} />;
+    board = <CrosswordMiniBoard {...boardProps} />;
   } else if (props.puzzleType === "tile_slide") {
-    board = <TileSlidingBoard {...props} />;
+    board = <TileSlidingBoard {...boardProps} />;
   } else if (props.puzzleType === "sudoku_mini") {
-    board = <SudokuMiniBoard {...props} />;
+    board = <SudokuMiniBoard {...boardProps} />;
   } else if (props.puzzleType === "word_search") {
-    board = <WordSearchBoard {...props} />;
+    board = <WordSearchBoard {...boardProps} />;
   } else if (props.puzzleType === "matching_pairs") {
-    board = <MatchingPairsBoard {...props} />;
+    board = <MatchingPairsBoard {...boardProps} />;
   } else if (props.puzzleType === "spatial_reasoning") {
-    board = <SpatialReasoningBoard {...props} />;
+    board = <SpatialReasoningBoard {...boardProps} />;
   } else if (props.puzzleType === "maze") {
-    board = <MazeBoard {...props} />;
+    board = <MazeBoard {...boardProps} />;
   } else if (props.puzzleType === "pathfinder") {
-    board = <PathfinderBoard {...props} />;
+    board = <PathfinderBoard {...boardProps} />;
   } else if (props.puzzleType === "memory_grid") {
-    board = <MemoryGridBoard {...props} />;
+    board = <MemoryGridBoard {...boardProps} />;
   } else if (props.puzzleType === "riddle_choice") {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="riddle_choice"
         helper="Read the riddle carefully and pick the strongest answer."
       />
     );
   } else if (props.puzzleType === "wordle_guess") {
-    board = <WordleGuessBoard {...props} />;
+    board = <WordleGuessBoard {...boardProps} />;
   } else if (props.puzzleType === "chess_tactic") {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="chess_tactic"
         helper="Choose the best tactical continuation from the listed moves."
       />
@@ -1450,7 +1442,7 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   } else if (props.puzzleType === "logic_sequence") {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="logic_sequence"
         helper="Read the pattern and choose the only answer that continues it cleanly."
       />
@@ -1458,7 +1450,7 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   } else if (props.puzzleType === "trivia_blitz") {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="trivia_blitz"
         helper="Move fast. These are broad knowledge questions built for speed."
       />
@@ -1466,7 +1458,7 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   } else if (props.puzzleType === "geography_quiz") {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="geography_quiz"
         helper="Pick the right capital, country, or landmark before the timer closes."
       />
@@ -1474,7 +1466,7 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   } else if (props.puzzleType === "science_quiz") {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="science_quiz"
         helper="Choose the right science or tech answer from the prompt."
       />
@@ -1482,7 +1474,7 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   } else if (props.puzzleType === "math_race") {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="math_race"
         helper="Mental math only. Pick the correct answer before momentum drops."
       />
@@ -1490,7 +1482,7 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   } else if (props.puzzleType === "code_breaker") {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="code_breaker"
         helper="Read the code rule and break the right combination."
       />
@@ -1498,7 +1490,7 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   } else if (props.puzzleType === "analogies") {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="analogies"
         helper="Pick the option that completes the relationship best."
       />
@@ -1506,7 +1498,7 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   } else if (props.puzzleType === "deduction_grid") {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="deduction_grid"
         helper="Think through the clues and choose the only consistent answer."
       />
@@ -1514,7 +1506,7 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   } else if (props.puzzleType === "chess_endgame") {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="chess_endgame"
         helper="Choose the endgame plan that actually converts or saves the draw."
       />
@@ -1522,7 +1514,7 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   } else if (props.puzzleType === "chess_opening") {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="chess_opening"
         helper="Choose the principled opening move that fits the position."
       />
@@ -1530,7 +1522,7 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   } else if (props.puzzleType === "chess_mate_net") {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="chess_mate_net"
         helper="Look for the forcing move that creates an unavoidable mating net."
       />
@@ -1538,7 +1530,7 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   } else if (props.puzzleType === "vocabulary_duel") {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="vocabulary_duel"
         helper="Pick the strongest synonym, meaning, or word fit."
       />
@@ -1546,7 +1538,7 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   } else {
     board = (
       <QuizScenarioBoard
-        {...props}
+        {...boardProps}
         kind="checkers_tactic"
         helper="Find the best capture or positional continuation in the checkers scenario."
       />
@@ -1554,7 +1546,12 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   }
 
   return (
-    <NeonPuzzleShell family={family} puzzleType={props.puzzleType}>
+    <NeonPuzzleShell
+      category={category}
+      puzzleType={props.puzzleType}
+      lowTime={Boolean(props.isLowTime)}
+      celebrating={celebrating}
+    >
       {board}
     </NeonPuzzleShell>
   );

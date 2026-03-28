@@ -1,7 +1,7 @@
 import { corsHeaders } from "../_shared/cors.ts";
 import { requireUser } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
-import { getActiveProduct } from "../_shared/store.ts";
+import { getActiveProduct, getProfileWallet, isPrivilegedStoreAccount } from "../_shared/store.ts";
 
 const LOADOUT_COLUMN_BY_KIND: Record<string, string> = {
   theme: "theme_id",
@@ -27,13 +27,15 @@ Deno.serve(async (req) => {
 
     const admin = createAdminClient();
     const product = await getActiveProduct(admin, productId);
+    const profile = await getProfileWallet(admin, user.id);
+    const privileged = await isPrivilegedStoreAccount(admin, user.id, profile);
     const profileColumn = LOADOUT_COLUMN_BY_KIND[product.kind];
 
     if (!profileColumn) {
       throw new Error("That item cannot be equipped.");
     }
 
-    if (product.kind !== "theme" && product.kind !== "frame") {
+    if (!privileged && product.kind !== "theme" && product.kind !== "frame") {
       const { data: inventoryRow, error: inventoryError } = await admin
         .from("user_inventory")
         .select("product_id")

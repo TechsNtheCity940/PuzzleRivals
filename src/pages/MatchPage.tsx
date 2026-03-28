@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { subscribeToLobby, supabaseApi } from "@/lib/api-client";
 import type { BackendLobby, BackendLobbyPlayer, MatchMode, PuzzleSubmission } from "@/lib/backend";
 import { getPuzzleHelpText, getPuzzleHintText, isRapidFirePuzzleType } from "@/lib/match-rules";
+import { getNeonPuzzleThemeCategory } from "@/lib/match-board-theme";
 import { DEFAULT_AVATAR_ID } from "@/lib/profile-customization";
 import { getRankColor } from "@/lib/seed-data";
 import { isSupabaseConfigured, supabaseConfigErrorMessage } from "@/lib/supabase-client";
@@ -144,13 +145,15 @@ function CountdownCard({
   label,
   value,
   urgent = false,
+  category,
 }: {
   label: string;
   value: string;
   urgent?: boolean;
+  category?: string;
 }) {
   return (
-    <div className={cn("match-countdown-card", urgent && "match-countdown-card-urgent")}>
+    <div className={cn("match-countdown-card", category && `match-countdown-card--${category}`, urgent && "match-countdown-card-urgent")}>
       <p className="font-hud text-[10px] uppercase tracking-[0.18em] text-white/55">{label}</p>
       <div className="mt-2 flex items-center justify-center gap-2">
         <Clock3 size={16} className={urgent ? "text-destructive" : "text-primary"} />
@@ -446,6 +449,8 @@ export default function MatchPage() {
 
     const isPractice = stage === "practice";
     const timeLeft = isPractice ? practiceTimeLeft : liveTimeLeft;
+    const lowTime = isPractice ? timeLeft <= 3 : timeLeft <= 10;
+    const boardCategory = getNeonPuzzleThemeCategory(lobby.selection.puzzleType);
     const disabled = isPractice ? false : solvePending || (!rapidFire && selfPlayer.solvedAtMs !== null) || timeLeft <= 0;
     const liveScoreLine = rapidFire
       ? `Score ${selfPlayer.score} | Clears ${selfPlayer.completions} | New personal boards stop rolling at 0:05.`
@@ -455,7 +460,7 @@ export default function MatchPage() {
 
     return (
       <div className="match-immersive-screen">
-        <div className="match-immersive-shell">
+        <div className={cn("match-immersive-shell", `match-immersive-shell--${boardCategory}`, lowTime && "match-immersive-shell--low-time")}>
           <div className="match-immersive-top">
             <div className="match-immersive-copy">
               <p className="font-hud text-[11px] uppercase tracking-[0.24em] text-primary">
@@ -474,7 +479,8 @@ export default function MatchPage() {
             <CountdownCard
               label={isPractice ? "Practice Timer" : "Match Timer"}
               value={formatTime(timeLeft)}
-              urgent={isPractice ? timeLeft <= 3 : timeLeft <= 10}
+              urgent={lowTime}
+              category={boardCategory}
             />
           </div>
 
@@ -503,6 +509,7 @@ export default function MatchPage() {
               difficulty={lobby.selection.difficulty}
               isPractice={isPractice}
               disabled={disabled}
+              isLowTime={lowTime}
               onProgress={() => undefined}
               onStateChange={(submission, progress) => queueProgressSubmission(stage, submission, progress)}
               onSolve={isPractice ? () => setPracticeSolved(true) : handleLiveSolve}

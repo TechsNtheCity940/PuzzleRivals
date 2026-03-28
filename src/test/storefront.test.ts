@@ -55,6 +55,8 @@ function createUser(overrides: Partial<UserProfile> = {}): UserProfile {
   return {
     id: overrides.id ?? "user-1",
     username: overrides.username ?? "Judge",
+    email: overrides.email ?? null,
+    appRole: overrides.appRole ?? null,
     elo: overrides.elo ?? 1200,
     rank: overrides.rank ?? "gold",
     level: overrides.level ?? 10,
@@ -144,6 +146,86 @@ describe("storefront service", () => {
       perks: ["Priority matchmaking", "Monthly 500 Gem bonus"],
     });
     expect(snapshot.wallet?.coins).toBe(120);
+  });
+
+  it("treats the owner account as fully unlocked even before inventory sync finishes", async () => {
+    mocks.responses.products = [
+      {
+        data: [
+          {
+            id: "card_neon_circuit",
+            kind: "player_card",
+            price_usd: null,
+            price_coins: 1200,
+            price_gems: null,
+            metadata: {
+              name: "Neon Circuit",
+              description: "Season 1 player card.",
+              category: "player_card",
+              rarity: 4,
+            },
+          },
+          {
+            id: "vip_monthly",
+            kind: "vip",
+            price_usd: 7.99,
+            price_coins: null,
+            price_gems: null,
+            metadata: {
+              name: "VIP Membership",
+              description: "Monthly VIP access.",
+              category: "bundle",
+              rarity: 4,
+              perks: ["Priority matchmaking"],
+            },
+          },
+        ],
+      },
+    ];
+    mocks.responses.user_inventory = [{ data: [] }];
+    mocks.responses.profiles = [
+      {
+        data: {
+          coins: 80,
+          gems: 1,
+          puzzle_shards: 0,
+          rank_points: 1200,
+          pass_xp: 0,
+          hint_balance: 0,
+          has_season_pass: false,
+          is_vip: false,
+          vip_expires_at: null,
+          theme_id: null,
+          frame_id: null,
+          player_card_id: null,
+          banner_id: null,
+          emblem_id: null,
+          title_id: null,
+        },
+      },
+    ];
+
+    const snapshot = await fetchStorefront(createUser({
+      id: "owner-1",
+      email: "JudgeMrogan@gmail.com",
+      isGuest: false,
+    }));
+
+    expect(snapshot.wallet).toMatchObject({
+      isPrivileged: true,
+      hasSeasonPass: true,
+      isVip: true,
+    });
+    expect(snapshot.items[0]).toMatchObject({
+      id: "card_neon_circuit",
+      isOwned: true,
+      isComplimentary: true,
+    });
+    expect(snapshot.vipProduct).toMatchObject({
+      id: "vip_monthly",
+      isOwned: true,
+      isComplimentary: true,
+    });
   });
 
   it("maps owned live products and vip state for authenticated players", async () => {
