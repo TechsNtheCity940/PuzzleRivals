@@ -26,7 +26,11 @@ export default function CosmeticPreview({ kind, productId, label, className }: C
     const emblem = getEmblemVisual(productId);
     return (
       <div className={cn("cosmetic-preview-emblem", emblem.className, className)}>
-        <span>{emblem.glyph ?? "PR"}</span>
+        {emblem.assetPath ? (
+          <img src={emblem.assetPath} alt={label ?? emblem.label} className="h-full w-full object-contain" />
+        ) : (
+          <span>{emblem.glyph ?? "PR"}</span>
+        )}
       </div>
     );
   }

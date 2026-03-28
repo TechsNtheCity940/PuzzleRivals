@@ -180,7 +180,7 @@ const DEFAULT_EMBLEM: CosmeticVisual = {
 const EMBLEM_VISUALS: Record<string, CosmeticVisual> = {
   s_13: { className: "cos-emblem-word-master", chipClassName: "cos-chip-word", label: "Word Master", glyph: "W" },
   s_18: { className: "cos-emblem-season-victor", chipClassName: "cos-chip-victor", label: "Season Victor", glyph: "V" },
-  emblem_voltage: { className: "cos-emblem-voltage", chipClassName: "cos-chip-voltage", label: "Voltage Emblem", glyph: "V" },
+  emblem_voltage: { className: "cos-emblem-voltage", chipClassName: "cos-chip-voltage", label: "Voltage Emblem", glyph: "V", assetPath: "/cosmetics/emblems/voltage-emblem.svg" },
 };
 
 const DEFAULT_TITLE: CosmeticVisual = {

@@ -10,12 +10,14 @@ import { toast } from "@/components/ui/sonner";
 import { getPassTierProgress } from "@/lib/economy";
 import { loadSeasonContent, type GameContentSource, type SeasonContentSnapshot } from "@/lib/game-content";
 import {
+  NEON_RIVALS_BOARD_SHOWCASE,
   NEON_RIVALS_COSMETICS,
   NEON_RIVALS_ELITE_FRAMES,
   NEON_RIVALS_PREMIUM_AVATAR_TIER,
   NEON_RIVALS_RANKED_REWARDS,
   NEON_RIVALS_SECOND_AVATAR_ID,
   NEON_RIVALS_STRATEGIST_AVATAR_ID,
+  NEON_RIVALS_STRATEGIST_CLIP,
 } from "@/lib/season-content";
 import { capturePayPalCheckout, createPayPalCheckout } from "@/lib/storefront";
 import { useAuth } from "@/providers/AuthProvider";
@@ -244,6 +246,75 @@ export default function SeasonPage() {
               </div>
             )}
           </div>
+        <section className="section-panel overflow-hidden">
+          <div className="section-header">
+            <div>
+              <p className="section-kicker">Season Broadcast</p>
+              <h2 className="section-title">Live Neon Rivals media pack</h2>
+            </div>
+            <Sparkles size={18} className="text-primary" />
+          </div>
+          <div className="grid gap-4 xl:grid-cols-[1.45fr_1fr]">
+            <div className="command-panel-soft overflow-hidden border border-white/10 bg-slate-950/65 p-4">
+              <p className="section-kicker">Season Banner</p>
+              <img
+                src="/cosmetics/banners/neon-rivals-season-banner.svg"
+                alt="Season 1 Neon Rivals banner"
+                className="mt-4 w-full rounded-[24px] border border-white/10 bg-slate-950/80 object-cover shadow-[0_18px_48px_rgba(8,12,24,0.38)]"
+                loading="lazy"
+              />
+            </div>
+            <div className="command-panel-soft overflow-hidden border border-primary/20 bg-slate-950/65 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="section-kicker">Strategist Motion</p>
+                  <h3 className="mt-2 text-lg font-black">Season reward preview</h3>
+                </div>
+                <StockAvatar avatarId={NEON_RIVALS_STRATEGIST_AVATAR_ID} size="sm" />
+              </div>
+              <video
+                className="mt-4 aspect-[4/5] w-full rounded-[24px] border border-yellow-300/20 bg-black/80 object-cover shadow-[0_20px_54px_rgba(250,204,21,0.16)]"
+                src={NEON_RIVALS_STRATEGIST_CLIP}
+                poster="/avatars/season1-neon-strategist.svg"
+                autoPlay
+                loop
+                muted
+                playsInline
+                controls
+                preload="metadata"
+              />
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                Neon-yellow strategist motion clip used to spotlight the premium tier {NEON_RIVALS_PREMIUM_AVATAR_TIER} reward without adding a heavy new animation system.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="section-panel">
+          <div className="section-header">
+            <div>
+              <p className="section-kicker">Puzzle Board Showcase</p>
+              <h2 className="section-title">Electric arena board skins</h2>
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            {NEON_RIVALS_BOARD_SHOWCASE.map((board) => (
+              <article key={board.id} className="command-panel-soft overflow-hidden border border-white/10 bg-slate-950/65 p-3">
+                <img
+                  src={board.assetRef}
+                  alt={board.label}
+                  className="aspect-[4/3] w-full rounded-[20px] border border-white/10 bg-slate-950/80 object-cover"
+                  loading="lazy"
+                />
+                <div className="mt-3">
+                  <p className="text-sm font-black text-white">{board.label}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{board.summary}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
         </section>
 
         <div className="page-grid">

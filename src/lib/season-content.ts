@@ -17,6 +17,20 @@ export const NEON_RIVALS_SECOND_AVATAR_ID = "season1-neon-rival" as const;
 export const NEON_RIVALS_STRATEGIST_AVATAR_ID = "season1-neon-strategist" as const;
 export const NEON_RIVALS_COLLECTION = "Season 1: Neon Rivals";
 
+export const NEON_RIVALS_STRATEGIST_CLIP = "/media/season1/neon-strategist-clip.mp4";
+export const NEON_RIVALS_BOARD_SHOWCASE = [
+  { id: "pipe-flow", label: "Pipe Flow", summary: "Glowing conduit routing under live pressure.", assetRef: "/cosmetics/boards/pipe-flow-board.svg" },
+  { id: "number-crunch", label: "Number Crunch", summary: "High-speed arithmetic in a precision matrix shell.", assetRef: "/cosmetics/boards/number-crunch-board.svg" },
+  { id: "pattern-eye", label: "Pattern Eye", summary: "Signal-match tiles with clean neon recognition cues.", assetRef: "/cosmetics/boards/pattern-eye-board.svg" },
+  { id: "word-blitz", label: "Word Blitz", summary: "Rapid letter pressure with readable contrast and timer intensity.", assetRef: "/cosmetics/boards/word-blitz-board.svg" },
+  { id: "tile-shift", label: "Tile Shift", summary: "Glossy sliding blocks with assembly-line energy rails.", assetRef: "/cosmetics/boards/tile-shift-board.svg" },
+  { id: "sudoku-sprint", label: "Sudoku Sprint", summary: "Crisp logic cells built for speed-solving focus.", assetRef: "/cosmetics/boards/sudoku-sprint-board.svg" },
+  { id: "maze-rush", label: "Maze Rush", summary: "Route tracing with luminous nodes and pressure-path glow.", assetRef: "/cosmetics/boards/maze-rush-board.svg" },
+  { id: "memory-flash", label: "Memory Flash", summary: "Reveal shimmer and recall-driven tile flashes.", assetRef: "/cosmetics/boards/memory-flash-board.svg" },
+  { id: "riddle-relay", label: "Riddle Relay", summary: "Prompt-driven quiz panels with clean answer emphasis.", assetRef: "/cosmetics/boards/riddle-relay-board.svg" },
+  { id: "word-strike", label: "Word Strike", summary: "Letter-grid duels tuned for strong readability under tension.", assetRef: "/cosmetics/boards/word-strike-board.svg" },
+] as const;
+
 export const NEON_RIVALS_COSMETICS: SeasonalContentDefinition[] = [
   {
     id: "puzzle_theme_electric",
