@@ -68,6 +68,7 @@ function isNonConsumable(product: ProductRow) {
     product.kind === "banner" ||
     product.kind === "emblem" ||
     product.kind === "title" ||
+    product.kind === "badge" ||
     product.kind === "battle_pass"
   );
 }
@@ -180,7 +181,8 @@ export async function applyProductGrant(
     product.kind === "player_card" ||
     product.kind === "banner" ||
     product.kind === "emblem" ||
-    product.kind === "title"
+    product.kind === "title" ||
+    product.kind === "badge"
   ) {
     await insertInventoryItem(admin, userId, product.id, source);
     if (product.kind === "theme" && !themeId) themeId = product.id;

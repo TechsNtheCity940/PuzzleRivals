@@ -185,6 +185,21 @@ function mapWallet(wallet: WalletRow | null, profile?: UserProfile | null): Stor
   return toWallet(profile);
 }
 
+function isPrivilegedAutoOwnedKind(kind: string) {
+  return (
+    kind === "theme" ||
+    kind === "avatar" ||
+    kind === "frame" ||
+    kind === "player_card" ||
+    kind === "banner" ||
+    kind === "emblem" ||
+    kind === "title" ||
+    kind === "badge" ||
+    kind === "battle_pass" ||
+    kind === "vip"
+  );
+}
+
 function buildFallbackVipMembership(profile?: UserProfile | null): VipMembership {
   const privileged = isPrivilegedUser(profile);
   return {
@@ -202,7 +217,7 @@ function getFallbackSnapshot(profile?: UserProfile | null): StorefrontSnapshot {
     ...item,
     kind: item.category,
     isOwned:
-      privileged ||
+      (privileged && isPrivilegedAutoOwnedKind(item.category)) ||
       item.id === profile?.themeId ||
       item.id === profile?.frameId ||
       item.id === profile?.playerCardId ||
@@ -251,7 +266,7 @@ function mapProduct(
   const kind = product.kind;
   const category = asCategory(metadata.category);
   const owned =
-    privileged ||
+    (privileged && isPrivilegedAutoOwnedKind(kind)) ||
     ownedIds.has(product.id) ||
     (kind === "battle_pass" && Boolean(wallet?.hasSeasonPass)) ||
     (kind === "vip" && Boolean(wallet?.isVip));

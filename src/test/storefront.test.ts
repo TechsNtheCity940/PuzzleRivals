@@ -228,6 +228,83 @@ describe("storefront service", () => {
     });
   });
 
+
+  it("allows the owner account to claim complimentary consumables without marking them permanently owned", async () => {
+    mocks.responses.products = [
+      {
+        data: [
+          {
+            id: "s_4",
+            kind: "hint_pack",
+            price_usd: null,
+            price_coins: 2000,
+            price_gems: null,
+            metadata: {
+              name: "Hint Pack x10",
+              description: "10 puzzle hints.",
+              category: "hint_pack",
+              rarity: 1,
+            },
+          },
+          {
+            id: "s_5",
+            kind: "bundle",
+            price_usd: 4.99,
+            price_coins: null,
+            price_gems: null,
+            metadata: {
+              name: "Starter Bundle",
+              description: "Starter boost.",
+              category: "bundle",
+              rarity: 2,
+            },
+          },
+        ],
+      },
+    ];
+    mocks.responses.user_inventory = [{ data: [] }];
+    mocks.responses.profiles = [
+      {
+        data: {
+          coins: 80,
+          gems: 1,
+          puzzle_shards: 0,
+          rank_points: 1200,
+          pass_xp: 0,
+          hint_balance: 0,
+          has_season_pass: false,
+          is_vip: false,
+          vip_expires_at: null,
+          theme_id: null,
+          frame_id: null,
+          player_card_id: null,
+          banner_id: null,
+          emblem_id: null,
+          title_id: null,
+        },
+      },
+    ];
+
+    const snapshot = await fetchStorefront(createUser({
+      id: "owner-claim",
+      email: "JudgeMrogan@gmail.com",
+      isGuest: false,
+    }));
+
+    expect(snapshot.items).toEqual([
+      expect.objectContaining({
+        id: "s_4",
+        isOwned: false,
+        isComplimentary: true,
+      }),
+      expect.objectContaining({
+        id: "s_5",
+        isOwned: false,
+        isComplimentary: true,
+      }),
+    ]);
+  });
+
   it("maps owned live products and vip state for authenticated players", async () => {
     mocks.responses.products = [
       {
