@@ -354,7 +354,19 @@ export default function SeasonPage() {
                     <p className="section-kicker">{reward.tier}</p>
                     <h3 className="mt-2 text-lg font-black">{reward.badgeLabel}</h3>
                   </div>
-                  <span className={`season-rank-badge ${reward.accentClassName ?? ""}`}>{reward.tier}</span>
+                  {reward.badgeAssetRef ? (
+                    <div className="flex flex-col items-end gap-2">
+                      <img
+                        src={reward.badgeAssetRef}
+                        alt={`${reward.badgeLabel} badge`}
+                        className="h-16 w-16 rounded-2xl object-contain drop-shadow-[0_0_20px_rgba(106,222,255,0.28)]"
+                        loading="lazy"
+                      />
+                      <span className={`season-rank-badge ${reward.accentClassName ?? ""}`}>{reward.tier}</span>
+                    </div>
+                  ) : (
+                    <span className={`season-rank-badge ${reward.accentClassName ?? ""}`}>{reward.tier}</span>
+                  )}
                 </div>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">{reward.summary}</p>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -370,7 +382,14 @@ export default function SeasonPage() {
               <div key={frame.id} className="season-cosmetic-card">
                 <p className="section-kicker">Elite Frame Color</p>
                 <h3 className="mt-2 text-lg font-black">{frame.name}</h3>
-                <div className={`mt-4 ranked-frame-${frame.id.replace("frame_elite_", "")}`} />
+                <div className="mt-4 overflow-hidden rounded-[22px] border border-white/10 bg-slate-950/70 p-3">
+                  <img
+                    src={frame.assetRef}
+                    alt={`${frame.name} frame`}
+                    className="mx-auto aspect-square w-full max-w-[180px] object-contain"
+                    loading="lazy"
+                  />
+                </div>
               </div>
             ))}
           </div>

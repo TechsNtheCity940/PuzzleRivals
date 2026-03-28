@@ -95,7 +95,7 @@ export const NEON_RIVALS_COSMETICS: SeasonalContentDefinition[] = [
   },
   {
     id: "avatar_season1_neon_rival",
-    name: "Neon Rival Avatar",
+    name: "Neon Hacker Avatar",
     seasonId: NEON_RIVALS_SEASON_ID,
     category: "avatar",
     rarity: 4,
@@ -222,8 +222,8 @@ export const NEON_RIVALS_STORE_ITEMS: StoreItem[] = [
   },
   {
     id: "avatar_season1_neon_rival",
-    name: "Neon Rival Avatar",
-    description: "Season 1 hooded operator portrait with hot-pink glow and puzzle-arena sparks.",
+    name: "Neon Hacker Avatar",
+    description: "Season 1 hacker portrait with hot-pink glow, luminous eyes, and puzzle-arena sparks.",
     category: "avatar",
     rarity: 4,
     priceGems: 180,
@@ -240,14 +240,14 @@ export const NEON_RIVALS_ELITE_FRAMES = [
 ] as const;
 
 export const NEON_RIVALS_RANKED_REWARDS: RankedRewardDefinition[] = [
-  { tier: "bronze", badgeId: "badge_ranked_bronze", badgeLabel: "Bronze Voltage", accentClassName: "ranked-badge-bronze", summary: "Copper neon trim and a low-voltage crest." },
-  { tier: "silver", badgeId: "badge_ranked_silver", badgeLabel: "Silver Voltage", accentClassName: "ranked-badge-silver", summary: "Chrome facets with cool cyan edge charge." },
-  { tier: "gold", badgeId: "badge_ranked_gold", badgeLabel: "Gold Voltage", accentClassName: "ranked-badge-gold", summary: "Gold crown cuts with warm electric bloom." },
-  { tier: "platinum", badgeId: "badge_ranked_platinum", badgeLabel: "Platinum Voltage", accentClassName: "ranked-badge-platinum", frameId: "frame_elite_obsidian", frameLabel: "Obsidian Elite", summary: "Sharper violet cuts and obsidian elite frame access." },
-  { tier: "diamond", badgeId: "badge_ranked_diamond", badgeLabel: "Diamond Voltage", accentClassName: "ranked-badge-diamond", frameId: "frame_elite_nova", frameLabel: "Nova Elite", summary: "Prismatic cyan facets with the Nova Elite frame." },
-  { tier: "master", badgeId: "badge_ranked_master", badgeLabel: "Master Voltage", accentClassName: "ranked-badge-master", frameId: "frame_elite_inferno", frameLabel: "Inferno Elite", bannerId: "banner_season1_neon_rivals", bannerLabel: "Season Banner", summary: "Arc-reactive crown badge plus Inferno Elite framing." },
-  { tier: "grandmaster", badgeId: "badge_ranked_grandmaster", badgeLabel: "Grandmaster Voltage", accentClassName: "ranked-badge-grandmaster", frameId: "frame_elite_aurora", frameLabel: "Aurora Elite", bannerId: "banner_season1_neon_rivals", bannerLabel: "Season Banner", playerCardId: "ranked_card_season1_highrank", playerCardLabel: "High-Rank Card", summary: "Full Neon Rivals identity package with animated card treatment." },
-  { tier: "legend", badgeId: "badge_ranked_legend", badgeLabel: "Legend Voltage", accentClassName: "ranked-badge-legend", frameId: "frame_elite_aurora", frameLabel: "Aurora Elite", bannerId: "banner_season1_neon_rivals", bannerLabel: "Season Banner", playerCardId: "ranked_card_season1_highrank", playerCardLabel: "Animated High-Rank Card", summary: "Peak season reward set with the brightest pulse and full prestige stack." },
+  { tier: "bronze", badgeId: "badge_ranked_bronze", badgeLabel: "Bronze Voltage", badgeAssetRef: "/cosmetics/badges/bronze-neon-badge.svg", accentClassName: "ranked-badge-bronze", summary: "Copper neon trim and a low-voltage crest." },
+  { tier: "silver", badgeId: "badge_ranked_silver", badgeLabel: "Silver Voltage", badgeAssetRef: "/cosmetics/badges/silver-neon-badge.svg", accentClassName: "ranked-badge-silver", summary: "Chrome facets with cool cyan edge charge." },
+  { tier: "gold", badgeId: "badge_ranked_gold", badgeLabel: "Gold Voltage", badgeAssetRef: "/cosmetics/badges/gold-neon-badge.svg", accentClassName: "ranked-badge-gold", summary: "Gold crown cuts with warm electric bloom." },
+  { tier: "platinum", badgeId: "badge_ranked_platinum", badgeLabel: "Platinum Voltage", badgeAssetRef: "/cosmetics/badges/platinum-neon-badge.svg", accentClassName: "ranked-badge-platinum", frameId: "frame_elite_obsidian", frameLabel: "Obsidian Elite", summary: "Sharper violet cuts and obsidian elite frame access." },
+  { tier: "diamond", badgeId: "badge_ranked_diamond", badgeLabel: "Diamond Voltage", badgeAssetRef: "/cosmetics/badges/diamond-neon-badge.svg", accentClassName: "ranked-badge-diamond", frameId: "frame_elite_nova", frameLabel: "Nova Elite", summary: "Prismatic cyan facets with the Nova Elite frame." },
+  { tier: "master", badgeId: "badge_ranked_master", badgeLabel: "Master Voltage", badgeAssetRef: "/cosmetics/badges/master-neon-badge.svg", accentClassName: "ranked-badge-master", frameId: "frame_elite_inferno", frameLabel: "Inferno Elite", bannerId: "banner_season1_neon_rivals", bannerLabel: "Season Banner", summary: "Arc-reactive crown badge plus Inferno Elite framing." },
+  { tier: "grandmaster", badgeId: "badge_ranked_grandmaster", badgeLabel: "Grandmaster Voltage", badgeAssetRef: "/cosmetics/badges/grandmaster-neon-badge.svg", accentClassName: "ranked-badge-grandmaster", frameId: "frame_elite_aurora", frameLabel: "Aurora Elite", bannerId: "banner_season1_neon_rivals", bannerLabel: "Season Banner", playerCardId: "ranked_card_season1_highrank", playerCardLabel: "High-Rank Card", summary: "Full Neon Rivals identity package with animated card treatment." },
+  { tier: "legend", badgeId: "badge_ranked_legend", badgeLabel: "Legend Voltage", badgeAssetRef: "/cosmetics/badges/legend-neon-badge.svg", accentClassName: "ranked-badge-legend", frameId: "frame_elite_aurora", frameLabel: "Aurora Elite", bannerId: "banner_season1_neon_rivals", bannerLabel: "Season Banner", playerCardId: "ranked_card_season1_highrank", playerCardLabel: "Animated High-Rank Card", summary: "Peak season reward set with the brightest pulse and full prestige stack." },
 ];
 
 function makeCurrencyReward(tier: number): SeasonReward {
@@ -267,7 +267,7 @@ const PREMIUM_ITEM_TIERS: Record<number, SeasonReward> = {
   12: { type: "item", itemId: "frame_pulse", label: "Pulse Frame" },
   20: { type: "item", itemId: "avatar_season1_neon_strategist", label: "Neon Strategist Avatar" },
   28: { type: "item", itemId: "emblem_voltage", label: "Voltage Emblem" },
-  34: { type: "item", itemId: "avatar_season1_neon_rival", label: "Neon Rival Avatar" },
+  34: { type: "item", itemId: "avatar_season1_neon_rival", label: "Neon Hacker Avatar" },
   40: { type: "item", itemId: "ranked_card_season1_highrank", label: "Animated High-Rank Card" },
 };
 

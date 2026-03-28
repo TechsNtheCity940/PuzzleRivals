@@ -266,6 +266,7 @@ export interface RankedRewardDefinition {
   tier: RankTier;
   badgeId: string;
   badgeLabel: string;
+  badgeAssetRef?: string;
   accentClassName?: string;
   frameId?: string;
   frameLabel?: string;

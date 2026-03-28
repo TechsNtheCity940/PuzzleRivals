@@ -49,12 +49,12 @@ export const STOCK_AVATARS: StockAvatarOption[] = [
   },
   {
     id: "season1-neon-rival",
-    label: "Season 1 Neon Rival",
+    label: "Neon Hacker",
     imageSrc: "/avatars/season1-neon-rival.svg",
     accentFrom: "from-fuchsia-400",
     accentTo: "to-orange-500",
     glowClassName: "shadow-[0_0_42px_rgba(244,114,182,0.38)]",
-    accessoryLabel: "Season 1 Release",
+    accessoryLabel: "Season 1 Store Release",
   },
   {
     id: "season1-neon-strategist",
