@@ -175,6 +175,11 @@ describe("game content live feeds", () => {
       tournaments: "supabase",
       puzzleTypes: "supabase",
     });
+    expect(snapshot.resolutions).toEqual({
+      dailyChallenges: "live",
+      tournaments: "live",
+      puzzleTypes: "live",
+    });
     expect(snapshot.dailyChallenges[0]).toMatchObject({
       id: "dc_live",
       title: "Live Logic Sprint",
@@ -322,6 +327,7 @@ describe("game content live feeds", () => {
     const snapshot = await loadProfileContent("user-1");
 
     expect(snapshot.sources.activityFeed).toBe("supabase");
+    expect(snapshot.resolutions.activityFeed).toBe("live");
     expect(snapshot.activityFeed).toEqual([
       {
         id: "activity-1",
@@ -374,6 +380,7 @@ describe("game content live feeds", () => {
     const summary = await loadNotificationSummary("user-1");
 
     expect(summary.source).toBe("supabase");
+    expect(summary.resolution).toBe("live");
     expect(summary.unreadCount).toBe(1);
     expect(summary.recent).toHaveLength(2);
     expect(summary.recent[0]).toMatchObject({
@@ -525,7 +532,7 @@ describe("game content live feeds", () => {
     });
     expect(snapshot.activityFeed.find((entry) => entry.type === "purchase")).toMatchObject({
       title: "Unlocked Season XI Battle Pass",
-      description: "$9.99 � battle_pass � captured",
+      description: "$9.99 | battle_pass | captured",
     });
     expect(snapshot.activityFeed.find((entry) => entry.id === "social-self-facebook")).toMatchObject({
       title: "Facebook identity linked",
@@ -590,6 +597,10 @@ describe("game content live feeds", () => {
       storefront: "supabase",
       vipMembership: "supabase",
     });
+    expect(snapshot.resolutions).toEqual({
+      storefront: "live",
+      vipMembership: "live",
+    });
     expect(snapshot.storefront.source).toBe("supabase");
     expect(snapshot.vipMembership).toMatchObject({
       isActive: true,
@@ -641,12 +652,64 @@ describe("game content live feeds", () => {
       leaderboard: "supabase",
       socialDirectory: "supabase",
       puzzleTypes: "supabase",
-      activityFeed: "seed",
+      activityFeed: "supabase",
+    });
+    expect(snapshot.resolutions).toEqual({
+      leaderboard: "live",
+      socialDirectory: "live",
+      puzzleTypes: "live",
+      activityFeed: "empty",
     });
     expect(snapshot.leaderboard).toHaveLength(1);
     expect(snapshot.socialDirectory).toHaveLength(1);
-    expect(snapshot.activityFeed.some((entry) => entry.type === "purchase")).toBe(true);
+    expect(snapshot.activityFeed).toHaveLength(0);
   });
+
+  it("preserves explicit live-empty profile sections instead of silently falling back to seed data", async () => {
+    mocks.responses.puzzle_catalog = [{ data: [] }];
+
+    const snapshot = await loadProfileContent("user-1");
+
+    expect(snapshot.sources).toEqual({
+      leaderboard: "supabase",
+      socialDirectory: "supabase",
+      puzzleTypes: "supabase",
+      activityFeed: "supabase",
+    });
+    expect(snapshot.resolutions).toEqual({
+      leaderboard: "empty",
+      socialDirectory: "empty",
+      puzzleTypes: "empty",
+      activityFeed: "empty",
+    });
+    expect(snapshot.leaderboard).toEqual([]);
+    expect(snapshot.socialDirectory).toEqual([]);
+    expect(snapshot.puzzleTypes).toEqual([]);
+    expect(snapshot.activityFeed).toEqual([]);
+  });
+
+  it("preserves a live-empty discovery feed instead of silently loading demo content", async () => {
+    mocks.responses.daily_challenges = [{ data: [] }];
+    mocks.responses.tournaments = [{ data: [] }];
+    mocks.responses.puzzle_catalog = [{ data: [] }];
+
+    const snapshot = await loadDiscoveryContent();
+
+    expect(snapshot.sources).toEqual({
+      dailyChallenges: "supabase",
+      tournaments: "supabase",
+      puzzleTypes: "supabase",
+    });
+    expect(snapshot.resolutions).toEqual({
+      dailyChallenges: "empty",
+      tournaments: "empty",
+      puzzleTypes: "empty",
+    });
+    expect(snapshot.dailyChallenges).toEqual([]);
+    expect(snapshot.tournaments).toEqual([]);
+    expect(snapshot.puzzleTypes).toEqual([]);
+  });
+
 });
 
 

@@ -8,13 +8,16 @@ import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import StockAvatar from "@/components/profile/StockAvatar";
 import { Button } from "@/components/ui/button";
 import { saveSecurityQuestions, SECURITY_QUESTION_OPTIONS } from "@/lib/auth-security";
+import { getPassTierProgress } from "@/lib/economy";
 import {
   loadProfileContent,
   markProfileActivityEventsRead,
+  type GameContentResolution,
   type GameContentSource,
   type ProfileSocialDirectoryEntry,
 } from "@/lib/game-content";
 import { DEFAULT_AVATAR_ID, STOCK_AVATARS } from "@/lib/profile-customization";
+import { NEON_RIVALS_PREMIUM_AVATAR_TIER, NEON_RIVALS_SECOND_AVATAR_ID, NEON_RIVALS_STRATEGIST_AVATAR_ID } from "@/lib/season-content";
 import { getRankBand, getRankColor } from "@/lib/seed-data";
 import { isSupabaseConfigured, supabaseConfigErrorMessage } from "@/lib/supabase-client";
 import type { LeaderboardEntry, ProfileActivityEvent, PuzzleMeta } from "@/lib/types";
@@ -73,8 +76,11 @@ export default function ProfilePage() {
   const [puzzleTypes, setPuzzleTypes] = useState<PuzzleMeta[]>([]);
   const [activityFeed, setActivityFeed] = useState<ProfileActivityEvent[]>([]);
   const [leaderboardSource, setLeaderboardSource] = useState<GameContentSource>("seed");
+  const [leaderboardResolution, setLeaderboardResolution] = useState<GameContentResolution>("fallback");
   const [socialSource, setSocialSource] = useState<GameContentSource>("seed");
+  const [socialResolution, setSocialResolution] = useState<GameContentResolution>("fallback");
   const [activitySource, setActivitySource] = useState<GameContentSource>("seed");
+  const [activityResolution, setActivityResolution] = useState<GameContentResolution>("fallback");
   const [isContentLoading, setIsContentLoading] = useState(true);
   const [contentError, setContentError] = useState<string | null>(null);
   const [securityQuestionOne, setSecurityQuestionOne] = useState(DEFAULT_QUESTION_ONE);
@@ -106,8 +112,11 @@ export default function ProfilePage() {
         setPuzzleTypes(snapshot.puzzleTypes);
         setActivityFeed(snapshot.activityFeed);
         setLeaderboardSource(snapshot.sources.leaderboard);
+        setLeaderboardResolution(snapshot.resolutions.leaderboard);
         setSocialSource(snapshot.sources.socialDirectory);
+        setSocialResolution(snapshot.resolutions.socialDirectory);
         setActivitySource(snapshot.sources.activityFeed);
+        setActivityResolution(snapshot.resolutions.activityFeed);
       } catch (error) {
         if (cancelled) return;
         setContentError(error instanceof Error ? error.message : "Could not load profile content.");
@@ -136,6 +145,27 @@ export default function ProfilePage() {
   );
   const linkedFacebookPlayers = socialDirectory.filter((entry) => entry.facebook_handle).slice(0, 2);
   const linkedTikTokPlayers = socialDirectory.filter((entry) => entry.tiktok_handle).slice(0, 2);
+
+  const seasonTier = useMemo(() => getPassTierProgress(user?.passXp ?? 0, 40).currentTier, [user?.passXp]);
+
+  function isAvatarLocked(optionId: typeof STOCK_AVATARS[number]["id"]) {
+    if (optionId !== NEON_RIVALS_STRATEGIST_AVATAR_ID) {
+      return false;
+    }
+    return !(Boolean(user?.hasSeasonPass) && seasonTier >= NEON_RIVALS_PREMIUM_AVATAR_TIER);
+  }
+
+  function avatarUnlockCopy(optionId: typeof STOCK_AVATARS[number]["id"]) {
+    if (optionId === NEON_RIVALS_STRATEGIST_AVATAR_ID) {
+      return isAvatarLocked(optionId)
+        ? `Unlock at premium tier ${NEON_RIVALS_PREMIUM_AVATAR_TIER}`
+        : `Unlocked from Season 1 premium tier ${NEON_RIVALS_PREMIUM_AVATAR_TIER}`;
+    }
+    if (optionId === NEON_RIVALS_SECOND_AVATAR_ID) {
+      return "Season 1 featured release";
+    }
+    return "Identity card";
+  }
 
   useEffect(() => {
     if (tab !== "inbox" || activitySource !== "supabase" || !user?.id || isGuest) {
@@ -366,24 +396,32 @@ export default function ProfilePage() {
               </div>
 
               <div className="deck-grid">
-                {STOCK_AVATARS.map((avatar) => (
-                  <button
-                    key={avatar.id}
-                    type="button"
-                    onClick={() => setAvatarId(avatar.id)}
-                    className={`command-panel-soft avatar-option p-3 text-left transition-colors ${
-                      avatarId === avatar.id ? "border-primary bg-primary/10" : ""
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <StockAvatar avatarId={avatar.id} frameId={user?.frameId} size="sm" />
-                      <div>
-                        <p className="text-sm font-black">{avatar.label}</p>
-                        <p className="text-xs text-muted-foreground">Identity card</p>
+                {STOCK_AVATARS.map((avatar) => {
+                  const locked = isAvatarLocked(avatar.id);
+                  return (
+                    <button
+                      key={avatar.id}
+                      type="button"
+                      onClick={() => {
+                        if (!locked) {
+                          setAvatarId(avatar.id);
+                        }
+                      }}
+                      className={`command-panel-soft avatar-option p-3 text-left transition-colors ${
+                        avatarId === avatar.id ? "border-primary bg-primary/10" : ""
+                      } ${locked ? "opacity-70" : ""}`}
+                      disabled={locked}
+                    >
+                      <div className="flex items-center gap-3">
+                        <StockAvatar avatarId={avatar.id} frameId={user?.frameId} size="sm" className={locked ? "opacity-80" : undefined} />
+                        <div>
+                          <p className="text-sm font-black">{avatar.label}</p>
+                          <p className="text-xs text-muted-foreground">{avatarUnlockCopy(avatar.id)}</p>
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
 
               <Button onClick={() => void handleSaveProfile()} variant="play" size="xl" className="w-full" disabled={isWorking}>
@@ -421,7 +459,7 @@ export default function ProfilePage() {
                     ))
                   ) : (
                     <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-                      No leaderboard entries are available yet.
+{leaderboardResolution === "empty" ? "Live leaderboard entries will appear once ranked results land." : "Demo leaderboard data is loaded while live rankings are unavailable."}
                     </div>
                   )}
                 </div>
@@ -500,7 +538,7 @@ export default function ProfilePage() {
                       ))
                     ) : (
                       <div className="command-panel-soft flex min-h-[140px] items-center justify-center p-6 text-sm text-muted-foreground">
-                        {isContentLoading ? "Loading social directory..." : "No linked player identities are available yet."}
+                        {isContentLoading ? "Loading social directory..." : socialResolution === "empty" ? "No live linked player identities are available yet." : "Demo social directory loaded while live player identities are unavailable."}
                       </div>
                     )}
                   </div>
@@ -608,7 +646,7 @@ export default function ProfilePage() {
                       <div>
                         <p className="text-base font-black">No recent activity yet</p>
                         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                          Recent results, purchases, and social updates will appear here as your live profile picks them up.
+{activityResolution === "empty" ? (canSave ? "Your live activity feed is ready but empty right now. Match results, purchases, and social updates will appear here automatically." : "Sign in to start a live activity feed across devices.") : "Demo activity preview loaded while the live event stream is unavailable."}
                         </p>
                       </div>
                     </div>

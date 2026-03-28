@@ -47,6 +47,24 @@ export const STOCK_AVATARS: StockAvatarOption[] = [
     glowClassName: "shadow-[0_0_35px_rgba(132,204,22,0.35)]",
     accessoryLabel: "Logic Cube",
   },
+  {
+    id: "season1-neon-rival",
+    label: "Season 1 Neon Rival",
+    imageSrc: "/avatars/season1-neon-rival.svg",
+    accentFrom: "from-fuchsia-400",
+    accentTo: "to-orange-500",
+    glowClassName: "shadow-[0_0_42px_rgba(244,114,182,0.38)]",
+    accessoryLabel: "Season 1 Release",
+  },
+  {
+    id: "season1-neon-strategist",
+    label: "Neon Strategist",
+    imageSrc: "/avatars/season1-neon-strategist.svg",
+    accentFrom: "from-yellow-300",
+    accentTo: "to-amber-500",
+    glowClassName: "shadow-[0_0_48px_rgba(250,204,21,0.45)]",
+    accessoryLabel: "Season Pass Reward",
+  },
 ];
 
 export const DEFAULT_AVATAR_ID: StockAvatarId = "blue-spinner";

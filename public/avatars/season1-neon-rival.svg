@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#050816"/>
+      <stop offset="100%" stop-color="#160726"/>
+    </linearGradient>
+    <linearGradient id="hood" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff4fd8"/>
+      <stop offset="100%" stop-color="#ff9c33"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#ff6ee6" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#ff6ee6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <circle cx="256" cy="206" r="180" fill="url(#glow)"/>
+  <path d="M133 186c22-74 76-120 123-120 53 0 108 47 126 120l-29 183H159l-26-183Z" fill="url(#hood)"/>
+  <path d="M189 191c12-51 43-86 67-86 27 0 61 36 70 86l-13 115H202l-13-115Z" fill="#0a0b14"/>
+  <path d="M188 331c25 36 55 55 75 55s51-19 76-55l16 116H171l17-116Z" fill="#14101f"/>
+  <path d="M212 223c16-18 29-26 44-26s28 8 44 26" stroke="#ff8af2" stroke-width="12" stroke-linecap="round"/>
+  <path d="M192 121c27-22 53-31 80-31 30 0 57 10 86 31" stroke="#fff" stroke-opacity="0.22" stroke-width="10" stroke-linecap="round"/>
+  <rect x="175" y="374" width="162" height="36" rx="18" fill="#220d32" stroke="#ff58d3" stroke-opacity="0.55"/>
+  <text x="256" y="397" text-anchor="middle" fill="#ffd3fa" font-size="18" font-family="Arial, sans-serif" font-weight="700">NEON RIVAL</text>
+</svg>

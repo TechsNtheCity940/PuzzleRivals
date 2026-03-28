@@ -1,5 +1,6 @@
 import type { ItemCategory, MatchReward, QuestDefinition } from "@/lib/types";
 import type { UserProfile } from "@/lib/types";
+import { NEON_RIVALS_SEASONAL_CHALLENGES, NEON_RIVALS_SEASON_KEY } from "@/lib/season-content";
 import {
   isSupabaseSchemaSetupIssue,
   supabase,
@@ -91,28 +92,10 @@ export const WEEKLY_QUESTS: QuestDefinition[] = [
   },
 ];
 
-export const SEASONAL_CHALLENGES: QuestDefinition[] = [
-  {
-    id: "sq_gold",
-    title: "Reach Gold",
-    description: "Climb to Gold this season for a prestige unlock.",
-    track: "seasonal",
-    target: 1400,
-    progress: 0,
-    reward: { gems: 60, shards: 120, itemId: "s_18" },
-    isCompleted: false,
-  },
-  {
-    id: "sq_pass_xp",
-    title: "Earn 5000 Pass XP",
-    description: "Stack pass XP from matches and missions all season long.",
-    track: "seasonal",
-    target: 5000,
-    progress: 0,
-    reward: { gems: 80, itemId: "s_20" },
-    isCompleted: false,
-  },
-];
+export const SEASONAL_CHALLENGES: QuestDefinition[] = NEON_RIVALS_SEASONAL_CHALLENGES.map((quest) => ({
+  ...quest,
+  reward: { ...quest.reward },
+}));
 
 type QuestDefinitionRow = {
   id: string;
@@ -156,7 +139,7 @@ function getIsoWeekKey(date: Date) {
 function getQuestPeriodKey(track: QuestDefinition["track"], metadata: Record<string, unknown> | null, now = new Date()) {
   if (track === "daily") return getUtcDateKey(now);
   if (track === "weekly") return getIsoWeekKey(now);
-  return asString(metadata?.seasonKey) ?? "season-11";
+  return asString(metadata?.seasonKey) ?? NEON_RIVALS_SEASON_KEY;
 }
 
 function parseQuestReward(value: Record<string, unknown> | null) {

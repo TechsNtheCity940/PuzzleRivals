@@ -16,6 +16,11 @@ describe("game content service", () => {
     expect(snapshot.sources.dailyChallenges).toBe("seed");
     expect(snapshot.sources.tournaments).toBe("seed");
     expect(snapshot.sources.puzzleTypes).toBe("seed");
+    expect(snapshot.resolutions).toEqual({
+      dailyChallenges: "fallback",
+      tournaments: "fallback",
+      puzzleTypes: "fallback",
+    });
   });
 
   it("loads season content with explicit source metadata", async () => {
@@ -44,12 +49,19 @@ describe("game content service", () => {
     expect(snapshot.sources.socialDirectory).toBe("seed");
     expect(snapshot.sources.puzzleTypes).toBe("seed");
     expect(snapshot.sources.activityFeed).toBe("seed");
+    expect(snapshot.resolutions).toEqual({
+      leaderboard: "fallback",
+      socialDirectory: "fallback",
+      puzzleTypes: "fallback",
+      activityFeed: "fallback",
+    });
   });
 
   it("builds a seed notification summary when live activity is unavailable", async () => {
     const summary = await loadNotificationSummary();
 
     expect(summary.source).toBe("seed");
+    expect(summary.resolution).toBe("fallback");
     expect(summary.recent.length).toBeGreaterThan(0);
     expect(summary.unreadCount).toBeGreaterThan(0);
   });
@@ -61,5 +73,9 @@ describe("game content service", () => {
     expect(snapshot.vipMembership.priceUsd).toBeGreaterThan(0);
     expect(snapshot.sources.storefront).toBe("seed");
     expect(snapshot.sources.vipMembership).toBe("seed");
+    expect(snapshot.resolutions).toEqual({
+      storefront: "fallback",
+      vipMembership: "fallback",
+    });
   });
 });

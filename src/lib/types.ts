@@ -38,7 +38,9 @@ export type StockAvatarId =
   | "blue-spinner"
   | "orange-cube"
   | "violet-popper"
-  | "green-cube";
+  | "green-cube"
+  | "season1-neon-rival"
+  | "season1-neon-strategist";
 
 export interface PuzzleConfig {
   type: PuzzleType;
@@ -56,7 +58,7 @@ export interface PuzzleMeta {
 }
 
 // ---------- Ranks ----------
-export type RankTier = "bronze" | "silver" | "gold" | "platinum" | "diamond" | "master";
+export type RankTier = "bronze" | "silver" | "gold" | "platinum" | "diamond" | "master" | "grandmaster" | "legend";
 
 export interface RankBand {
   tier: RankTier;
@@ -198,7 +200,8 @@ export type ItemCategory =
   | "title"
   | "bundle"
   | "hint_pack"
-  | "battle_pass";
+  | "battle_pass"
+  | "badge";
 export type ItemRarity = 1 | 2 | 3 | 4 | 5 | 6; // common -> mythic
 
 export interface StoreItem {
@@ -215,6 +218,58 @@ export interface StoreItem {
   isEquipped?: boolean;
   isFeatured?: boolean;
   collection?: string;
+}
+
+export type SeasonalContentCategory =
+  | "avatar"
+  | "player_card"
+  | "banner"
+  | "emblem"
+  | "frame"
+  | "badge"
+  | "puzzle_theme";
+
+export type SeasonalRewardSource =
+  | "season_pass"
+  | "season_milestone"
+  | "ranked"
+  | "featured_store";
+
+export type SeasonalUnlockMethod =
+  | "free_tier"
+  | "premium_tier"
+  | "season_objective"
+  | "rank_finish"
+  | "store_featured";
+
+export interface SeasonalContentDefinition {
+  id: string;
+  name: string;
+  seasonId: string;
+  category: SeasonalContentCategory;
+  rarity: ItemRarity;
+  rewardSource: SeasonalRewardSource;
+  unlockMethod: SeasonalUnlockMethod;
+  imageRef: string;
+  themeTags: string[];
+  isAnimated: boolean;
+  sortOrder: number;
+  availableFrom?: string;
+  availableTo?: string;
+}
+
+export interface RankedRewardDefinition {
+  tier: RankTier;
+  badgeId: string;
+  badgeLabel: string;
+  accentClassName?: string;
+  frameId?: string;
+  frameLabel?: string;
+  bannerId?: string;
+  bannerLabel?: string;
+  playerCardId?: string;
+  playerCardLabel?: string;
+  summary: string;
 }
 
 export interface InventoryItem {

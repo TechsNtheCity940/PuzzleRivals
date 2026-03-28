@@ -27,6 +27,12 @@ const THEME_VISUALS: Record<string, ThemeVisual> = {
     shellArt: "/cosmetics/themes/neon-circuit-shell.svg",
     boardArt: "/cosmetics/themes/neon-circuit-board.svg",
   },
+  puzzle_theme_electric: {
+    shellClass: "cos-theme-electric",
+    label: "Electric Puzzle Theme",
+    shellArt: "/cosmetics/themes/electric-shell.svg",
+    boardArt: "/cosmetics/themes/electric-board.svg",
+  },
   s_7: {
     shellClass: "cos-theme-obsidian",
     label: "Obsidian Skin",
@@ -66,6 +72,36 @@ const FRAME_VISUALS: Record<string, CosmeticVisual> = {
     label: "Voltage Pulse",
     assetPath: "/cosmetics/frames/voltage-pulse.svg",
   },
+  frame_pulse: {
+    className: "cos-frame-pulse",
+    chipClassName: "cos-chip-voltage",
+    label: "Pulse Frame",
+    assetPath: "/cosmetics/frames/pulse-frame.svg",
+  },
+  frame_elite_obsidian: {
+    className: "cos-frame-elite-obsidian",
+    chipClassName: "cos-chip-obsidian",
+    label: "Obsidian Elite",
+    assetPath: "/cosmetics/frames/elite-obsidian-frame.svg",
+  },
+  frame_elite_nova: {
+    className: "cos-frame-elite-nova",
+    chipClassName: "cos-chip-nova",
+    label: "Nova Elite",
+    assetPath: "/cosmetics/frames/elite-nova-frame.svg",
+  },
+  frame_elite_inferno: {
+    className: "cos-frame-elite-inferno",
+    chipClassName: "cos-chip-inferno",
+    label: "Inferno Elite",
+    assetPath: "/cosmetics/frames/elite-inferno-frame.svg",
+  },
+  frame_elite_aurora: {
+    className: "cos-frame-elite-aurora",
+    chipClassName: "cos-chip-aurora",
+    label: "Aurora Elite",
+    assetPath: "/cosmetics/frames/elite-aurora-frame.svg",
+  },
 };
 
 const DEFAULT_CARD: CosmeticVisual = {
@@ -86,6 +122,18 @@ const CARD_VISUALS: Record<string, CosmeticVisual> = {
     chipClassName: "cos-chip-holograph",
     label: "Holograph Grid",
     assetPath: "/cosmetics/cards/holograph-grid-card.svg",
+  },
+  card_neon_circuit: {
+    className: "cos-card-neon-circuit",
+    chipClassName: "cos-chip-voltage",
+    label: "Neon Circuit Card",
+    assetPath: "/cosmetics/cards/neon-circuit-card.svg",
+  },
+  ranked_card_season1_highrank: {
+    className: "cos-card-neon-highrank",
+    chipClassName: "cos-chip-legend",
+    label: "Neon Rivals High-Rank",
+    assetPath: "/cosmetics/cards/neon-rivals-rank-card.svg",
   },
 };
 
@@ -108,6 +156,18 @@ const BANNER_VISUALS: Record<string, CosmeticVisual> = {
     label: "Puzzle Vault",
     assetPath: "/cosmetics/banners/puzzle-vault-banner.svg",
   },
+  banner_static_shock: {
+    className: "cos-banner-static-shock",
+    chipClassName: "cos-chip-voltage",
+    label: "Static Shock",
+    assetPath: "/cosmetics/banners/static-shock-banner.svg",
+  },
+  banner_season1_neon_rivals: {
+    className: "cos-banner-neon-rivals",
+    chipClassName: "cos-chip-legend",
+    label: "Neon Rivals Season Banner",
+    assetPath: "/cosmetics/banners/neon-rivals-season-banner.svg",
+  },
 };
 
 const DEFAULT_EMBLEM: CosmeticVisual = {
@@ -120,6 +180,7 @@ const DEFAULT_EMBLEM: CosmeticVisual = {
 const EMBLEM_VISUALS: Record<string, CosmeticVisual> = {
   s_13: { className: "cos-emblem-word-master", chipClassName: "cos-chip-word", label: "Word Master", glyph: "W" },
   s_18: { className: "cos-emblem-season-victor", chipClassName: "cos-chip-victor", label: "Season Victor", glyph: "V" },
+  emblem_voltage: { className: "cos-emblem-voltage", chipClassName: "cos-chip-voltage", label: "Voltage Emblem", glyph: "V" },
 };
 
 const DEFAULT_TITLE: CosmeticVisual = {

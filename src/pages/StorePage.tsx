@@ -11,6 +11,7 @@ import { isRenderableCosmeticCategory } from "@/lib/cosmetics";
 import { STORE_TABS } from "@/lib/economy";
 import {
   loadStoreContent,
+  type GameContentResolution,
   type GameContentSource,
 } from "@/lib/game-content";
 import {
@@ -66,6 +67,8 @@ export default function StorePage() {
   const [snapshot, setSnapshot] = useState<StorefrontSnapshot>({ items: [], vipProduct: null, vipMembership: null, wallet: null, source: "seed" });
   const [vipMembership, setVipMembership] = useState<VipMembership | null>(null);
   const [storefrontSource, setStorefrontSource] = useState<GameContentSource>("seed");
+  const [storefrontResolution, setStorefrontResolution] = useState<GameContentResolution>("fallback");
+  const [vipResolution, setVipResolution] = useState<GameContentResolution>("fallback");
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busyProductId, setBusyProductId] = useState<string | null>(null);
@@ -84,6 +87,8 @@ export default function StorePage() {
           setSnapshot(next.storefront);
           setVipMembership(next.vipMembership);
           setStorefrontSource(next.sources.storefront);
+          setStorefrontResolution(next.resolutions.storefront);
+          setVipResolution(next.resolutions.vipMembership);
         }
       } catch (error) {
         if (active) {
@@ -133,6 +138,8 @@ export default function StorePage() {
           setSnapshot(next.storefront);
           setVipMembership(next.vipMembership);
           setStorefrontSource(next.sources.storefront);
+          setStorefrontResolution(next.resolutions.storefront);
+          setVipResolution(next.resolutions.vipMembership);
         }
         toast.success("Purchase completed.");
       } catch (error) {
@@ -175,6 +182,8 @@ export default function StorePage() {
         setSnapshot(next.storefront);
         setVipMembership(next.vipMembership);
         setStorefrontSource(next.sources.storefront);
+        setStorefrontResolution(next.resolutions.storefront);
+        setVipResolution(next.resolutions.vipMembership);
         toast.success(`${item.name} equipped.`);
         return;
       }
@@ -191,6 +200,8 @@ export default function StorePage() {
       setSnapshot(next.storefront);
       setVipMembership(next.vipMembership);
       setStorefrontSource(next.sources.storefront);
+      setStorefrontResolution(next.resolutions.storefront);
+      setVipResolution(next.resolutions.vipMembership);
       toast.success(`${item.name} added to your account.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Purchase failed.");
@@ -207,8 +218,14 @@ export default function StorePage() {
           title="Store"
           subtitle={
             canSave
-              ? `${sourceLabel(storefrontSource)} purchases and account-bound items.`
-              : "Browse as guest. Purchases require sign-in."
+              ? storefrontResolution === "empty"
+                ? "Live store feed connected, but the catalog is empty right now."
+                : storefrontResolution === "fallback"
+                  ? "Demo store catalog loaded while live commerce data is unavailable."
+                  : `${sourceLabel(storefrontSource)} purchases and account-bound items.`
+              : storefrontResolution === "fallback"
+                ? "Browsing the demo store as guest. Purchases require sign-in."
+                : "Browse as guest. Purchases require sign-in."
           }
           right={
             <div className="spotlight-panel">
@@ -245,7 +262,7 @@ export default function StorePage() {
                 <Crown size={18} className="text-primary" />
               </div>
               <p className="text-sm leading-6 text-muted-foreground">
-                {vip ? formatPrice(vip) : vipMembership ? `$${vipMembership.priceUsd.toFixed(2)}/month` : "Unavailable"} - {snapshot.wallet?.hintBalance ?? 0} hints banked
+                {vip ? formatPrice(vip) : vipMembership ? `$${vipMembership.priceUsd.toFixed(2)}/month` : vipResolution === "empty" ? "VIP offer not published yet" : "Unavailable"} - {snapshot.wallet?.hintBalance ?? 0} hints banked
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <div className="rich-stat">
@@ -266,7 +283,7 @@ export default function StorePage() {
               <div className="section-stack">
                 <div>
                   <p className="section-kicker">Featured Drop</p>
-                  <h2 className="section-title">Sharper boards, richer identity cards, cleaner sessions</h2>
+                  <h2 className="section-title">Season 1: Neon Rivals cosmetics are live</h2>
                 </div>
                 <div className="store-preview-strip">
                   <CosmeticPreview
@@ -284,7 +301,7 @@ export default function StorePage() {
                 </div>
                 <IdentityLoadoutCard
                   username={user?.username ?? "Guest Player"}
-                  subtitle={snapshot.wallet?.isVip ? "VIP identity live" : "Equip cosmetics from the market"}
+                  subtitle={snapshot.wallet?.isVip ? "VIP identity live" : "Preview the Neon Rivals loadout"}
                   avatarId={user?.avatarId}
                   frameId={snapshot.wallet?.frameId ?? user?.frameId}
                   playerCardId={snapshot.wallet?.playerCardId ?? user?.playerCardId}
@@ -384,7 +401,7 @@ export default function StorePage() {
                 ))
               ) : (
                 <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-                  No items match the current filter.
+{storefrontResolution === "empty" ? "The live store catalog is empty right now." : "Demo store catalog loaded while live inventory is unavailable."}
                 </div>
               )}
             </div>

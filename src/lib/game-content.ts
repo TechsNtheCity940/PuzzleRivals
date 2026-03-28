@@ -34,6 +34,7 @@ import type {
 } from "@/lib/types";
 
 export type GameContentSource = "supabase" | "seed";
+export type GameContentResolution = "live" | "fallback" | "empty";
 export type ProfileSocialDirectoryEntry = Awaited<ReturnType<typeof fetchSocialDirectory>>[number];
 
 export interface DiscoveryContentSnapshot {
@@ -44,6 +45,11 @@ export interface DiscoveryContentSnapshot {
     dailyChallenges: GameContentSource;
     tournaments: GameContentSource;
     puzzleTypes: GameContentSource;
+  };
+  resolutions: {
+    dailyChallenges: GameContentResolution;
+    tournaments: GameContentResolution;
+    puzzleTypes: GameContentResolution;
   };
 }
 
@@ -73,14 +79,24 @@ export interface ProfileContentSnapshot {
     puzzleTypes: GameContentSource;
     activityFeed: GameContentSource;
   };
+  resolutions: {
+    leaderboard: GameContentResolution;
+    socialDirectory: GameContentResolution;
+    puzzleTypes: GameContentResolution;
+    activityFeed: GameContentResolution;
+  };
 }
 
 export interface StoreContentSnapshot {
   storefront: StorefrontSnapshot;
-  vipMembership: VipMembership;
+  vipMembership: VipMembership | null;
   sources: {
     storefront: GameContentSource;
     vipMembership: GameContentSource;
+  };
+  resolutions: {
+    storefront: GameContentResolution;
+    vipMembership: GameContentResolution;
   };
 }
 
@@ -88,6 +104,7 @@ export interface NotificationSummarySnapshot {
   unreadCount: number;
   recent: ProfileActivityEvent[];
   source: GameContentSource;
+  resolution: GameContentResolution;
 }
 
 type PuzzleCatalogRow = {
@@ -346,6 +363,7 @@ function cloneActivityEvent(entry: ProfileActivityEvent): ProfileActivityEvent {
 function buildNotificationSummary(
   activityFeed: ProfileActivityEvent[],
   source: GameContentSource,
+  resolution: GameContentResolution,
 ): NotificationSummarySnapshot {
   const recent = activityFeed.slice(0, 3).map(cloneActivityEvent);
   const unreadCount = activityFeed.filter((entry) => !entry.isRead).length;
@@ -354,6 +372,7 @@ function buildNotificationSummary(
     unreadCount,
     recent,
     source,
+    resolution,
   };
 }
 
@@ -371,6 +390,22 @@ function cloneStorefrontSnapshot(snapshot: StorefrontSnapshot): StorefrontSnapsh
     vipMembership: snapshot.vipMembership ? cloneVipMembership(snapshot.vipMembership) : null,
     wallet: snapshot.wallet ? { ...snapshot.wallet } : null,
     source: snapshot.source,
+  };
+}
+
+function resolveCollection<T>(liveData: T[] | null, fallbackData: T[]) {
+  if (liveData === null) {
+    return {
+      data: fallbackData,
+      source: "seed" as const,
+      resolution: "fallback" as const,
+    };
+  }
+
+  return {
+    data: liveData,
+    source: "supabase" as const,
+    resolution: liveData.length > 0 ? ("live" as const) : ("empty" as const),
   };
 }
 
@@ -399,7 +434,7 @@ function buildSeedActivityFeed(currentUserId?: string): ProfileActivityEvent[] {
       type: "match",
       label: "Ranked Match",
       title: "Won a ranked Pipe Flow round",
-      description: "#1 finish � +180 XP � +90 Coins � +28 ELO",
+      description: "#1 finish | +180 XP | +90 Coins | +28 ELO",
       occurredAt: "2026-03-19T20:15:00Z",
       isRead: false,
     },
@@ -408,7 +443,7 @@ function buildSeedActivityFeed(currentUserId?: string): ProfileActivityEvent[] {
       type: "purchase",
       label: "Purchase",
       title: "Unlocked Season XI Battle Pass",
-      description: "$9.99 � battle_pass � captured",
+      description: "$9.99 | battle_pass | captured",
       occurredAt: "2026-03-19T18:40:00Z",
       isRead: false,
     },
@@ -586,9 +621,9 @@ function mapRoundActivity(
     type: "match",
     label: `${modeLabel} Match`,
     title,
-    description: [performanceBits.join(" � "), round?.round_no ? `Round ${round.round_no}` : null]
+    description: [performanceBits.join(" | "), round?.round_no ? `Round ${round.round_no}` : null]
       .filter((entry): entry is string => Boolean(entry))
-      .join(" � "),
+      .join(" | "),
     occurredAt: row.created_at,
     isRead: false,
   };
@@ -617,7 +652,7 @@ function mapPurchaseActivity(row: PurchaseActivityRow): ProfileActivityEvent {
     title,
     description: [formatCurrencyAmount(row.amount, row.currency), productKind, status]
       .filter((entry): entry is string => Boolean(entry))
-      .join(" � "),
+      .join(" | "),
     occurredAt,
     isRead: false,
   };
@@ -697,10 +732,6 @@ async function loadPersistedProfileActivity(currentUserId: string): Promise<Prof
   }
 
   const rows = (data ?? []) as ProfileActivityEventRow[];
-  if (rows.length === 0) {
-    return null;
-  }
-
   return rows.map(mapPersistedActivityEvent);
 }
 async function loadLivePuzzleCatalog(): Promise<PuzzleMeta[] | null> {
@@ -722,10 +753,6 @@ async function loadLivePuzzleCatalog(): Promise<PuzzleMeta[] | null> {
   }
 
   const rows = (data ?? []) as PuzzleCatalogRow[];
-  if (rows.length === 0) {
-    return null;
-  }
-
   return rows.map(mapPuzzleMeta);
 }
 
@@ -749,10 +776,6 @@ async function loadLiveDailyChallenges(): Promise<DailyChallenge[] | null> {
   }
 
   const rows = (data ?? []) as DailyChallengeRow[];
-  if (rows.length === 0) {
-    return null;
-  }
-
   return rows.map(mapDailyChallenge);
 }
 
@@ -776,10 +799,6 @@ async function loadLiveTournaments(): Promise<Tournament[] | null> {
   }
 
   const rows = (data ?? []) as TournamentRow[];
-  if (rows.length === 0) {
-    return null;
-  }
-
   return rows.map(mapTournament);
 }
 
@@ -829,10 +848,6 @@ async function loadLiveMatchActivity(
   }
 
   const rows = (data ?? []) as ProfileRoundActivityRow[];
-  if (rows.length === 0) {
-    return null;
-  }
-
   return rows.map((row) => mapRoundActivity(row, puzzleLabelByType));
 }
 
@@ -856,10 +871,6 @@ async function loadLivePurchaseActivity(currentUserId: string): Promise<ProfileA
   }
 
   const rows = (data ?? []) as PurchaseActivityRow[];
-  if (rows.length === 0) {
-    return null;
-  }
-
   return rows.map(mapPurchaseActivity);
 }
 
@@ -916,7 +927,7 @@ async function loadLiveSocialActivity(currentUserId: string): Promise<ProfileAct
     }
   }
 
-  return events.length > 0 ? sortActivityFeed(events) : null;
+  return sortActivityFeed(events);
 }
 
 async function loadLiveProfileActivity(
@@ -941,9 +952,8 @@ async function loadLiveProfileActivity(
     ...(socialActivity ?? []),
   ]).slice(0, 8);
 
-  return activityFeed.length > 0 ? activityFeed : null;
+  return activityFeed;
 }
-
 
 export async function markProfileActivityEventsRead(currentUserId: string, eventIds: string[]) {
   if (!supabase || !currentUserId || eventIds.length === 0) {
@@ -968,14 +978,23 @@ export async function loadDiscoveryContent(): Promise<DiscoveryContentSnapshot> 
     loadLivePuzzleCatalog(),
   ]);
 
+  const resolvedDailyChallenges = resolveCollection(dailyChallenges, DAILY_CHALLENGES.map(cloneDailyChallenge));
+  const resolvedTournaments = resolveCollection(tournaments, TOURNAMENTS.map(cloneTournament));
+  const resolvedPuzzleTypes = resolveCollection(puzzleTypes, PUZZLE_TYPES.map(clonePuzzleMeta));
+
   return {
-    dailyChallenges: (dailyChallenges ?? DAILY_CHALLENGES).map(cloneDailyChallenge),
-    tournaments: (tournaments ?? TOURNAMENTS).map(cloneTournament),
-    puzzleTypes: (puzzleTypes ?? PUZZLE_TYPES).map(clonePuzzleMeta),
+    dailyChallenges: resolvedDailyChallenges.data.map(cloneDailyChallenge),
+    tournaments: resolvedTournaments.data.map(cloneTournament),
+    puzzleTypes: resolvedPuzzleTypes.data.map(clonePuzzleMeta),
     sources: {
-      dailyChallenges: dailyChallenges ? "supabase" : "seed",
-      tournaments: tournaments ? "supabase" : "seed",
-      puzzleTypes: puzzleTypes ? "supabase" : "seed",
+      dailyChallenges: resolvedDailyChallenges.source,
+      tournaments: resolvedTournaments.source,
+      puzzleTypes: resolvedPuzzleTypes.source,
+    },
+    resolutions: {
+      dailyChallenges: resolvedDailyChallenges.resolution,
+      tournaments: resolvedTournaments.resolution,
+      puzzleTypes: resolvedPuzzleTypes.resolution,
     },
   };
 }
@@ -1009,19 +1028,25 @@ export async function loadProfileContent(currentUserId?: string): Promise<Profil
   const canUseLiveDiscovery = Boolean(supabase);
   const canUseLiveActivity = Boolean(supabase && currentUserId && currentUserId !== "guest-player");
   const livePuzzleTypes = await loadLivePuzzleCatalog();
-  const resolvedPuzzleTypes = (livePuzzleTypes ?? PUZZLE_TYPES).map(clonePuzzleMeta);
+  const resolvedPuzzleTypes = resolveCollection(livePuzzleTypes, PUZZLE_TYPES.map(clonePuzzleMeta));
 
   if (!canUseLiveDiscovery) {
     return {
       leaderboard: LEADERBOARD.slice(0, 8).map(cloneLeaderboardEntry),
       socialDirectory: buildSeedSocialDirectory(currentUserId).map(cloneSocialEntry),
-      puzzleTypes: resolvedPuzzleTypes,
+      puzzleTypes: resolvedPuzzleTypes.data.map(clonePuzzleMeta),
       activityFeed: buildSeedActivityFeed(currentUserId).map(cloneActivityEvent),
       sources: {
         leaderboard: "seed",
         socialDirectory: "seed",
-        puzzleTypes: livePuzzleTypes ? "supabase" : "seed",
+        puzzleTypes: resolvedPuzzleTypes.source,
         activityFeed: "seed",
+      },
+      resolutions: {
+        leaderboard: "fallback",
+        socialDirectory: "fallback",
+        puzzleTypes: resolvedPuzzleTypes.resolution,
+        activityFeed: "fallback",
       },
     };
   }
@@ -1029,23 +1054,27 @@ export async function loadProfileContent(currentUserId?: string): Promise<Profil
   const [leaderboard, socialDirectory, activityFeed] = await Promise.all([
     fetchLeaderboard(8),
     fetchSocialDirectory(canUseLiveActivity ? currentUserId : undefined),
-    canUseLiveActivity ? loadLiveProfileActivity(currentUserId, resolvedPuzzleTypes) : Promise.resolve(null),
+    canUseLiveActivity ? loadLiveProfileActivity(currentUserId, resolvedPuzzleTypes.data) : Promise.resolve([]),
   ]);
 
-  const resolvedLeaderboard = leaderboard.length > 0 ? leaderboard : LEADERBOARD.slice(0, 8);
-  const resolvedSocialDirectory = socialDirectory.length > 0 ? socialDirectory : buildSeedSocialDirectory(currentUserId);
   const resolvedActivityFeed = activityFeed ?? buildSeedActivityFeed(currentUserId);
 
   return {
-    leaderboard: resolvedLeaderboard.map(cloneLeaderboardEntry),
-    socialDirectory: resolvedSocialDirectory.map(cloneSocialEntry),
-    puzzleTypes: resolvedPuzzleTypes,
+    leaderboard: leaderboard.map(cloneLeaderboardEntry),
+    socialDirectory: socialDirectory.map(cloneSocialEntry),
+    puzzleTypes: resolvedPuzzleTypes.data.map(clonePuzzleMeta),
     activityFeed: resolvedActivityFeed.map(cloneActivityEvent),
     sources: {
-      leaderboard: leaderboard.length > 0 ? "supabase" : "seed",
-      socialDirectory: socialDirectory.length > 0 ? "supabase" : "seed",
-      puzzleTypes: livePuzzleTypes ? "supabase" : "seed",
-      activityFeed: activityFeed ? "supabase" : "seed",
+      leaderboard: "supabase",
+      socialDirectory: "supabase",
+      puzzleTypes: resolvedPuzzleTypes.source,
+      activityFeed: activityFeed === null ? "seed" : "supabase",
+    },
+    resolutions: {
+      leaderboard: leaderboard.length > 0 ? "live" : "empty",
+      socialDirectory: socialDirectory.length > 0 ? "live" : "empty",
+      puzzleTypes: resolvedPuzzleTypes.resolution,
+      activityFeed: activityFeed === null ? "fallback" : activityFeed.length > 0 ? "live" : "empty",
     },
   };
 }
@@ -1053,31 +1082,50 @@ export async function loadProfileContent(currentUserId?: string): Promise<Profil
 export async function loadNotificationSummary(currentUserId?: string): Promise<NotificationSummarySnapshot> {
   const canUseLiveActivity = Boolean(supabase && currentUserId && currentUserId !== "guest-player");
 
+  if (!supabase) {
+    return buildNotificationSummary(buildSeedActivityFeed(currentUserId), "seed", "fallback");
+  }
+
   if (!canUseLiveActivity) {
-    return buildNotificationSummary(buildSeedActivityFeed(currentUserId), "seed");
+    return buildNotificationSummary([], "supabase", "empty");
   }
 
   const livePuzzleTypes = await loadLivePuzzleCatalog();
-  const resolvedPuzzleTypes = (livePuzzleTypes ?? PUZZLE_TYPES).map(clonePuzzleMeta);
-  const activityFeed = await loadLiveProfileActivity(currentUserId, resolvedPuzzleTypes);
+  const resolvedPuzzleTypes = resolveCollection(livePuzzleTypes, PUZZLE_TYPES.map(clonePuzzleMeta));
+  const activityFeed = await loadLiveProfileActivity(currentUserId, resolvedPuzzleTypes.data);
   const resolvedActivityFeed = (activityFeed ?? buildSeedActivityFeed(currentUserId)).map(cloneActivityEvent);
 
-  return buildNotificationSummary(resolvedActivityFeed, activityFeed ? "supabase" : "seed");
+  return buildNotificationSummary(
+    resolvedActivityFeed,
+    activityFeed === null ? "seed" : "supabase",
+    activityFeed === null ? "fallback" : activityFeed.length > 0 ? "live" : "empty",
+  );
 }
 
 export async function loadStoreContent(user: UserProfile | null): Promise<StoreContentSnapshot> {
   const storefront = await fetchStorefront(user);
-  const vipMembership = storefront.vipMembership ?? cloneVipMembership(VIP_MEMBERSHIP);
+  const vipMembership = storefront.vipMembership ? cloneVipMembership(storefront.vipMembership) : null;
 
   return {
     storefront: cloneStorefrontSnapshot(storefront),
-    vipMembership: cloneVipMembership(vipMembership),
+    vipMembership,
     sources: {
       storefront: storefront.source,
-      vipMembership: storefront.vipMembership && storefront.source === "supabase" ? "supabase" : "seed",
+      vipMembership: storefront.source === "supabase" ? "supabase" : "seed",
+    },
+    resolutions: {
+      storefront: storefront.source === "seed" ? "fallback" : storefront.items.length > 0 || storefront.vipProduct ? "live" : "empty",
+      vipMembership: storefront.source === "seed" ? "fallback" : vipMembership ? "live" : "empty",
     },
   };
 }
+
+
+
+
+
+
+
 
 
 

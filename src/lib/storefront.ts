@@ -124,7 +124,8 @@ function asCategory(value: unknown): ItemCategory {
     value === "title" ||
     value === "bundle" ||
     value === "hint_pack" ||
-    value === "battle_pass"
+    value === "battle_pass" ||
+    value === "badge"
   ) {
     return value;
   }
@@ -362,7 +363,7 @@ export async function fetchStorefront(profile?: UserProfile | null): Promise<Sto
   return {
     items,
     vipProduct: vipRow ? mapProduct(vipRow, ownedIds, wallet) : null,
-    vipMembership: mapVipMembership(vipRow, wallet, profile) ?? buildFallbackVipMembership(profile),
+    vipMembership: mapVipMembership(vipRow, wallet, profile),
     wallet,
     source: "supabase",
   };

@@ -10,6 +10,7 @@ import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import {
   loadDiscoveryContent,
   loadProfileContent,
+  type GameContentResolution,
   type GameContentSource,
 } from "@/lib/game-content";
 import { getRankBand, getRankColor } from "@/lib/seed-data";
@@ -48,8 +49,11 @@ export default function HomePage() {
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [activityPreview, setActivityPreview] = useState<ProfileActivityEvent[]>([]);
   const [challengeSource, setChallengeSource] = useState<GameContentSource>("seed");
+  const [challengeResolution, setChallengeResolution] = useState<GameContentResolution>("fallback");
   const [leaderboardSource, setLeaderboardSource] = useState<GameContentSource>("seed");
+  const [leaderboardResolution, setLeaderboardResolution] = useState<GameContentResolution>("fallback");
   const [activitySource, setActivitySource] = useState<GameContentSource>("seed");
+  const [activityResolution, setActivityResolution] = useState<GameContentResolution>("fallback");
   const [unreadCount, setUnreadCount] = useState(0);
   const [isContentLoading, setIsContentLoading] = useState(true);
   const [contentError, setContentError] = useState<string | null>(null);
@@ -72,10 +76,13 @@ export default function HomePage() {
 
         setFeaturedPlayers(profile.leaderboard.slice(0, 4));
         setLeaderboardSource(profile.sources.leaderboard);
+        setLeaderboardResolution(profile.resolutions.leaderboard);
         setChallenge(discovery.dailyChallenges.find((entry) => !entry.isCompleted) ?? discovery.dailyChallenges[0] ?? null);
         setChallengeSource(discovery.sources.dailyChallenges);
+        setChallengeResolution(discovery.resolutions.dailyChallenges);
         setActivityPreview(profile.activityFeed.slice(0, 2));
         setActivitySource(profile.sources.activityFeed);
+        setActivityResolution(profile.resolutions.activityFeed);
         setUnreadCount(profile.activityFeed.filter((entry) => !entry.isRead).length);
       } catch (error) {
         if (cancelled) return;
@@ -94,6 +101,25 @@ export default function HomePage() {
   }, [user?.id]);
 
   const primaryAlert = activityPreview[0] ?? null;
+  const leaderboardEmptyMessage = contentError
+    ? contentError
+    : leaderboardResolution === "empty"
+      ? "Live ladder entries will appear here as soon as ranked results land."
+      : "Demo ladder loaded while live rankings sync.";
+  const activityEmptyMessage = isContentLoading
+    ? "Loading alerts..."
+    : activityResolution === "empty"
+      ? canSave
+        ? "Your live activity stream is empty right now. Match results, purchases, and social updates will appear here automatically."
+        : "Sign in to start a live activity stream across devices."
+      : "Demo activity preview loaded while the live feed is unavailable.";
+  const challengeDescription = contentError ??
+    (isContentLoading
+      ? "Syncing the latest command deck snapshot."
+      : challenge?.description ??
+        (challengeResolution === "empty"
+          ? "The live challenge queue is clear right now. Check back after the next rotation."
+          : "Demo challenge loaded while the live challenge feed is unavailable."));
 
   return (
     <div className="page-screen">
@@ -170,10 +196,7 @@ export default function HomePage() {
                         : challenge?.title ?? "Daily Challenge"
                     }
                     description={
-                      contentError ??
-                      (isContentLoading
-                        ? "Syncing the latest command deck snapshot."
-                        : challenge?.description ?? "A fresh daily puzzle run.")
+                      challengeDescription
                     }
                     onClick={() => {
                       if (canSave) {
@@ -259,7 +282,7 @@ export default function HomePage() {
                     </div>
                   )) : (
                     <div className="command-panel-soft px-4 py-3 text-sm text-muted-foreground">
-                      {isContentLoading ? "Loading alerts..." : "No recent alerts yet."}
+                      {activityEmptyMessage}
                     </div>
                   )}
                 </div>
@@ -304,7 +327,7 @@ export default function HomePage() {
                 </div>
               )) : (
                 <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-                  {contentError ?? "Leaderboard sync is still warming up."}
+                  {leaderboardEmptyMessage}
                 </div>
               )}
             </div>
