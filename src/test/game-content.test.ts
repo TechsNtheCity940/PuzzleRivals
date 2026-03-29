@@ -33,6 +33,11 @@ describe("game content service", () => {
     expect(snapshot.sources.season).toBe("seed");
     expect(snapshot.sources.entitlements).toBe("seed");
     expect(snapshot.sources.quests).toBe("seed");
+    expect(snapshot.resolutions).toEqual({
+      season: "fallback",
+      entitlements: "fallback",
+      quests: "fallback",
+    });
   });
 
   it("loads profile content with seed fallbacks for non-live sessions", async () => {

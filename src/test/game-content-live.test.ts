@@ -256,6 +256,11 @@ describe("game content live feeds", () => {
       entitlements: "supabase",
       quests: "supabase",
     });
+    expect(snapshot.resolutions).toEqual({
+      season: "live",
+      entitlements: "live",
+      quests: "live",
+    });
     expect(snapshot.hasSeasonPass).toBe(true);
     expect(snapshot.season).toMatchObject({
       id: "season_12",

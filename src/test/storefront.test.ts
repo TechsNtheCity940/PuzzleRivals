@@ -396,7 +396,7 @@ describe("storefront service", () => {
     });
   });
 
-  it("falls back to seed store content when no live catalog rows are available", async () => {
+  it("surfaces an honest live-empty storefront when no catalog rows are available", async () => {
     mocks.responses.products = [
       {
         data: [],
@@ -405,8 +405,9 @@ describe("storefront service", () => {
 
     const snapshot = await fetchStorefront(createUser({ id: "guest-player", isGuest: true }));
 
-    expect(snapshot.source).toBe("seed");
-    expect(snapshot.items.length).toBeGreaterThan(0);
-    expect(snapshot.vipMembership?.perks.length).toBeGreaterThan(0);
+    expect(snapshot.source).toBe("supabase");
+    expect(snapshot.items).toEqual([]);
+    expect(snapshot.vipProduct).toBeNull();
+    expect(snapshot.vipMembership).toBeNull();
   });
 });

@@ -8,8 +8,9 @@ import StockAvatar from "@/components/profile/StockAvatar";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { getPassTierProgress } from "@/lib/economy";
-import { loadSeasonContent, type GameContentSource, type SeasonContentSnapshot } from "@/lib/game-content";
+import { loadSeasonContent, type GameContentResolution, type GameContentSource, type SeasonContentSnapshot } from "@/lib/game-content";
 import {
+  findSeasonalCosmetic,
   NEON_RIVALS_BOARD_SHOWCASE,
   NEON_RIVALS_COSMETICS,
   NEON_RIVALS_ELITE_FRAMES,
@@ -35,7 +36,7 @@ function clearCheckoutParams(params: URLSearchParams, setParams: ReturnType<type
 }
 
 function sourceLabel(source: GameContentSource) {
-  return source === "supabase" ? "Live" : "Demo";
+  return source === "supabase" ? "Live" : "Local Preview";
 }
 
 function avatarIdForReward(itemId: string) {
@@ -62,13 +63,53 @@ function rewardLaneLabel(itemId: string, season: SeasonContentSnapshot["season"]
   return "Season reward";
 }
 
+function formatFallbackRewardLabel(itemId: string) {
+  return itemId
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function describeQuestReward(reward: { coins?: number; gems?: number; shards?: number; passXp?: number; itemId?: string }) {
+  if (reward.itemId) {
+    const cosmetic = findSeasonalCosmetic(reward.itemId);
+    const previewKind = cosmetic ? previewKindForCategory(cosmetic.category) : null;
+    return {
+      label: cosmetic?.name ?? formatFallbackRewardLabel(reward.itemId),
+      eyebrow: cosmetic ? rewardLaneLabel(cosmetic.id, null) : "Season reward",
+      previewKind,
+      previewId: cosmetic?.id ?? null,
+    };
+  }
+
+  if (reward.gems) return { label: `${reward.gems} Gems`, eyebrow: "Currency reward", previewKind: null, previewId: null };
+  if (reward.shards) return { label: `${reward.shards} Shards`, eyebrow: "Currency reward", previewKind: null, previewId: null };
+  if (reward.passXp) return { label: `${reward.passXp} Pass XP`, eyebrow: "Progress reward", previewKind: null, previewId: null };
+  if (reward.coins) return { label: `${reward.coins} Coins`, eyebrow: "Currency reward", previewKind: null, previewId: null };
+
+  return { label: "Season reward", eyebrow: "Reward", previewKind: null, previewId: null };
+}
+
+function describeSeasonResolution(resolution: GameContentResolution | undefined) {
+  if (resolution === "fallback") {
+    return "Local preview season data is loaded because Supabase is disabled.";
+  }
+  if (resolution === "unavailable") {
+    return "Live season metadata is currently unavailable.";
+  }
+  if (resolution === "empty") {
+    return "The live season feed is connected, but no active season is published right now.";
+  }
+  return null;
+}
+
 export default function SeasonPage() {
   const [seasonContent, setSeasonContent] = useState<SeasonContentSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [params, setParams] = useSearchParams();
-  const { user, canSave, refreshUser } = useAuth();
+  const { user, canSave, hasSession, refreshUser, signOut } = useAuth();
+  const accountNeedsSync = hasSession && !user;
 
   useEffect(() => {
     let active = true;
@@ -137,6 +178,8 @@ export default function SeasonPage() {
   }, [params, refreshUser, setParams, user]);
 
   const season = seasonContent?.season ?? null;
+  const seasonResolution = seasonContent?.resolutions.season;
+  const questsResolution = seasonContent?.resolutions.quests;
   const { currentTier, nextTierXp, progressWithinTier } = useMemo(
     () => getPassTierProgress(user?.passXp ?? 0, season?.maxTier ?? 40),
     [season?.maxTier, user?.passXp],
@@ -154,6 +197,10 @@ export default function SeasonPage() {
   }, [currentTier, season]);
 
   async function unlockPremiumTrack() {
+    if (accountNeedsSync) {
+      toast.error("Profile sync is required before unlocking the battle pass.");
+      return;
+    }
     if (!canSave) {
       toast.error("Sign in before buying the battle pass.");
       return;
@@ -168,19 +215,42 @@ export default function SeasonPage() {
     }
   }
 
+  const subtitle = loadError
+    ? loadError
+    : accountNeedsSync
+      ? "You are signed in, but the live season profile payload is unavailable. Sign out and retry before claiming rewards."
+      : isLoading
+        ? "Loading Neon Rivals season lane..."
+        : describeSeasonResolution(seasonResolution) ?? `Electric | Competitive | Puzzle Arena | ${sourceLabel(seasonContent?.sources.season ?? "seed")} rewards`;
+
   return (
     <div className="page-screen">
       <div className="page-stack">
         <PageHeader
           eyebrow="Season 1 Live Event"
           title={season ? `Season ${season.seasonNumber}: ${season.name}` : "Season 1: Neon Rivals"}
-          subtitle={season ? `Electric | Competitive | Puzzle Arena | ${sourceLabel(seasonContent?.sources.season ?? "seed")} rewards` : "Loading Neon Rivals season lane..."}
+          subtitle={subtitle}
           right={
-            <div className="spotlight-panel">
-              <p className="section-kicker">Neon Rivals</p>
-              <p className="mt-2 text-3xl font-black">Tier {currentTier}/{season?.maxTier ?? 40}</p>
-              <p className="mt-2 text-sm text-muted-foreground">{progressWithinTier}% toward the next unlock.</p>
-            </div>
+            accountNeedsSync ? (
+              <div className="spotlight-panel flex min-w-[260px] flex-col gap-3">
+                <div>
+                  <p className="section-kicker">Season Sync</p>
+                  <p className="mt-2 text-lg font-black">Profile unavailable</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    The season lane is live, but your account payload did not load. Sign out to retry.
+                  </p>
+                </div>
+                <Button onClick={() => void signOut()} variant="outline" size="sm" className="w-full">
+                  Sign Out To Retry
+                </Button>
+              </div>
+            ) : (
+              <div className="spotlight-panel">
+                <p className="section-kicker">Neon Rivals</p>
+                <p className="mt-2 text-3xl font-black">Tier {currentTier}/{season?.maxTier ?? 40}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{progressWithinTier}% toward the next unlock.</p>
+              </div>
+            )
           }
         />
 
@@ -228,11 +298,11 @@ export default function SeasonPage() {
                   variant="prestige"
                   size="xl"
                   className="w-full"
-                  disabled={isLoading || isPurchasing}
+                  disabled={isLoading || isPurchasing || accountNeedsSync}
                   onClick={() => void unlockPremiumTrack()}
                 >
                   <Crown size={14} />
-                  {isPurchasing ? "Opening..." : "Unlock Neon Rivals Pass"}
+                  {accountNeedsSync ? "Profile Sync Required" : isPurchasing ? "Opening..." : "Unlock Neon Rivals Pass"}
                 </Button>
               </div>
             ) : (
@@ -246,6 +316,8 @@ export default function SeasonPage() {
               </div>
             )}
           </div>
+        </section>
+
         <section className="section-panel overflow-hidden">
           <div className="section-header">
             <div>
@@ -315,8 +387,6 @@ export default function SeasonPage() {
           </div>
         </section>
 
-        </section>
-
         <div className="page-grid">
           <section className="section-panel">
             <div className="section-header">
@@ -371,7 +441,7 @@ export default function SeasonPage() {
                 />
               )) : (
                 <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-                  {isLoading ? "Loading season rewards..." : "No reward lane is available yet."}
+                  {isLoading ? "Loading season rewards..." : describeSeasonResolution(seasonResolution) ?? "No reward lane is available yet."}
                 </div>
               )}
             </div>
@@ -494,7 +564,7 @@ export default function SeasonPage() {
                 ))
               ) : (
                 <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-                  {isLoading ? "Loading mission cadence..." : "No daily or weekly quests are available right now."}
+                  {isLoading ? "Loading mission cadence..." : questsResolution === "unavailable" ? "Live mission data is currently unavailable." : "No daily or weekly quests are available right now."}
                 </div>
               )}
             </div>
@@ -509,32 +579,40 @@ export default function SeasonPage() {
             </div>
             <div className="section-stack">
               {(seasonContent?.quests.seasonal ?? []).length > 0 ? (
-                seasonContent?.quests.seasonal.map((quest) => (
-                  <PuzzleTileButton
-                    key={quest.id}
-                    icon={Lock}
-                    title={quest.title}
-                    description={`${quest.description} ${quest.progress}/${quest.target}`}
-                    right={
-                      <div className="text-right">
-                        <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Season</p>
-                        <p className="mt-1 text-xs font-black text-primary">
-                          {quest.reward.itemId ? quest.reward.itemId.replaceAll("_", " ") : `${quest.reward.gems ?? 0} Gems`}
-                        </p>
-                      </div>
-                    }
-                  />
-                ))
+                seasonContent?.quests.seasonal.map((quest) => {
+                  const rewardDisplay = describeQuestReward(quest.reward);
+                  return (
+                    <PuzzleTileButton
+                      key={quest.id}
+                      icon={Lock}
+                      media={
+                        rewardDisplay.previewKind && rewardDisplay.previewId ? (
+                          <CosmeticPreview
+                            kind={rewardDisplay.previewKind}
+                            productId={rewardDisplay.previewId}
+                            className="h-[72px] w-[72px] rounded-[20px]"
+                          />
+                        ) : undefined
+                      }
+                      title={quest.title}
+                      description={`${quest.description} ${quest.progress}/${quest.target}`}
+                      right={
+                        <div className="text-right">
+                          <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{rewardDisplay.eyebrow}</p>
+                          <p className="mt-1 text-xs font-black text-primary">{rewardDisplay.label}</p>
+                        </div>
+                      }
+                    />
+                  );
+                })
               ) : (
                 <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-                  {isLoading ? "Loading prestige objectives..." : "No seasonal objectives are available right now."}
+                  {isLoading ? "Loading prestige objectives..." : questsResolution === "unavailable" ? "Live seasonal objectives are currently unavailable." : "No seasonal objectives are available right now."}
                 </div>
               )}
             </div>
           </section>
         </div>
-
-        {loadError ? <p className="px-1 text-sm text-muted-foreground">{loadError}</p> : null}
       </div>
     </div>
   );

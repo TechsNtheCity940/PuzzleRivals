@@ -256,6 +256,16 @@ function getFallbackSnapshot(profile?: UserProfile | null): StorefrontSnapshot {
   };
 }
 
+function getEmptyLiveSnapshot(profile?: UserProfile | null): StorefrontSnapshot {
+  return {
+    items: [],
+    vipProduct: null,
+    vipMembership: null,
+    wallet: toWallet(profile),
+    source: "supabase",
+  };
+}
+
 function mapProduct(
   product: ProductRow,
   ownedIds: Set<string>,
@@ -349,46 +359,46 @@ export async function fetchStorefront(profile?: UserProfile | null): Promise<Sto
       ? supabase
           .from("user_inventory")
           .select("product_id, is_equipped")
-          .eq("user_id", profile!.id)
+          .eq("user_id", profile.id)
       : Promise.resolve({ data: [] as InventoryRow[], error: null }),
     shouldLoadProfileState
       ? supabase
           .from("profiles")
           .select("coins, gems, puzzle_shards, rank_points, pass_xp, hint_balance, has_season_pass, is_vip, vip_expires_at, theme_id, frame_id, player_card_id, banner_id, emblem_id, title_id")
-          .eq("id", profile!.id)
+          .eq("id", profile.id)
           .single<WalletRow>()
-      : Promise.resolve({ data: null as WalletRow | null, error: null }),
+      : Promise.resolve({ data: null, error: null }),
   ]);
 
   if (productsError) {
     if (isSupabaseSchemaSetupIssue(productsError)) {
-      return getFallbackSnapshot(profile);
+      return getEmptyLiveSnapshot(profile);
     }
     throw productsError;
   }
 
   const productRows = (products ?? []) as ProductRow[];
   if (productRows.length === 0) {
-    return getFallbackSnapshot(profile);
+    return getEmptyLiveSnapshot(profile);
   }
 
-  if (inventoryResult.error) {
-    if (isSupabaseSchemaSetupIssue(inventoryResult.error)) {
-      return getFallbackSnapshot(profile);
-    }
+  const inventorySchemaIssue = Boolean(inventoryResult.error && isSupabaseSchemaSetupIssue(inventoryResult.error));
+  if (inventoryResult.error && !inventorySchemaIssue) {
     throw inventoryResult.error;
   }
 
-  if (walletResult.error) {
-    if (isSupabaseSchemaSetupIssue(walletResult.error)) {
-      return getFallbackSnapshot(profile);
-    }
+  const walletSchemaIssue = Boolean(walletResult.error && isSupabaseSchemaSetupIssue(walletResult.error));
+  if (walletResult.error && !walletSchemaIssue) {
     throw walletResult.error;
   }
 
   const privileged = isPrivilegedUser(profile);
-  const wallet = mapWallet((walletResult.data ?? null) as WalletRow | null, profile);
-  const ownedIds = new Set(((inventoryResult.data ?? []) as InventoryRow[]).map((entry) => entry.product_id));
+  const wallet = walletSchemaIssue
+    ? toWallet(profile)
+    : mapWallet((walletResult.data ?? null) as WalletRow | null, profile);
+  const ownedIds = new Set(
+    inventorySchemaIssue ? [] : ((inventoryResult.data ?? []) as InventoryRow[]).map((entry) => entry.product_id),
+  );
   const vipRow = productRows.find((product) => product.kind === "vip") ?? null;
   const items = productRows
     .filter((product) => product.kind !== "vip")

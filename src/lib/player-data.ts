@@ -178,26 +178,6 @@ export function buildGuestUser(overrides: Partial<UserProfile> = {}): UserProfil
   };
 }
 
-export function buildAuthenticatedFallbackUser(session: Session, overrides: Partial<UserProfile> = {}): UserProfile {
-  const linkedProviders = buildLinkedProviders(session);
-  const privilegedAccount = isOwnerEmail(session.user.email ?? null);
-  return buildGuestUser({
-    id: session.user.id,
-    username: defaultUsernameForSession(session),
-    email: session.user.email ?? null,
-    appRole: privilegedAccount ? "owner" : null,
-    hintBalance: privilegedAccount ? 99 : overrides.hintBalance,
-    hasSeasonPass: privilegedAccount ? true : overrides.hasSeasonPass,
-    vipExpiresAt: privilegedAccount ? "2099-12-31T00:00:00Z" : overrides.vipExpiresAt,
-    isVip: privilegedAccount ? true : overrides.isVip,
-    joinedAt: session.user.created_at ?? new Date().toISOString(),
-    isGuest: false,
-    authMethod: resolvePrimaryAuthMethod(linkedProviders),
-    linkedProviders,
-    ...overrides,
-  });
-}
-
 function buildLinkedProviders(session: Session) {
   const identityProviders = new Set(
     (session.user.identities ?? [])
@@ -274,7 +254,10 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
   }
 
   if (!profile) {
-    return buildAuthenticatedFallbackUser(session);
+    throw toSupabaseSchemaSetupError(
+      { message: "Profile row was unavailable after auth bootstrap." },
+      "public.profiles",
+    );
   }
 
   const computed = computePuzzleSnapshot((puzzleStatsError ? [] : puzzleStats ?? []) as PuzzleStatsRow[]);

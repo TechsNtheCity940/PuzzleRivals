@@ -59,7 +59,17 @@ function romanNumeral(n: number): string {
 }
 
 function sourceLabel(source: GameContentSource) {
-  return source === "supabase" ? "Live" : "Demo";
+  return source === "supabase" ? "Live" : "Local Preview";
+}
+
+function describeStoreResolution(resolution: GameContentResolution) {
+  if (resolution === "empty") {
+    return "Live store data is connected, but no catalog items are published right now.";
+  }
+  if (resolution === "unavailable") {
+    return "Live commerce data is currently unavailable.";
+  }
+  return "Local preview store data is loaded because Supabase commerce is disabled.";
 }
 
 export default function StorePage() {
@@ -74,7 +84,8 @@ export default function StorePage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busyProductId, setBusyProductId] = useState<string | null>(null);
   const [params, setParams] = useSearchParams();
-  const { user, canSave, refreshUser } = useAuth();
+  const { user, canSave, hasSession, refreshUser, signOut } = useAuth();
+  const accountNeedsSync = hasSession && !user;
 
   useEffect(() => {
     let active = true;
@@ -168,7 +179,21 @@ export default function StorePage() {
   const vip = snapshot.vipProduct;
   const vipButtonLabel = snapshot.wallet?.isPrivileged ? "Owner Access" : snapshot.wallet?.isVip ? "Extend VIP" : "Subscribe";
 
+  async function refreshSnapshot() {
+    const next = await loadStoreContent(user);
+    setSnapshot(next.storefront);
+    setVipMembership(next.vipMembership);
+    setStorefrontSource(next.sources.storefront);
+    setStorefrontResolution(next.resolutions.storefront);
+    setVipResolution(next.resolutions.vipMembership);
+  }
+
   async function handleItemAction(item: StorefrontItem) {
+    if (accountNeedsSync) {
+      toast.error("Profile sync is required before purchases or equips.");
+      return;
+    }
+
     if (!canSave) {
       toast.error("Sign in before making purchases.");
       return;
@@ -184,12 +209,7 @@ export default function StorePage() {
       if (item.isOwned && isEquipable(item)) {
         await equipStoreItem(item.id);
         await refreshUser();
-        const next = await loadStoreContent(user);
-        setSnapshot(next.storefront);
-        setVipMembership(next.vipMembership);
-        setStorefrontSource(next.sources.storefront);
-        setStorefrontResolution(next.resolutions.storefront);
-        setVipResolution(next.resolutions.vipMembership);
+        await refreshSnapshot();
         toast.success(`${item.name} equipped.`);
         return;
       }
@@ -202,12 +222,7 @@ export default function StorePage() {
 
       await purchaseStoreItem(item.id);
       await refreshUser();
-      const next = await loadStoreContent(user);
-      setSnapshot(next.storefront);
-      setVipMembership(next.vipMembership);
-      setStorefrontSource(next.sources.storefront);
-      setStorefrontResolution(next.resolutions.storefront);
-      setVipResolution(next.resolutions.vipMembership);
+      await refreshSnapshot();
       toast.success(`${item.name} added to your account.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Purchase failed.");
@@ -216,44 +231,59 @@ export default function StorePage() {
     }
   }
 
+  const subtitle = accountNeedsSync
+    ? "You are signed in, but the live wallet/profile payload is unavailable. Sign out and back in before using commerce."
+    : canSave
+      ? storefrontResolution === "live"
+        ? `${sourceLabel(storefrontSource)} purchases and account-bound items.`
+        : describeStoreResolution(storefrontResolution)
+      : storefrontResolution === "fallback"
+        ? "Browsing the local preview store as guest. Purchases require sign-in."
+        : "Browse as guest. Purchases require sign-in.";
+
   return (
     <div className="page-screen">
       <div className="page-stack">
         <PageHeader
           eyebrow="Customization Market"
           title="Store"
-          subtitle={
-            canSave
-              ? storefrontResolution === "empty"
-                ? "Live store feed connected, but the catalog is empty right now."
-                : storefrontResolution === "fallback"
-                  ? "Demo store catalog loaded while live commerce data is unavailable."
-                  : `${sourceLabel(storefrontSource)} purchases and account-bound items.`
-              : storefrontResolution === "fallback"
-                ? "Browsing the demo store as guest. Purchases require sign-in."
-                : "Browse as guest. Purchases require sign-in."
-          }
+          subtitle={subtitle}
           right={
-            <div className="spotlight-panel">
-              <div className="grid grid-cols-2 gap-3 text-center">
+            accountNeedsSync ? (
+              <div className="spotlight-panel flex min-w-[260px] flex-col gap-3">
                 <div>
-                  <p className="hud-label">Coins</p>
-                  <p className="mt-2 text-2xl font-black text-coin">{snapshot.wallet?.coins?.toLocaleString() ?? 0}</p>
+                  <p className="section-kicker">Commerce Status</p>
+                  <p className="mt-2 text-lg font-black">Profile sync required</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    The session is active, but the account wallet is unavailable. Sign out to retry cleanly.
+                  </p>
                 </div>
-                <div>
-                  <p className="hud-label">Gems</p>
-                  <p className="mt-2 text-2xl font-black text-primary">{snapshot.wallet?.gems ?? 0}</p>
-                </div>
-                <div>
-                  <p className="hud-label">Shards</p>
-                  <p className="mt-2 text-2xl font-black text-gradient-prestige">{snapshot.wallet?.puzzleShards ?? 0}</p>
-                </div>
-                <div>
-                  <p className="hud-label">Pass XP</p>
-                  <p className="mt-2 text-2xl font-black text-xp">{snapshot.wallet?.passXp ?? 0}</p>
+                <Button onClick={() => void signOut()} variant="outline" size="sm" className="w-full">
+                  Sign Out To Retry
+                </Button>
+              </div>
+            ) : (
+              <div className="spotlight-panel">
+                <div className="grid grid-cols-2 gap-3 text-center">
+                  <div>
+                    <p className="hud-label">Coins</p>
+                    <p className="mt-2 text-2xl font-black text-coin">{snapshot.wallet?.coins?.toLocaleString() ?? 0}</p>
+                  </div>
+                  <div>
+                    <p className="hud-label">Gems</p>
+                    <p className="mt-2 text-2xl font-black text-primary">{snapshot.wallet?.gems ?? 0}</p>
+                  </div>
+                  <div>
+                    <p className="hud-label">Shards</p>
+                    <p className="mt-2 text-2xl font-black text-gradient-prestige">{snapshot.wallet?.puzzleShards ?? 0}</p>
+                  </div>
+                  <div>
+                    <p className="hud-label">Pass XP</p>
+                    <p className="mt-2 text-2xl font-black text-xp">{snapshot.wallet?.passXp ?? 0}</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )
           }
         />
 
@@ -268,7 +298,15 @@ export default function StorePage() {
                 <Crown size={18} className="text-primary" />
               </div>
               <p className="text-sm leading-6 text-muted-foreground">
-                {vip ? formatPrice(vip) : vipMembership ? `$${vipMembership.priceUsd.toFixed(2)}/month` : vipResolution === "empty" ? "VIP offer not published yet" : "Unavailable"} - {snapshot.wallet?.hintBalance ?? 0} hints banked
+                {vip
+                  ? formatPrice(vip)
+                  : vipMembership
+                    ? `$${vipMembership.priceUsd.toFixed(2)}/month`
+                    : vipResolution === "empty"
+                      ? "VIP offer not published yet"
+                      : vipResolution === "unavailable"
+                        ? "Live VIP offer is currently unavailable"
+                        : "Unavailable"} - {snapshot.wallet?.hintBalance ?? 0} hints banked
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <div className="rich-stat">
@@ -321,7 +359,7 @@ export default function StorePage() {
                 variant="prestige"
                 size="xl"
                 className="w-full"
-                disabled={!vip || busyProductId === vip?.id || Boolean(snapshot.wallet?.isPrivileged)}
+                disabled={!vip || busyProductId === vip?.id || Boolean(snapshot.wallet?.isPrivileged) || accountNeedsSync}
                 onClick={() => vip && handleItemAction(vip)}
               >
                 <Crown size={14} />
@@ -402,12 +440,12 @@ export default function StorePage() {
                     }
                     className="h-full"
                     onClick={() => void handleItemAction(item)}
-                    disabled={isLoading || busyProductId === item.id || (item.isOwned && !isEquipable(item))}
+                    disabled={isLoading || busyProductId === item.id || accountNeedsSync || (item.isOwned && !isEquipable(item))}
                   />
                 ))
               ) : (
                 <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-{storefrontResolution === "empty" ? "The live store catalog is empty right now." : "Demo store catalog loaded while live inventory is unavailable."}
+                  {describeStoreResolution(storefrontResolution)}
                 </div>
               )}
             </div>
@@ -439,4 +477,3 @@ export default function StorePage() {
     </div>
   );
 }
-

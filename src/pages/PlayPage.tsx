@@ -5,7 +5,7 @@ import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import { Button } from "@/components/ui/button";
-import { loadDiscoveryContent, type GameContentSource } from "@/lib/game-content";
+import { loadDiscoveryContent, type GameContentResolution, type GameContentSource } from "@/lib/game-content";
 import { useAuth } from "@/providers/AuthProvider";
 import { getRankBand, getRankColor } from "@/lib/seed-data";
 import type { DailyChallenge } from "@/lib/types";
@@ -22,16 +22,24 @@ const MODES = [
 ];
 
 function sourceLabel(source: GameContentSource) {
-  return source === "supabase" ? "Live" : "Demo";
+  return source === "supabase" ? "Live" : "Local Preview";
+}
+
+function describeChallengeResolution(resolution: GameContentResolution) {
+  if (resolution === "empty") return "The live daily challenge queue is empty right now.";
+  if (resolution === "unavailable") return "Live daily challenge data is currently unavailable.";
+  return "Local preview challenge data is loaded because Supabase is disabled.";
 }
 
 export default function PlayPage() {
   const navigate = useNavigate();
   const { openSignUp } = useAuthDialog();
-  const { user, canSave, isReady } = useAuth();
+  const { user, canSave, hasSession, isReady, signOut } = useAuth();
+  const accountNeedsSync = hasSession && !user;
   const [selectedMode, setSelectedMode] = useState<PlayMode>("ranked");
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
   const [dailySource, setDailySource] = useState<GameContentSource>("seed");
+  const [dailyResolution, setDailyResolution] = useState<GameContentResolution>("fallback");
   const [isContentLoading, setIsContentLoading] = useState(true);
   const [contentError, setContentError] = useState<string | null>(null);
   const rankBand = getRankBand(user?.elo ?? 0);
@@ -49,6 +57,7 @@ export default function PlayPage() {
 
         setDailyChallenge(discovery.dailyChallenges[0] ?? null);
         setDailySource(discovery.sources.dailyChallenges);
+        setDailyResolution(discovery.resolutions.dailyChallenges);
       } catch (error) {
         if (cancelled) return;
         setContentError(error instanceof Error ? error.message : "Failed to load today's challenge.");
@@ -87,7 +96,7 @@ export default function PlayPage() {
         <PageHeader
           eyebrow="Queue Select"
           title="Play Now"
-          subtitle={`${rankBand.label} - ELO ${user?.elo ?? 0}`}
+          subtitle={accountNeedsSync ? "Signed in, but profile sync is unavailable. Sign out and retry before queuing." : `${rankBand.label} - ELO ${user?.elo ?? 0}`}
           right={
             <div className="spotlight-panel">
               <p className="section-kicker">Lobby Rule</p>
@@ -111,6 +120,10 @@ export default function PlayPage() {
               </div>
               <Button
                 onClick={() => {
+                  if (accountNeedsSync) {
+                    void signOut();
+                    return;
+                  }
                   if (canSave) {
                     navigate(`/match?mode=${selectedMode}`);
                     return;
@@ -120,10 +133,10 @@ export default function PlayPage() {
                 variant="play"
                 size="xl"
                 className="w-full sm:w-auto"
-                disabled={!isReady || !user}
+                disabled={!isReady || (!user && !accountNeedsSync)}
               >
                 <Swords size={18} />
-                {!isReady || !user ? "Syncing Account..." : canSave ? "Launch Match" : "Sign Up To Compete"}
+                {!isReady ? "Syncing Account..." : accountNeedsSync ? "Sign Out To Retry" : canSave ? "Launch Match" : "Sign Up To Compete"}
               </Button>
             </div>
 
@@ -223,7 +236,7 @@ export default function PlayPage() {
                 {contentError ??
                   (isContentLoading
                     ? "Pulling the latest challenge feed for this queue screen."
-                    : dailyChallenge?.description ?? "Generated elite challenge.")}
+                    : dailyChallenge?.description ?? describeChallengeResolution(dailyResolution))}
               </p>
             </section>
           </div>
@@ -232,4 +245,3 @@ export default function PlayPage() {
     </div>
   );
 }
-

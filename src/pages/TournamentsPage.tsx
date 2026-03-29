@@ -2,13 +2,40 @@ import { useEffect, useMemo, useState } from "react";
 import { Trophy, Users, Zap } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
-import { loadDiscoveryContent, type GameContentSource } from "@/lib/game-content";
+import { loadDiscoveryContent, type GameContentResolution, type GameContentSource } from "@/lib/game-content";
+import { getNeonPuzzleSurfaceAsset, getNeonPuzzleThemeDefinition } from "@/lib/match-board-theme";
 import type { PuzzleMeta, Tournament } from "@/lib/types";
 
 type Tab = "upcoming" | "live" | "completed";
 
 function sourceLabel(source: GameContentSource) {
-  return source === "supabase" ? "Live circuit" : "Demo circuit";
+  return source === "supabase" ? "Live circuit" : "Local preview";
+}
+
+function describeTournamentResolution(resolution: GameContentResolution) {
+  if (resolution === "empty") {
+    return "No tournaments are currently published in this circuit state.";
+  }
+  if (resolution === "unavailable") {
+    return "Live tournament data is currently unavailable.";
+  }
+  return "Local preview tournaments are loaded because Supabase discovery is disabled.";
+}
+
+function TournamentMedia({ tournament, puzzle }: { tournament: Tournament; puzzle?: PuzzleMeta }) {
+  const theme = getNeonPuzzleThemeDefinition(tournament.puzzleType);
+  const assetRef = getNeonPuzzleSurfaceAsset(tournament.puzzleType);
+
+  return (
+    <div className="relative h-[84px] w-[84px] overflow-hidden rounded-[24px] border border-primary/20 bg-slate-950/80 shadow-[0_16px_36px_rgba(6,10,20,0.32)]">
+      <img src={assetRef} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover opacity-90" loading="lazy" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,10,18,0.12),rgba(6,10,18,0.78))]" />
+      <div className="absolute inset-x-0 bottom-0 p-2">
+        <p className="font-hud text-[9px] uppercase tracking-[0.18em] text-primary">{theme.kicker}</p>
+        <p className="truncate text-xs font-black text-white">{puzzle?.label ?? theme.label}</p>
+      </div>
+    </div>
+  );
 }
 
 export default function TournamentsPage() {
@@ -16,6 +43,7 @@ export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [puzzleTypes, setPuzzleTypes] = useState<PuzzleMeta[]>([]);
   const [tournamentSource, setTournamentSource] = useState<GameContentSource>("seed");
+  const [tournamentResolution, setTournamentResolution] = useState<GameContentResolution>("fallback");
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -33,6 +61,7 @@ export default function TournamentsPage() {
         setTournaments(discovery.tournaments);
         setPuzzleTypes(discovery.puzzleTypes);
         setTournamentSource(discovery.sources.tournaments);
+        setTournamentResolution(discovery.resolutions.tournaments);
       } catch (error) {
         if (cancelled) return;
         setLoadError(error instanceof Error ? error.message : "Failed to load tournament circuit.");
@@ -57,6 +86,8 @@ export default function TournamentsPage() {
   ];
   const liveTournament = tournaments.find((tournament) => tournament.status === "live");
   const visible = filtered.slice(0, 6);
+  const livePuzzle = liveTournament ? puzzleTypes.find((entry) => entry.type === liveTournament.puzzleType) : undefined;
+  const liveTheme = liveTournament ? getNeonPuzzleThemeDefinition(liveTournament.puzzleType) : null;
 
   return (
     <div className="page-screen">
@@ -64,7 +95,7 @@ export default function TournamentsPage() {
         <PageHeader
           eyebrow="Competitive Circuit"
           title="Tournaments"
-          subtitle={`${sourceLabel(tournamentSource)} snapshot for active, upcoming, and finished events.`}
+          subtitle={loadError ?? (isLoading ? "Syncing the tournament circuit..." : tournamentResolution === "live" ? `${sourceLabel(tournamentSource)} snapshot for active, upcoming, and finished events.` : describeTournamentResolution(tournamentResolution))}
           right={
             <div className="spotlight-panel text-center">
               <p className="section-kicker">Events</p>
@@ -85,10 +116,23 @@ export default function TournamentsPage() {
                   <Trophy size={18} className="text-primary" />
                 </div>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Live bracket, compact watchlist, rapid entry lock.
+                  {liveTheme?.summary ?? "Live bracket, compact watchlist, rapid entry lock."}
                 </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <div className="command-panel-soft px-4 py-3">
+                    <p className="hud-label">Puzzle Lane</p>
+                    <p className="mt-2 text-sm font-black text-primary">{livePuzzle?.label ?? liveTournament.puzzleType}</p>
+                  </div>
+                  <div className="command-panel-soft px-4 py-3">
+                    <p className="hud-label">Status</p>
+                    <p className="mt-2 text-sm font-black text-white">{liveTournament.status}</p>
+                  </div>
+                </div>
               </div>
               <div className="metric-grid">
+                <div className="command-panel-soft flex items-center justify-center p-4 sm:col-span-3">
+                  <TournamentMedia tournament={liveTournament} puzzle={livePuzzle} />
+                </div>
                 <div className="rich-stat">
                   <p className="hud-label">Prize</p>
                   <p className="stat-value text-primary">{liveTournament.prizePool.toLocaleString()}</p>
@@ -146,17 +190,18 @@ export default function TournamentsPage() {
               </div>
             ) : visible.length === 0 ? (
               <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-                No {tab} tournaments.
+                {describeTournamentResolution(tournamentResolution)}
               </div>
             ) : (
               visible.map((tournament) => {
                 const puzzle = puzzleTypes.find((entry) => entry.type === tournament.puzzleType);
+                const theme = getNeonPuzzleThemeDefinition(tournament.puzzleType);
                 return (
                   <PuzzleTileButton
                     key={tournament.id}
                     title={tournament.name}
-                    description={`${puzzle?.label ?? "Puzzle"} - ${tournament.status}`}
-                    emoji={puzzle?.icon}
+                    description={`${puzzle?.label ?? "Puzzle"} | ${theme.summary}`}
+                    media={<TournamentMedia tournament={tournament} puzzle={puzzle} />}
                     right={
                       <div className="space-y-1">
                         <div className="flex items-center justify-end gap-1 text-[10px] font-hud uppercase tracking-[0.16em] text-muted-foreground">

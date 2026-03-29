@@ -170,7 +170,8 @@ export default function MatchPage() {
   const navigate = useNavigate();
   const { openSignIn, openSignUp } = useAuthDialog();
   const mode = (params.get("mode") || "ranked") as MatchMode;
-  const { isReady, user, refreshUser, canSave, saveProfile } = useAuth();
+  const { isReady, user, refreshUser, canSave, hasSession, signOut, saveProfile } = useAuth();
+  const accountNeedsSync = hasSession && !user;
 
   const [lobby, setLobby] = useState<BackendLobby | null>(null);
   const [practiceSolved, setPracticeSolved] = useState(false);
@@ -550,6 +551,29 @@ export default function MatchPage() {
   }
 
   if (!canSave) {
+    if (accountNeedsSync) {
+      return (
+        <div className="page-screen">
+          <div className="page-stack">
+            <PageHeader
+              eyebrow="Account Deck"
+              title="Profile Sync Required"
+              subtitle="Your auth session is live, but the profile payload is unavailable. Sign out and retry before entering matchmaking."
+            />
+            <section className="command-panel grid gap-3 p-5 sm:grid-cols-2">
+              <Button onClick={() => void signOut()} variant="play" size="lg" className="w-full">
+                Sign Out To Retry
+              </Button>
+              <Button onClick={() => navigate("/play")} variant="outline" size="lg" className="w-full">
+                <UserRoundPlus size={16} />
+                Back
+              </Button>
+            </section>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="page-screen">
         <div className="page-stack">

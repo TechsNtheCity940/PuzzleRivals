@@ -32,11 +32,12 @@ function UnreadBell({ unreadCount }: { unreadCount: number }) {
 export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isGuest, isReady, backendWarning } = useAuth();
+  const { user, isGuest, isReady, backendWarning, hasSession, signOut } = useAuth();
   const { openSignIn, openSignUp } = useAuthDialog();
   const [unreadCount, setUnreadCount] = useState(0);
   const isMatchRoute = location.pathname.startsWith("/match");
   const hideHeader = isMatchRoute;
+  const accountNeedsSync = hasSession && !user;
   const theme = getThemeVisual(user?.themeId);
   const themeVars = {
     "--theme-shell-art": theme.shellArt ? `url("${theme.shellArt}")` : "none",
@@ -112,6 +113,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     Sign Up
                   </Button>
                 </>
+              ) : accountNeedsSync ? (
+                <div className="spotlight-panel flex max-w-[320px] items-center gap-3 px-4 py-3 text-left">
+                  <div className="min-w-0 flex-1">
+                    <p className="section-kicker">Account Sync</p>
+                    <p className="truncate text-base font-black text-white">Profile unavailable</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Auth is live, but profile data did not load from Supabase.
+                    </p>
+                  </div>
+                  <Button onClick={() => void signOut()} variant="outline" size="sm" className="shrink-0 rounded-full px-4">
+                    Sign Out
+                  </Button>
+                </div>
               ) : (
                 <button
                   type="button"

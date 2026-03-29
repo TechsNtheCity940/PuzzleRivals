@@ -170,7 +170,7 @@ export async function loadQuestSnapshot(user: UserProfile | null) {
     seasonal: SEASONAL_CHALLENGES.map((quest) => withAbsoluteFallbackProgress(quest, user)),
   };
 
-  if (!supabase || !user || user.isGuest) {
+  if (!supabase) {
     return fallback;
   }
 
@@ -180,10 +180,12 @@ export async function loadQuestSnapshot(user: UserProfile | null) {
       .from("quest_definitions")
       .select("id, track, title, description, target_value, reward_json, metadata")
       .eq("active", true),
-    supabase
-      .from("player_quest_progress")
-      .select("quest_id, period_key, progress, completed_at")
-      .eq("user_id", user.id),
+    user && !user.isGuest
+      ? supabase
+          .from("player_quest_progress")
+          .select("quest_id, period_key, progress, completed_at")
+          .eq("user_id", user.id)
+      : Promise.resolve({ data: [] as QuestProgressRow[], error: null }),
   ]);
 
   if (definitionsError) {
@@ -222,7 +224,11 @@ export async function loadQuestSnapshot(user: UserProfile | null) {
   });
 
   if (mapped.length === 0) {
-    return fallback;
+    return {
+      daily: [],
+      weekly: [],
+      seasonal: [],
+    };
   }
 
   return {

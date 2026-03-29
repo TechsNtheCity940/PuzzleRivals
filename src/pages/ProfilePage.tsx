@@ -30,7 +30,7 @@ const DEFAULT_QUESTION_ONE = SECURITY_QUESTION_OPTIONS[0];
 const DEFAULT_QUESTION_TWO = SECURITY_QUESTION_OPTIONS[1];
 
 function sourceLabel(source: GameContentSource) {
-  return source === "supabase" ? "Live" : "Demo";
+  return source === "supabase" ? "Live" : "Local Preview";
 }
 
 function activityIcon(eventType: ProfileActivityEvent["type"]) {
@@ -63,7 +63,8 @@ function formatActivityTime(value: string) {
 export default function ProfilePage() {
   const [tab, setTab] = useState<Tab>("stats");
   const { openSignIn, openSignUp } = useAuthDialog();
-  const { user, isGuest, canSave, saveProfile, linkFacebook, linkTikTok, signOut, refreshUser } = useAuth();
+  const { user, isGuest, canSave, hasSession, saveProfile, linkFacebook, linkTikTok, signOut, refreshUser } = useAuth();
+  const accountNeedsSync = hasSession && !user;
   const rankBand = getRankBand(user?.elo ?? 0);
   const [puzzleTag, setPuzzleTag] = useState(user?.username ?? "Guest Player");
   const [avatarId, setAvatarId] = useState(user?.avatarId ?? DEFAULT_AVATAR_ID);
@@ -266,7 +267,7 @@ export default function ProfilePage() {
             <div className="spotlight-panel flex items-center gap-4">
               <IdentityLoadoutCard
                 username={puzzleTag}
-                subtitle={user?.email ?? "Local mode"}
+                subtitle={user?.email ?? (accountNeedsSync ? "Profile syncing" : "Local mode")}
                 avatarId={avatarId}
                 frameId={user?.frameId}
                 playerCardId={user?.playerCardId}
@@ -465,7 +466,7 @@ export default function ProfilePage() {
                     ))
                   ) : (
                     <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-{leaderboardResolution === "empty" ? "Live leaderboard entries will appear once ranked results land." : "Demo leaderboard data is loaded while live rankings are unavailable."}
+{leaderboardResolution === "empty" ? "Live leaderboard entries will appear once ranked results land." : leaderboardResolution === "unavailable" ? "Live leaderboard data is currently unavailable." : "Local preview leaderboard data is loaded because Supabase is disabled."}
                     </div>
                   )}
                 </div>
@@ -544,7 +545,7 @@ export default function ProfilePage() {
                       ))
                     ) : (
                       <div className="command-panel-soft flex min-h-[140px] items-center justify-center p-6 text-sm text-muted-foreground">
-                        {isContentLoading ? "Loading social directory..." : socialResolution === "empty" ? "No live linked player identities are available yet." : "Demo social directory loaded while live player identities are unavailable."}
+                        {isContentLoading ? "Loading social directory..." : socialResolution === "empty" ? "No live linked player identities are available yet." : socialResolution === "unavailable" ? "Live social directory data is currently unavailable." : "Local preview social directory is loaded because Supabase is disabled."}
                       </div>
                     )}
                   </div>
@@ -652,7 +653,7 @@ export default function ProfilePage() {
                       <div>
                         <p className="text-base font-black">No recent activity yet</p>
                         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-{activityResolution === "empty" ? (canSave ? "Your live activity feed is ready but empty right now. Match results, purchases, and social updates will appear here automatically." : "Sign in to start a live activity feed across devices.") : "Demo activity preview loaded while the live event stream is unavailable."}
+{activityResolution === "empty" ? (canSave ? "Your live activity feed is ready but empty right now. Match results, purchases, and social updates will appear here automatically." : "Sign in to start a live activity feed across devices.") : activityResolution === "unavailable" ? "Live activity data is currently unavailable." : "Local preview activity is loaded because Supabase is disabled."}
                         </p>
                       </div>
                     </div>

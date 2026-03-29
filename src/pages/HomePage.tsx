@@ -6,6 +6,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import PuzzleRivalsLogo from "@/components/branding/PuzzleRivalsLogo";
 import StockAvatar from "@/components/profile/StockAvatar";
+import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import {
   loadDiscoveryContent,
@@ -18,7 +19,7 @@ import type { DailyChallenge, LeaderboardEntry, ProfileActivityEvent } from "@/l
 import { useAuth } from "@/providers/AuthProvider";
 
 function sourceLabel(source: GameContentSource) {
-  return source === "supabase" ? "Live" : "Demo";
+  return source === "supabase" ? "Live" : "Local Preview";
 }
 
 function formatActivityTime(value: string) {
@@ -40,10 +41,24 @@ function formatActivityTime(value: string) {
   return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+function describeResolution(
+  resolution: GameContentResolution,
+  messages: {
+    empty: string;
+    unavailable: string;
+    fallback: string;
+  },
+) {
+  if (resolution === "empty") return messages.empty;
+  if (resolution === "unavailable") return messages.unavailable;
+  return messages.fallback;
+}
+
 export default function HomePage() {
   const navigate = useNavigate();
   const { openSignUp } = useAuthDialog();
-  const { user, canSave } = useAuth();
+  const { user, canSave, hasSession, signOut } = useAuth();
+  const accountNeedsSync = hasSession && !user;
   const rankBand = getRankBand(user?.elo ?? 0);
   const [featuredPlayers, setFeaturedPlayers] = useState<LeaderboardEntry[]>([]);
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
@@ -103,56 +118,92 @@ export default function HomePage() {
   const primaryAlert = activityPreview[0] ?? null;
   const leaderboardEmptyMessage = contentError
     ? contentError
-    : leaderboardResolution === "empty"
-      ? "Live ladder entries will appear here as soon as ranked results land."
-      : "Demo ladder loaded while live rankings sync.";
+    : describeResolution(leaderboardResolution, {
+        empty: "Live ladder entries will appear here as soon as ranked results land.",
+        unavailable: "Live leaderboard data is currently unavailable.",
+        fallback: "Local preview ladder is loaded because Supabase is disabled.",
+      });
   const activityEmptyMessage = isContentLoading
     ? "Loading alerts..."
     : activityResolution === "empty"
       ? canSave
         ? "Your live activity stream is empty right now. Match results, purchases, and social updates will appear here automatically."
         : "Sign in to start a live activity stream across devices."
-      : "Demo activity preview loaded while the live feed is unavailable.";
+      : describeResolution(activityResolution, {
+          empty: "Your live activity stream is empty right now.",
+          unavailable: "Live activity data is currently unavailable.",
+          fallback: "Local preview activity is loaded because Supabase is disabled.",
+        });
   const challengeDescription = contentError ??
     (isContentLoading
       ? "Syncing the latest command deck snapshot."
-      : challenge?.description ??
-        (challengeResolution === "empty"
-          ? "The live challenge queue is clear right now. Check back after the next rotation."
-          : "Demo challenge loaded while the live challenge feed is unavailable."));
+      : challenge?.description ?? describeResolution(challengeResolution, {
+          empty: "The live challenge queue is clear right now. Check back after the next rotation.",
+          unavailable: "Live challenge data is currently unavailable.",
+          fallback: "Local preview challenge data is loaded because Supabase is disabled.",
+        }));
+
+  const headerTitle = accountNeedsSync
+    ? "Profile sync required"
+    : canSave
+      ? `Welcome back, ${user?.username ?? "Player"}`
+      : "Welcome to the Arena";
+  const headerSubtitle = accountNeedsSync
+    ? "You are signed in, but live profile data is unavailable right now. Sign out and back in after the backend recovers."
+    : canSave
+      ? `${rankBand.label} rank with live stats active`
+      : "Guests can explore every room. Sign up when you are ready to lock in progress.";
 
   return (
     <div className="page-screen">
       <div className="page-stack">
         <PageHeader
           eyebrow="Command Deck"
-          title={canSave ? `Welcome back, ${user?.username ?? "Player"}` : "Welcome to the Arena"}
-          subtitle={
-            canSave
-              ? `${rankBand.label} rank with live stats active`
-              : "Guests can explore every room. Sign up when you are ready to lock in progress."
-          }
+          title={headerTitle}
+          subtitle={headerSubtitle}
           right={
-            <div className="spotlight-panel flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p className="section-kicker">Identity Deck</p>
-                <p className="truncate text-lg font-black">{user?.username ?? "Guest Player"}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{canSave ? "Account synced" : "Guest sandbox active"}</p>
+            accountNeedsSync ? (
+              <div className="spotlight-panel flex min-w-[300px] flex-col gap-3">
+                <div>
+                  <p className="section-kicker">Identity Deck</p>
+                  <p className="mt-2 text-lg font-black">Profile unavailable</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Auth is active, but the live profile row did not load. Sign out to retry cleanly.
+                  </p>
+                </div>
+                <Button onClick={() => void signOut()} variant="outline" size="sm" className="w-full">
+                  Sign Out To Retry
+                </Button>
               </div>
-              <button
-                type="button"
-                onClick={() => navigate("/profile")}
-                className="profile-badge relative shrink-0"
-              >
-                <StockAvatar avatarId={user?.avatarId} size="sm" />
-                <Bell size={16} className="text-white/55" />
-                {canSave && unreadCount > 0 ? (
-                  <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-black leading-none text-primary-foreground shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                ) : null}
-              </button>
-            </div>
+            ) : (
+              <IdentityLoadoutCard
+                username={user?.username ?? "Guest Player"}
+                subtitle={canSave ? "Account synced" : "Guest sandbox active"}
+                avatarId={user?.avatarId}
+                frameId={user?.frameId}
+                playerCardId={user?.playerCardId}
+                bannerId={user?.bannerId}
+                emblemId={user?.emblemId}
+                titleId={user?.titleId}
+                compact
+                className="min-w-[320px]"
+                right={
+                  <button
+                    type="button"
+                    onClick={() => navigate("/profile")}
+                    className="profile-badge relative shrink-0"
+                  >
+                    <StockAvatar avatarId={user?.avatarId} size="sm" />
+                    <Bell size={16} className="text-white/55" />
+                    {canSave && unreadCount > 0 ? (
+                      <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-black leading-none text-primary-foreground shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    ) : null}
+                  </button>
+                }
+              />
+            )
           }
         />
 
@@ -172,14 +223,20 @@ export default function HomePage() {
                 <div className="action-grid">
                   <PuzzleTileButton
                     icon={Swords}
-                    title={canSave ? "Ranked Match" : "Create Account"}
+                    title={accountNeedsSync ? "Profile Sync Required" : canSave ? "Ranked Match" : "Create Account"}
                     description={
-                      canSave
-                        ? "Queue live, climb the ladder, and stack new match history."
-                        : "Unlock saved progress, ranks, matchmaking, and recovery features."
+                      accountNeedsSync
+                        ? "Your auth session is live, but the profile payload is unavailable. Sign out and retry before queuing."
+                        : canSave
+                          ? "Queue live, climb the ladder, and stack new match history."
+                          : "Unlock saved progress, ranks, matchmaking, and recovery features."
                     }
                     active
                     onClick={() => {
+                      if (accountNeedsSync) {
+                        void signOut();
+                        return;
+                      }
                       if (canSave) {
                         navigate("/match?mode=ranked");
                         return;
@@ -195,10 +252,12 @@ export default function HomePage() {
                         ? "Loading daily challenge..."
                         : challenge?.title ?? "Daily Challenge"
                     }
-                    description={
-                      challengeDescription
-                    }
+                    description={challengeDescription}
                     onClick={() => {
+                      if (accountNeedsSync) {
+                        void signOut();
+                        return;
+                      }
                       if (canSave) {
                         navigate("/match?mode=daily");
                         return;
@@ -265,7 +324,7 @@ export default function HomePage() {
                     (isContentLoading
                       ? "Pulling your latest match, purchase, and social signals."
                       : primaryAlert
-                        ? `${primaryAlert.title} · ${formatActivityTime(primaryAlert.occurredAt)}`
+                        ? `${primaryAlert.title} | ${formatActivityTime(primaryAlert.occurredAt)}`
                         : "Recent results, purchases, and social updates will surface here as they land.")}
                 </p>
                 <div className="grid gap-2">
@@ -337,33 +396,54 @@ export default function HomePage() {
             <div className="section-header">
               <div>
                 <p className="section-kicker">Account State</p>
-                <h2 className="section-title">{canSave ? "Live profile synced" : "Guest sandbox active"}</h2>
+                <h2 className="section-title">
+                  {accountNeedsSync ? "Profile sync required" : canSave ? "Live profile synced" : "Guest sandbox active"}
+                </h2>
               </div>
             </div>
             <div className="section-stack">
-              <div className="command-panel-soft flex items-center gap-4 p-4">
-                <StockAvatar avatarId={user?.avatarId} size="md" />
-                <div className="min-w-0">
-                  <p className="hud-label">PuzzleTag</p>
-                  <p className="truncate text-xl font-black">{user?.username ?? "Guest Player"}</p>
+              {accountNeedsSync ? (
+                <div className="command-panel-soft flex min-h-[220px] flex-col justify-center gap-4 p-5">
+                  <div>
+                    <p className="text-lg font-black">Live profile unavailable</p>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      This account is authenticated, but the profile payload did not load. Sign out, then sign back in once the backend row is available again.
+                    </p>
+                  </div>
+                  <Button onClick={() => void signOut()} variant="outline" size="lg" className="w-full">
+                    Sign Out To Retry
+                  </Button>
                 </div>
-              </div>
-              <div className="info-grid">
-                <div className="command-panel-soft p-4">
-                  <p className="hud-label">Recovery</p>
-                  <p className="mt-2 text-base font-black">
-                    {user?.securityQuestionsConfigured ? "Configured" : "Not configured"}
-                  </p>
-                </div>
-                <div className="command-panel-soft p-4">
-                  <p className="hud-label">Weak Spot</p>
-                  <p className="mt-2 text-base font-black">{user?.worstPuzzleType ?? "No data yet"}</p>
-                </div>
-              </div>
-              <Button onClick={() => navigate("/profile")} variant="play" size="xl" className="w-full">
-                <Eye size={16} />
-                Open Profile Deck
-              </Button>
+              ) : (
+                <>
+                  <IdentityLoadoutCard
+                    username={user?.username ?? "Guest Player"}
+                    subtitle={canSave ? "Live identity synced" : "Guest sandbox loadout"}
+                    avatarId={user?.avatarId}
+                    frameId={user?.frameId}
+                    playerCardId={user?.playerCardId}
+                    bannerId={user?.bannerId}
+                    emblemId={user?.emblemId}
+                    titleId={user?.titleId}
+                  />
+                  <div className="info-grid">
+                    <div className="command-panel-soft p-4">
+                      <p className="hud-label">Recovery</p>
+                      <p className="mt-2 text-base font-black">
+                        {user?.securityQuestionsConfigured ? "Configured" : "Not configured"}
+                      </p>
+                    </div>
+                    <div className="command-panel-soft p-4">
+                      <p className="hud-label">Weak Spot</p>
+                      <p className="mt-2 text-base font-black">{user?.worstPuzzleType ?? "No data yet"}</p>
+                    </div>
+                  </div>
+                  <Button onClick={() => navigate("/profile")} variant="play" size="xl" className="w-full">
+                    <Eye size={16} />
+                    Open Profile Deck
+                  </Button>
+                </>
+              )}
             </div>
           </section>
         </div>

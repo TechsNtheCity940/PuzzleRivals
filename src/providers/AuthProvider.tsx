@@ -8,7 +8,6 @@ import {
 } from "react";
 import type { Provider } from "@supabase/supabase-js";
 import {
-  buildAuthenticatedFallbackUser,
   buildGuestUser,
   loadCurrentUserFromSession,
   saveProfileToSupabase,
@@ -25,6 +24,7 @@ interface AuthContextValue {
   isReady: boolean;
   backendWarning: string | null;
   token: string | null;
+  hasSession: boolean;
   user: UserProfile | null;
   isGuest: boolean;
   canSave: boolean;
@@ -73,7 +73,7 @@ async function fetchCurrentUser(): Promise<{ token: string | null; user: UserPro
     if (error instanceof SupabaseSchemaSetupError) {
       return {
         token: session.access_token,
-        user: buildAuthenticatedFallbackUser(session),
+        user: null,
         backendWarning: error.message,
       };
     }
@@ -343,8 +343,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isReady,
       backendWarning,
       token,
+      hasSession: Boolean(token),
       user,
-      isGuest: user?.isGuest ?? true,
+      isGuest: !token && (user?.isGuest ?? true),
       canSave: !user?.isGuest,
       saveProfile,
       signUpWithEmail,
