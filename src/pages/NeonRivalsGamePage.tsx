@@ -6,7 +6,13 @@ import NeonRivalsGame from "@/components/game/NeonRivalsGame";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import { Button } from "@/components/ui/button";
 import { createInitialGameState, NEON_RIVALS_RUN_MODE_OPTIONS } from "@/game/config/runModes";
-import type { NeonRivalsGameState, NeonRivalsRewardSummary, NeonRivalsRunMode, NeonRivalsRunSyncResult } from "@/game/types";
+import type {
+  NeonRivalsBoardFamily,
+  NeonRivalsGameState,
+  NeonRivalsRewardSummary,
+  NeonRivalsRunMode,
+  NeonRivalsRunSyncResult,
+} from "@/game/types";
 import { supabaseApi } from "@/lib/api-client";
 import { getThemeVisual } from "@/lib/cosmetics";
 import { useAuth } from "@/providers/AuthProvider";
@@ -63,6 +69,81 @@ function getIdleSyncState(hasSession: boolean, hasUser: boolean): RunSyncState {
   };
 }
 
+function getBoardMetricCard(state: NeonRivalsGameState) {
+  switch (state.boardFamily) {
+    case "maze":
+      return {
+        title: "Route Pressure",
+        value: String(state.matchedTiles),
+        detail: "Route Steps",
+      };
+    case "pipe":
+      return {
+        title: "Network Online",
+        value: `${state.objectiveValue}%`,
+        detail: `${state.resourceLabel} left ${state.movesLeft}`,
+      };
+    case "tile":
+      return {
+        title: "Board Lock",
+        value: String(state.matchedTiles),
+        detail: `${state.resourceLabel} left ${state.movesLeft}`,
+      };
+    case "number":
+      return {
+        title: "Grid Lock",
+        value: String(state.matchedTiles),
+        detail: `${state.resourceLabel} left ${state.movesLeft}`,
+      };
+    case "spatial":
+      return {
+        title: "Shape Reads",
+        value: String(state.matchedTiles),
+        detail: `${state.resourceLabel} left ${state.movesLeft}`,
+      };
+    case "strategy":
+      return {
+        title: "Tactical Hits",
+        value: String(state.matchedTiles),
+        detail: `${state.resourceLabel} left ${state.movesLeft}`,
+      };
+    default:
+      return {
+        title: "Peak Combo",
+        value: `x${state.maxCombo}`,
+        detail: `${state.resourceLabel} left ${state.movesLeft}`,
+      };
+  }
+}
+
+function getProgressDetail(state: NeonRivalsGameState) {
+  if (state.boardFamily === "maze") {
+    return `${state.matchedTiles} route steps`;
+  }
+
+  if (state.boardFamily === "pipe") {
+    return `${state.matchedTiles} cells connected`;
+  }
+
+  if (state.boardFamily === "tile") {
+    return `${state.matchedTiles} tiles aligned`;
+  }
+
+  if (state.boardFamily === "number") {
+    return `${state.matchedTiles} blanks solved`;
+  }
+
+  if (state.boardFamily === "spatial") {
+    return `${state.matchedTiles} shapes solved`;
+  }
+
+  if (state.boardFamily === "strategy") {
+    return `${state.matchedTiles} tactics solved`;
+  }
+
+  return `${state.matchedTiles} cleared`;
+}
+
 export default function NeonRivalsGamePage() {
   const navigate = useNavigate();
   const { openSignUp } = useAuthDialog();
@@ -78,6 +159,7 @@ export default function NeonRivalsGamePage() {
     [selectedMode],
   );
   const accountNeedsSync = hasSession && !user;
+  const boardMetric = getBoardMetricCard(gameState);
 
   useEffect(() => {
     setGameState(createInitialGameState(selectedMode, sessionSeed));
@@ -168,9 +250,9 @@ export default function NeonRivalsGamePage() {
         <header className="neon-rivals-route-top">
           <div className="neon-rivals-route-copy">
             <p className="font-hud text-[11px] uppercase tracking-[0.28em] text-primary">Season 1 board route</p>
-            <h1 className="neon-rivals-route-title">Neon Rivals Phaser Arena</h1>
+            <h1 className="neon-rivals-route-title">Neon Rivals Arena</h1>
             <p className="neon-rivals-route-subtitle">
-              Phaser owns the board, swaps, cascades, and live objective logic here. React keeps the route shell,
+              The Arena owns the live board families, move effects, and objective logic here. React keeps the route shell,
               account context, and reward sync around it.
             </p>
           </div>
@@ -253,9 +335,9 @@ export default function NeonRivalsGamePage() {
                 <p className="mt-2 text-xs uppercase tracking-[0.16em] text-primary">Score line {gameState.targetScore.toLocaleString()}</p>
               </div>
               <div className="neon-rivals-stat-card">
-                <p className="section-kicker">Peak Combo</p>
-                <p className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">x{gameState.maxCombo}</p>
-                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-primary">Moves left {gameState.movesLeft}</p>
+                <p className="section-kicker">{boardMetric.title}</p>
+                <p className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">{boardMetric.value}</p>
+                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-primary">{boardMetric.detail}</p>
               </div>
             </div>
 
@@ -270,7 +352,7 @@ export default function NeonRivalsGamePage() {
               <div className="neon-rivals-progress-track mt-4">
                 <div className="neon-rivals-progress-fill" style={{ width: `${progress}%` }} />
               </div>
-              <p className="mt-3 text-xs uppercase tracking-[0.16em] text-primary">{progress}% to goal | {gameState.matchedTiles} cleared</p>
+              <p className="mt-3 text-xs uppercase tracking-[0.16em] text-primary">{progress}% to goal | {getProgressDetail(gameState)}</p>
             </div>
 
             <div className="neon-rivals-stat-card">
@@ -312,7 +394,7 @@ export default function NeonRivalsGamePage() {
                 </div>
                 <div>
                   <p className="text-base font-black text-white">Theme Sync</p>
-                  <p className="text-sm text-muted-foreground">{theme.name} shell art stays outside Phaser while the board and rewards run live inside the route.</p>
+                  <p className="text-sm text-muted-foreground">{theme.name} shell art stays outside Phaser while the Arena board families and rewards run live inside the route.</p>
                 </div>
               </div>
               <p className="mt-4 text-xs uppercase tracking-[0.16em] text-primary">{activeMode.label} | {Math.round(gameState.durationMs / 1000)}s runtime</p>
@@ -323,3 +405,5 @@ export default function NeonRivalsGamePage() {
     </div>
   );
 }
+
+

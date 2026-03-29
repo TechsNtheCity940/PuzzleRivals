@@ -21,6 +21,7 @@ describe("Neon Rivals run modes", () => {
       score: 3200,
       maxCombo: 4,
       matchedTiles: 30,
+      objectiveValue: 0,
       clearedByColor: {},
     });
 
@@ -36,4 +37,49 @@ describe("Neon Rivals run modes", () => {
     expect(state.objectiveTarget).toBe(42);
     expect(state.status).toBe("booting");
   });
+
+  it("creates maze-rush state with a maze board family and step budget", () => {
+    const objective = buildNeonRivalsObjective("maze_rush", 73);
+    const state = createInitialGameState("maze_rush", 73);
+
+    expect(objective.boardFamily).toBe("maze");
+    expect(objective.resourceLabel).toBe("steps");
+    expect(state.boardFamily).toBe("maze");
+    expect(state.movesLeft).toBe(objective.startingMoves);
+    expect(state.objectiveTarget).toBe(100);
+  });
+
+  it("creates pipe and tile arena states with their own board families", () => {
+    const pipeObjective = buildNeonRivalsObjective("pipe_rush", 91);
+    const tileState = createInitialGameState("tile_shift", 88);
+
+    expect(pipeObjective.boardFamily).toBe("pipe");
+    expect(pipeObjective.targetValue).toBe(100);
+    expect(tileState.boardFamily).toBe("tile");
+    expect(tileState.movesLeft).toBe(28);
+  });
+
+  it("creates number and spatial arena states with dedicated board families", () => {
+    const numberObjective = buildNeonRivalsObjective("number_crunch", 35);
+    const spatialState = createInitialGameState("spatial_spin", 19);
+
+    expect(numberObjective.boardFamily).toBe("number");
+    expect(numberObjective.startingMoves).toBe(18);
+    expect(numberObjective.targetValue).toBe(100);
+    expect(spatialState.boardFamily).toBe("spatial");
+    expect(spatialState.movesLeft).toBe(12);
+    expect(spatialState.objectiveTarget).toBe(100);
+  });
+
+  it("creates strategy arena states for chess and checkers lanes", () => {
+    const chessObjective = buildNeonRivalsObjective("chess_shot", 77);
+    const checkersState = createInitialGameState("checkers_trap", 91);
+
+    expect(chessObjective.boardFamily).toBe("strategy");
+    expect(chessObjective.startingMoves).toBe(10);
+    expect(checkersState.boardFamily).toBe("strategy");
+    expect(checkersState.movesLeft).toBe(10);
+    expect(checkersState.objectiveTarget).toBe(100);
+  });
 });
+

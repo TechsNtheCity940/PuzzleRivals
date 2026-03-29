@@ -244,12 +244,12 @@ export default function PlayPage() {
               <div className="section-header">
                 <div>
                   <p className="section-kicker">Dedicated Game Route</p>
-                  <h2 className="section-title">Launch the Phaser Neon Rivals board</h2>
+                  <h2 className="section-title">Launch the Neon Rivals Arena</h2>
                 </div>
                 <Sparkles size={18} className="text-primary" />
               </div>
               <p className="text-sm leading-6 text-muted-foreground">
-                Open the route-based Neon Rivals arena for a Phaser-managed board with layered Season 1 art, live run objectives,
+                Open the route-based Neon Rivals Arena for the live animated board with layered Season 1 art, live run objectives,
                 and a clean gameplay shell outside the canvas.
               </p>
               <Button
@@ -262,7 +262,7 @@ export default function PlayPage() {
                 className="mt-4 w-full sm:w-auto"
               >
                 <Sparkles size={16} />
-                Open Phaser Arena
+                Open Arena
               </Button>
             </section>
 

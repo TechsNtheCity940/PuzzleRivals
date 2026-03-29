@@ -223,6 +223,31 @@ export function calculateArcadeRunReward(input: {
     reward.shards += input.success ? 4 : 1;
   } else if (input.mode === "clear_rush") {
     reward.xp += input.success ? 30 : 10;
+  } else if (input.mode === "maze_rush") {
+    reward.coins += input.success ? 30 : 10;
+    reward.passXp += input.success ? 20 : 5;
+  } else if (input.mode === "pipe_rush") {
+    reward.coins += input.success ? 24 : 8;
+    reward.shards += input.success ? 3 : 1;
+  } else if (input.mode === "tile_shift") {
+    reward.xp += input.success ? 24 : 8;
+    reward.passXp += input.success ? 15 : 5;
+  } else if (input.mode === "number_crunch") {
+    reward.xp += input.success ? 28 : 8;
+    reward.coins += input.success ? 18 : 6;
+    reward.passXp += input.success ? 18 : 6;
+  } else if (input.mode === "spatial_spin") {
+    reward.xp += input.success ? 22 : 8;
+    reward.shards += input.success ? 4 : 1;
+    reward.passXp += input.success ? 20 : 6;
+  } else if (input.mode === "chess_shot") {
+    reward.xp += input.success ? 30 : 10;
+    reward.shards += input.success ? 5 : 2;
+    reward.passXp += input.success ? 22 : 7;
+  } else if (input.mode === "checkers_trap") {
+    reward.coins += input.success ? 28 : 8;
+    reward.xp += input.success ? 20 : 8;
+    reward.passXp += input.success ? 18 : 6;
   } else {
     reward.coins += input.success ? 25 : 0;
   }
@@ -352,4 +377,8 @@ export async function grantQuestItems(
     await applyProductGrant(admin, userId, product, source);
   }
 }
+
+
+
+
 

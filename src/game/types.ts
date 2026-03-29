@@ -2,7 +2,20 @@ import type { TileTextureKey } from "@/game/utils/constants";
 
 export type NeonRivalsGameStatus = "booting" | "running" | "complete" | "failed";
 
-export type NeonRivalsRunMode = "score_attack" | "combo_rush" | "color_hunt" | "clear_rush";
+export type NeonRivalsBoardFamily = "match3" | "maze" | "pipe" | "tile" | "number" | "spatial" | "strategy";
+
+export type NeonRivalsRunMode =
+  | "score_attack"
+  | "combo_rush"
+  | "color_hunt"
+  | "clear_rush"
+  | "maze_rush"
+  | "pipe_rush"
+  | "tile_shift"
+  | "number_crunch"
+  | "spatial_spin"
+  | "chess_shot"
+  | "checkers_trap";
 
 export interface NeonRivalsRewardSummary {
   xp: number;
@@ -44,10 +57,12 @@ export interface NeonRivalsRunSubmission {
 export interface NeonRivalsGameState {
   status: NeonRivalsGameStatus;
   mode: NeonRivalsRunMode;
+  boardFamily: NeonRivalsBoardFamily;
   score: number;
   combo: number;
   maxCombo: number;
   movesLeft: number;
+  resourceLabel: string;
   targetScore: number;
   matchedTiles: number;
   objectiveTitle: string;
@@ -69,3 +84,4 @@ export interface NeonRivalsGameBridge {
   onComplete?: (state: NeonRivalsGameState) => void;
   onFailed?: (state: NeonRivalsGameState) => void;
 }
+

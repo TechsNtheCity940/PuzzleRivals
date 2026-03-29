@@ -70,7 +70,7 @@ export default function NeonRivalsGame({
       } catch (error) {
         if (!cancelled) {
           setIsBooting(false);
-          setLoadError(error instanceof Error ? error.message : "Failed to boot Phaser board.");
+          setLoadError(error instanceof Error ? error.message : "Failed to boot Arena board.");
         }
       }
     }
@@ -90,7 +90,7 @@ export default function NeonRivalsGame({
       {isBooting && !loadError ? (
         <div className="neon-rivals-game-overlay">
           <div className="neon-rivals-game-status-card">
-            <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-primary">Booting Phaser board</p>
+            <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-primary">Booting Arena board</p>
             <p className="mt-2 text-sm text-muted-foreground">Loading Neon Rivals board layers, tile systems, and live objective rules.</p>
           </div>
         </div>

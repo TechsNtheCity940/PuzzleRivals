@@ -1,7 +1,13 @@
 import Phaser from "phaser";
+import MazeBoard from "@/game/objects/MazeBoard";
+import NumberBoard from "@/game/objects/NumberBoard";
+import PipeBoard from "@/game/objects/PipeBoard";
 import PuzzleBoard from "@/game/objects/PuzzleBoard";
+import SpatialBoard from "@/game/objects/SpatialBoard";
+import StrategyBoard from "@/game/objects/StrategyBoard";
+import TileBoard from "@/game/objects/TileBoard";
 import { buildNeonRivalsObjective } from "@/game/config/runModes";
-import type { NeonRivalsGameBridge, NeonRivalsGameState, NeonRivalsRunMode } from "@/game/types";
+import type { NeonRivalsBoardFamily, NeonRivalsGameBridge, NeonRivalsGameState, NeonRivalsRunMode } from "@/game/types";
 import { GAME_HEIGHT, GAME_WIDTH } from "@/game/utils/constants";
 
 interface NeonRivalsSessionConfig {
@@ -12,8 +18,54 @@ interface NeonRivalsSessionConfig {
   mode: NeonRivalsRunMode;
 }
 
+type ArenaBoardInstance =
+  | Pick<PuzzleBoard, "create" | "destroy">
+  | Pick<MazeBoard, "create" | "destroy">
+  | Pick<PipeBoard, "create" | "destroy">
+  | Pick<TileBoard, "create" | "destroy">
+  | Pick<NumberBoard, "create" | "destroy">
+  | Pick<SpatialBoard, "create" | "destroy">
+  | Pick<StrategyBoard, "create" | "destroy">;
+
+function boardMetricText(state: NeonRivalsGameState) {
+  if (state.boardFamily === "maze") {
+    return `Route steps ${state.matchedTiles}`;
+  }
+
+  if (state.boardFamily === "pipe") {
+    return `Connected ${state.matchedTiles}`;
+  }
+
+  if (state.boardFamily === "tile") {
+    return `Locked ${state.matchedTiles}`;
+  }
+
+  if (state.boardFamily === "number") {
+    return `Correct cells ${state.matchedTiles}`;
+  }
+
+  if (state.boardFamily === "spatial") {
+    return `Solved shapes ${state.matchedTiles}`;
+  }
+
+  if (state.boardFamily === "strategy") {
+    return `Solved tactics ${state.matchedTiles}`;
+  }
+
+  return `Combo x${state.maxCombo}`;
+}
+
+function getGridTint(boardFamily: NeonRivalsBoardFamily) {
+  if (boardFamily === "tile") return 0xff7de2;
+  if (boardFamily === "pipe") return 0x87f8ff;
+  if (boardFamily === "number") return 0x72f5ff;
+  if (boardFamily === "spatial") return 0xb88aff;
+  if (boardFamily === "strategy") return 0xffd76e;
+  return 0xffffff;
+}
+
 export default class BoardScene extends Phaser.Scene {
-  private board?: PuzzleBoard;
+  private board?: ArenaBoardInstance;
   private bridge?: NeonRivalsGameBridge;
   private scoreText?: Phaser.GameObjects.Text;
   private comboText?: Phaser.GameObjects.Text;
@@ -32,15 +84,11 @@ export default class BoardScene extends Phaser.Scene {
     const objective = buildNeonRivalsObjective(session.mode, session.sessionSeed);
 
     this.createBackground();
-    this.createBoardArt();
+    this.createBoardArt(objective.boardFamily);
     this.createAmbientParticles();
     this.createHud(session.playerName ?? "Rival", session.themeLabel ?? "Neon Rivals", objective);
 
-    this.board = new PuzzleBoard(this, {
-      bridge: session.bridge,
-      seed: session.sessionSeed,
-      mode: session.mode,
-    });
+    this.board = this.createBoardForFamily(objective.boardFamily, session);
     this.board.create();
 
     this.events.on("board-combo", this.pulseBoardCombo, this);
@@ -48,6 +96,62 @@ export default class BoardScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.handleShutdown, this);
 
     this.bridge?.onReady?.();
+  }
+
+  private createBoardForFamily(boardFamily: NeonRivalsBoardFamily, session: NeonRivalsSessionConfig): ArenaBoardInstance {
+    if (boardFamily === "maze") {
+      return new MazeBoard(this, {
+        bridge: session.bridge,
+        seed: session.sessionSeed,
+        mode: session.mode,
+      });
+    }
+
+    if (boardFamily === "pipe") {
+      return new PipeBoard(this, {
+        bridge: session.bridge,
+        seed: session.sessionSeed,
+        mode: session.mode,
+      });
+    }
+
+    if (boardFamily === "tile") {
+      return new TileBoard(this, {
+        bridge: session.bridge,
+        seed: session.sessionSeed,
+        mode: session.mode,
+      });
+    }
+
+    if (boardFamily === "number") {
+      return new NumberBoard(this, {
+        bridge: session.bridge,
+        seed: session.sessionSeed,
+        mode: session.mode,
+      });
+    }
+
+    if (boardFamily === "spatial") {
+      return new SpatialBoard(this, {
+        bridge: session.bridge,
+        seed: session.sessionSeed,
+        mode: session.mode,
+      });
+    }
+
+    if (boardFamily === "strategy") {
+      return new StrategyBoard(this, {
+        bridge: session.bridge,
+        seed: session.sessionSeed,
+        mode: session.mode,
+      });
+    }
+
+    return new PuzzleBoard(this, {
+      bridge: session.bridge,
+      seed: session.sessionSeed,
+      mode: session.mode,
+    });
   }
 
   private createBackground() {
@@ -70,14 +174,15 @@ export default class BoardScene extends Phaser.Scene {
     });
   }
 
-  private createBoardArt() {
+  private createBoardArt(boardFamily: NeonRivalsBoardFamily) {
     const frameBase = this.add.image(GAME_WIDTH / 2, 900, "board_frame_base");
     const frameGlow = this.add.image(GAME_WIDTH / 2, 900, "board_frame_glow");
     const gridBase = this.add.image(GAME_WIDTH / 2, 804, "board_grid_base");
 
     frameBase.setAlpha(0.96);
     frameGlow.setAlpha(0.72);
-    gridBase.setAlpha(0.96);
+    gridBase.setAlpha(boardFamily === "match3" ? 0.96 : 0.42);
+    gridBase.setTint(getGridTint(boardFamily));
 
     this.tweens.add({
       targets: frameGlow,
@@ -131,7 +236,7 @@ export default class BoardScene extends Phaser.Scene {
       color: "#ffffff",
     });
 
-    this.comboText = this.add.text(40, 204, "Combo x0", {
+    this.comboText = this.add.text(40, 204, objective.boardFamily === "match3" ? "Combo x0" : "Board metric 0", {
       fontFamily: "Chakra Petch, Arial",
       fontSize: "28px",
       color: "#5fe2ff",
@@ -153,7 +258,7 @@ export default class BoardScene extends Phaser.Scene {
       lineSpacing: 8,
     });
 
-    this.movesText = this.add.text(GAME_WIDTH - 40, 92, `${objective.startingMoves} moves`, {
+    this.movesText = this.add.text(GAME_WIDTH - 40, 92, `${objective.startingMoves} ${objective.resourceLabel}`, {
       fontFamily: "Chakra Petch, Arial",
       fontSize: "28px",
       color: "#ffffff",
@@ -163,8 +268,8 @@ export default class BoardScene extends Phaser.Scene {
 
   private handleBoardState(state: NeonRivalsGameState) {
     this.scoreText?.setText(`Score ${state.score.toLocaleString()}`);
-    this.comboText?.setText(`Combo x${state.maxCombo}`);
-    this.movesText?.setText(`${state.movesLeft} moves`);
+    this.comboText?.setText(boardMetricText(state));
+    this.movesText?.setText(`${state.movesLeft} ${state.resourceLabel}`);
     this.modeChip?.setText(state.objectiveTitle.toUpperCase());
     this.objectiveText?.setText(state.objectiveDescription);
     this.targetText?.setText(`${state.objectiveValue}/${state.objectiveTarget} | ${state.objectiveLabel}`);
@@ -194,3 +299,4 @@ export default class BoardScene extends Phaser.Scene {
     this.board = undefined;
   }
 }
+

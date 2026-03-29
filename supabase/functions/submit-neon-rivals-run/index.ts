@@ -10,7 +10,7 @@ import {
 import { recordArcadeRunActivity } from "../_shared/activity.ts";
 
 type RunStatus = "complete" | "failed";
-type RunMode = "score_attack" | "combo_rush" | "color_hunt" | "clear_rush";
+type RunMode = "score_attack" | "combo_rush" | "color_hunt" | "clear_rush" | "maze_rush" | "pipe_rush" | "tile_shift" | "number_crunch" | "spatial_spin" | "chess_shot" | "checkers_trap";
 
 type RewardSummary = {
   xp: number;
@@ -36,7 +36,7 @@ type ProfileWalletRow = {
   rank_points: number;
 };
 
-const VALID_MODES = new Set<RunMode>(["score_attack", "combo_rush", "color_hunt", "clear_rush"]);
+const VALID_MODES = new Set<RunMode>(["score_attack", "combo_rush", "color_hunt", "clear_rush", "maze_rush", "pipe_rush", "tile_shift", "number_crunch", "spatial_spin", "chess_shot", "checkers_trap"]);
 
 function asNumber(value: unknown, fallback = 0) {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -283,3 +283,7 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+
+
+
