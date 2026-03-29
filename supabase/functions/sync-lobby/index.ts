@@ -11,8 +11,7 @@ Deno.serve(async (req) => {
   try {
     await requireUser(req);
     const { lobbyId } = await req.json();
-    await advanceLobbyState(lobbyId);
-    const snapshot = await getLobbySnapshot(lobbyId);
+    const snapshot = await advanceLobbyState(lobbyId) ?? await getLobbySnapshot(lobbyId);
     return Response.json(snapshot, { headers: corsHeaders });
   } catch (error) {
     return Response.json(

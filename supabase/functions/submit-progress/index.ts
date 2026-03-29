@@ -2,7 +2,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { requireUser } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { advanceLobbyState } from "../_shared/lobby-state.ts";
-import { broadcastLobbySnapshot } from "../_shared/realtime.ts";
+import { getLobbySnapshot } from "../_shared/matchmaking.ts";
 import { evaluatePuzzleSubmission, type PuzzleSubmission } from "../_shared/puzzle.ts";
 import { isRapidFirePuzzleType } from "../_shared/match-rules.ts";
 
@@ -84,9 +84,7 @@ Deno.serve(async (req) => {
       .upsert(payload, { onConflict: "round_id,user_id" });
 
     if (error) throw error;
-
-    await advanceLobbyState(lobbyId);
-    const snapshot = await broadcastLobbySnapshot(lobbyId);
+    const snapshot = await advanceLobbyState(lobbyId) ?? await getLobbySnapshot(lobbyId);
     return Response.json({ progress, ...snapshot }, { headers: corsHeaders });
   } catch (error) {
     return Response.json(

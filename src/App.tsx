@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LoaderCircle } from "lucide-react";
 import { Suspense, lazy } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import AppShell from "./components/AppShell";
@@ -11,7 +11,6 @@ import { AuthDialogProvider } from "./components/auth/AuthDialogContext";
 const queryClient = new QueryClient();
 const HomePage = lazy(() => import("./pages/HomePage"));
 const PlayPage = lazy(() => import("./pages/PlayPage"));
-const MatchPage = lazy(() => import("./pages/MatchPage"));
 const NeonRivalsGamePage = lazy(() => import("./pages/NeonRivalsGamePage"));
 const TournamentsPage = lazy(() => import("./pages/TournamentsPage"));
 const StorePage = lazy(() => import("./pages/StorePage"));
@@ -55,7 +54,7 @@ const App = () => (
                   <Route path="/play" element={<PlayPage />} />
                   <Route path="/play/neon-rival" element={<NeonRivalsGamePage />} />
                   <Route path="/play/neon-rivals" element={<NeonRivalsGamePage />} />
-                  <Route path="/match" element={<MatchPage />} />
+                  <Route path="/match" element={<Navigate to="/play/neon-rival" replace />} />
                   <Route path="/tournaments" element={<TournamentsPage />} />
                   <Route path="/store" element={<StorePage />} />
                   <Route path="/season" element={<SeasonPage />} />

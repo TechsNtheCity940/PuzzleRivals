@@ -24,7 +24,11 @@ Deno.serve(async (req) => {
     if (error) throw error;
 
     const lobbyId = data?.[0]?.lobby_id as string;
-    await advanceLobbyState(lobbyId);
+    const advancedSnapshot = await advanceLobbyState(lobbyId);
+    if (advancedSnapshot) {
+      return Response.json(advancedSnapshot, { headers: corsHeaders });
+    }
+
     const snapshot = await getLobbySnapshot(lobbyId);
     await broadcastLobbySnapshot(lobbyId);
     return Response.json(snapshot, { headers: corsHeaders });

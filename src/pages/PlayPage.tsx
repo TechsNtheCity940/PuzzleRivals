@@ -172,7 +172,7 @@ export default function PlayPage() {
                     return;
                   }
                   if (canSave) {
-                    navigate(`/match?mode=${selectedMode}`);
+                    navigate("/play/neon-rival");
                     return;
                   }
                   openSignUp();
@@ -183,7 +183,7 @@ export default function PlayPage() {
                 disabled={!isReady || (!user && !accountNeedsSync)}
               >
                 <Swords size={18} />
-                {!isReady ? "Syncing Account..." : accountNeedsSync ? "Sign Out To Retry" : canSave ? "Launch Match" : "Sign Up To Compete"}
+                {!isReady ? "Syncing Account..." : accountNeedsSync ? "Sign Out To Retry" : canSave ? "Launch Animated Board" : "Sign Up To Compete"}
               </Button>
             </div>
 

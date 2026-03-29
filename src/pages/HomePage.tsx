@@ -238,7 +238,7 @@ export default function HomePage() {
                         return;
                       }
                       if (canSave) {
-                        navigate("/match?mode=ranked");
+                        navigate("/play/neon-rival");
                         return;
                       }
                       openSignUp();
@@ -259,7 +259,7 @@ export default function HomePage() {
                         return;
                       }
                       if (canSave) {
-                        navigate("/match?mode=daily");
+                        navigate("/play/neon-rival");
                         return;
                       }
                       openSignUp();

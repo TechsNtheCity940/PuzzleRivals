@@ -25,18 +25,12 @@ export async function getLobbySnapshot(lobbyId: string) {
   const { data: profiles, error: profilesError } = playerIds.length > 0
     ? await admin
       .from("profiles")
-      .select("id, username, rank, elo, avatar_id, frame_id")
+      .select("id, username, rank, elo, avatar_id, frame_id, player_card_id, banner_id, emblem_id, title_id")
       .in("id", playerIds)
     : { data: [], error: null };
 
   if (profilesError) throw profilesError;
 
-  const { data: loadoutProfiles } = playerIds.length > 0
-    ? await admin
-      .from("profiles")
-      .select("id, player_card_id, banner_id, emblem_id, title_id")
-      .in("id", playerIds)
-    : { data: [], error: null };
 
   const { data: results, error: resultsError } = round
     ? await admin.from("round_results").select("*").eq("round_id", round.id)
@@ -64,29 +58,14 @@ export async function getLobbySnapshot(lobbyId: string) {
   const profileById = new Map(
     (profiles ?? []).map((profile) => [String(profile.id), profile]),
   );
-  const loadoutByUserId = new Map(
-    (loadoutProfiles ?? []).map((profile) => [String(profile.id), profile]),
-  );
 
-  const selectedProductIds = [...new Set((loadoutProfiles ?? []).flatMap((profile) => [
+  const selectedProductIds = [...new Set((profiles ?? []).flatMap((profile) => [
     profile.player_card_id,
     profile.banner_id,
     profile.emblem_id,
     profile.title_id,
   ].filter((value): value is string => typeof value === "string" && value.length > 0)))];
 
-  const { data: selectedProducts, error: selectedProductsError } = selectedProductIds.length > 0
-    ? await admin.from("products").select("id, kind, metadata").in("id", selectedProductIds)
-    : { data: [], error: null };
-
-  if (selectedProductsError) throw selectedProductsError;
-
-  const selectedProductNameById = new Map(
-    (selectedProducts ?? []).map((product) => [
-      String(product.id),
-      typeof product.metadata?.name === "string" ? product.metadata.name : null,
-    ]),
-  );
 
   const cosmeticsByUserId = new Map<string, {
     playerCardId: string | null;
@@ -137,9 +116,38 @@ export async function getLobbySnapshot(lobbyId: string) {
     cosmeticsByUserId.set(userId, bucket);
   }
 
+  const selectedProductNameById = new Map<string, string | null>();
+  for (const cosmetics of cosmeticsByUserId.values()) {
+    if (cosmetics.playerCardId && cosmetics.playerCardName) {
+      selectedProductNameById.set(cosmetics.playerCardId, cosmetics.playerCardName);
+    }
+    if (cosmetics.bannerId && cosmetics.bannerName) {
+      selectedProductNameById.set(cosmetics.bannerId, cosmetics.bannerName);
+    }
+    if (cosmetics.emblemId && cosmetics.emblemName) {
+      selectedProductNameById.set(cosmetics.emblemId, cosmetics.emblemName);
+    }
+    if (cosmetics.titleId && cosmetics.titleName) {
+      selectedProductNameById.set(cosmetics.titleId, cosmetics.titleName);
+    }
+  }
+
+  const missingSelectedProductIds = selectedProductIds.filter((productId) => !selectedProductNameById.has(productId));
+  const { data: selectedProducts, error: selectedProductsError } = missingSelectedProductIds.length > 0
+    ? await admin.from("products").select("id, metadata").in("id", missingSelectedProductIds)
+    : { data: [], error: null };
+
+  if (selectedProductsError) throw selectedProductsError;
+
+  for (const product of selectedProducts ?? []) {
+    selectedProductNameById.set(
+      String(product.id),
+      typeof product.metadata?.name === "string" ? product.metadata.name : null,
+    );
+  }
+
   const snapshotPlayers = (playerRows ?? []).map((player) => {
     const profile = profileById.get(String(player.user_id));
-    const equipped = loadoutByUserId.get(String(player.user_id));
     const result = resultMap.get(String(player.user_id));
     const cosmetics = cosmeticsByUserId.get(String(player.user_id));
     return {
@@ -149,14 +157,14 @@ export async function getLobbySnapshot(lobbyId: string) {
       rank: profile?.rank ?? "bronze",
       avatarId: profile?.avatar_id ?? null,
       frameId: profile?.frame_id ?? null,
-      playerCardId: equipped?.player_card_id ?? cosmetics?.playerCardId ?? null,
-      bannerId: equipped?.banner_id ?? cosmetics?.bannerId ?? null,
-      emblemId: equipped?.emblem_id ?? cosmetics?.emblemId ?? null,
-      titleId: equipped?.title_id ?? cosmetics?.titleId ?? null,
-      playerCardName: selectedProductNameById.get(String(equipped?.player_card_id ?? "")) ?? cosmetics?.playerCardName ?? null,
-      bannerName: selectedProductNameById.get(String(equipped?.banner_id ?? "")) ?? cosmetics?.bannerName ?? null,
-      emblemName: selectedProductNameById.get(String(equipped?.emblem_id ?? "")) ?? cosmetics?.emblemName ?? null,
-      titleName: selectedProductNameById.get(String(equipped?.title_id ?? "")) ?? cosmetics?.titleName ?? null,
+      playerCardId: profile?.player_card_id ?? cosmetics?.playerCardId ?? null,
+      bannerId: profile?.banner_id ?? cosmetics?.bannerId ?? null,
+      emblemId: profile?.emblem_id ?? cosmetics?.emblemId ?? null,
+      titleId: profile?.title_id ?? cosmetics?.titleId ?? null,
+      playerCardName: selectedProductNameById.get(String(profile?.player_card_id ?? "")) ?? cosmetics?.playerCardName ?? null,
+      bannerName: selectedProductNameById.get(String(profile?.banner_id ?? "")) ?? cosmetics?.bannerName ?? null,
+      emblemName: selectedProductNameById.get(String(profile?.emblem_id ?? "")) ?? cosmetics?.emblemName ?? null,
+      titleName: selectedProductNameById.get(String(profile?.title_id ?? "")) ?? cosmetics?.titleName ?? null,
       isBot: botIds.has(String(player.user_id)),
       ready: player.is_ready,
       nextRoundVote: player.next_round_vote,

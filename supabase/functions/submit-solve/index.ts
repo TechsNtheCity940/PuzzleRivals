@@ -3,6 +3,7 @@ import { requireUser } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { advanceLobbyState } from "../_shared/lobby-state.ts";
 import { broadcastLobbySnapshot } from "../_shared/realtime.ts";
+import { getLobbySnapshot } from "../_shared/matchmaking.ts";
 import { isSolvedPuzzleSubmission, type PuzzleSubmission } from "../_shared/puzzle.ts";
 import {
   createVariantSeed,
@@ -89,9 +90,13 @@ Deno.serve(async (req) => {
       .upsert(payload, { onConflict: "round_id,user_id" });
 
     if (error) throw error;
+    const advancedSnapshot = await advanceLobbyState(lobbyId);
+    if (advancedSnapshot) {
+      return Response.json(advancedSnapshot, { headers: corsHeaders });
+    }
 
-    await advanceLobbyState(lobbyId);
-    const snapshot = await broadcastLobbySnapshot(lobbyId);
+    const snapshot = await getLobbySnapshot(lobbyId);
+    await broadcastLobbySnapshot(lobbyId);
     return Response.json(snapshot, { headers: corsHeaders });
   } catch (error) {
     return Response.json(
