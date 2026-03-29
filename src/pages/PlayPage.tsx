@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Crown, Flame, Sparkles, Swords, Target, Users, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { primeNeonRivalsExperience } from "@/components/game/NeonRivalsGame";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
@@ -11,6 +12,11 @@ import { getRankBand, getRankColor } from "@/lib/seed-data";
 import type { DailyChallenge } from "@/lib/types";
 
 type PlayMode = "ranked" | "casual" | "royale" | "revenge" | "challenge" | "daily";
+
+type NetworkInformationLike = {
+  saveData?: boolean;
+  effectiveType?: string;
+};
 
 const MODES = [
   { id: "ranked" as PlayMode, label: "Ranked", icon: Swords, desc: "4-player ladder lobby", status: "Armed" },
@@ -29,6 +35,20 @@ function describeChallengeResolution(resolution: GameContentResolution) {
   if (resolution === "empty") return "The live daily challenge queue is empty right now.";
   if (resolution === "unavailable") return "Live daily challenge data is currently unavailable.";
   return "Local preview challenge data is loaded because Supabase is disabled.";
+}
+
+function canPrewarmNeonRivals() {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+
+  const connection = (navigator as Navigator & { connection?: NetworkInformationLike }).connection;
+  return !connection?.saveData && connection?.effectiveType !== "slow-2g" && connection?.effectiveType !== "2g";
+}
+
+function primeNeonRivalsRoute() {
+  void import("./NeonRivalsGamePage");
+  void primeNeonRivalsExperience();
 }
 
 export default function PlayPage() {
@@ -71,6 +91,33 @@ export default function PlayPage() {
     void load();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!canPrewarmNeonRivals()) {
+      return;
+    }
+
+    let cancelled = false;
+    const prime = () => {
+      if (!cancelled) {
+        primeNeonRivalsRoute();
+      }
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const handle = window.requestIdleCallback(prime, { timeout: 1800 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(handle);
+      };
+    }
+
+    const timeout = window.setTimeout(prime, 900);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
     };
   }, []);
 
@@ -196,6 +243,32 @@ export default function PlayPage() {
             <section className="section-panel">
               <div className="section-header">
                 <div>
+                  <p className="section-kicker">Dedicated Game Route</p>
+                  <h2 className="section-title">Launch the Phaser Neon Rivals board</h2>
+                </div>
+                <Sparkles size={18} className="text-primary" />
+              </div>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Open the route-based Neon Rivals arena for a Phaser-managed board with layered Season 1 art, live run objectives,
+                and a clean gameplay shell outside the canvas.
+              </p>
+              <Button
+                onClick={() => navigate("/play/neon-rival")}
+                onMouseEnter={primeNeonRivalsRoute}
+                onFocus={primeNeonRivalsRoute}
+                onTouchStart={primeNeonRivalsRoute}
+                variant="play"
+                size="lg"
+                className="mt-4 w-full sm:w-auto"
+              >
+                <Sparkles size={16} />
+                Open Phaser Arena
+              </Button>
+            </section>
+
+            <section className="section-panel">
+              <div className="section-header">
+                <div>
                   <p className="section-kicker">Procedural Match AI</p>
                   <h2 className="section-title">Deterministic variety, live fairness</h2>
                 </div>
@@ -245,3 +318,4 @@ export default function PlayPage() {
     </div>
   );
 }
+

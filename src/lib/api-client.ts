@@ -1,4 +1,5 @@
 import type { BackendLobby, MatchMode, PuzzleSubmission } from "@/lib/backend";
+import type { NeonRivalsRunSubmission, NeonRivalsRunSyncResult } from "@/game/types";
 import { supabase, supabaseConfigErrorMessage } from "@/lib/supabase-client";
 
 async function invoke<T>(functionName: string, body: Record<string, unknown>) {
@@ -88,5 +89,8 @@ export const supabaseApi = {
   },
   voteNextRound(lobbyId: string, vote: "continue" | "exit") {
     return invoke<{ lobby: BackendLobby }>("vote-next-round", { lobbyId, vote });
+  },
+  submitNeonRivalsRun(run: NeonRivalsRunSubmission) {
+    return invoke<NeonRivalsRunSyncResult>("submit-neon-rivals-run", run);
   },
 };

@@ -3111,3 +3111,537 @@
     max-width: 140px;
   }
 }
+
+@keyframes neon-board-sweep {
+  0% { transform: translateX(-120%); opacity: 0; }
+  12% { opacity: 0.28; }
+  60% { opacity: 0.16; }
+  100% { transform: translateX(120%); opacity: 0; }
+}
+
+@keyframes neon-viewport-glow {
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04), 0 0 24px color-mix(in srgb, var(--np-accent) 12%, transparent); }
+  50% { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 0 34px color-mix(in srgb, var(--np-secondary) 14%, transparent); }
+}
+
+.match-board-loading-shell {
+  display: flex;
+  min-height: min(44vh, 420px);
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  border-radius: 28px;
+  border: 1px solid rgba(95, 214, 255, 0.14);
+  background:
+    linear-gradient(180deg, rgba(12, 18, 34, 0.92), rgba(7, 12, 24, 0.98)),
+    radial-gradient(circle at top, rgba(95, 214, 255, 0.12), transparent 42%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03), 0 0 28px rgba(0, 0, 0, 0.28);
+  padding: 1.25rem;
+}
+
+.neon-puzzle-content {
+  position: relative;
+  z-index: 1;
+  min-height: min(60vh, 680px);
+  padding: 0.85rem 1.25rem 1.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.neon-puzzle-shell--maze-route .neon-puzzle-content,
+.neon-puzzle-shell--pipe-path .neon-puzzle-content {
+  min-height: min(62vh, 720px);
+}
+
+.neon-puzzle-surface-shell {
+  position: relative;
+  width: min(100%, var(--np-stage-max-width, 74rem));
+  margin-inline: auto;
+  isolation: isolate;
+}
+
+.neon-puzzle-surface-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  opacity: 0.98;
+  filter: saturate(1.05) drop-shadow(0 0 32px color-mix(in srgb, var(--np-accent) 18%, transparent));
+  user-select: none;
+}
+
+.neon-puzzle-surface-glow {
+  position: absolute;
+  inset: 4.5% 6% 5.5%;
+  border-radius: 2.4rem;
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--np-accent) 22%, transparent), transparent 52%),
+    radial-gradient(circle at bottom right, color-mix(in srgb, var(--np-secondary) 22%, transparent), transparent 44%);
+  mix-blend-mode: screen;
+  opacity: 0.9;
+  animation: neon-board-pulse 4.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.neon-puzzle-surface-trace {
+  position: absolute;
+  border-radius: 999px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--np-accent) 86%, white), color-mix(in srgb, var(--np-secondary) 72%, transparent));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--np-accent) 22%, transparent);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.neon-puzzle-surface-trace--left,
+.neon-puzzle-surface-trace--right {
+  top: 17%;
+  bottom: 18%;
+  width: 2px;
+}
+
+.neon-puzzle-surface-trace--left { left: 4.5%; }
+.neon-puzzle-surface-trace--right { right: 4.5%; }
+
+.neon-puzzle-surface-trace--bottom {
+  left: 14%;
+  right: 14%;
+  bottom: 8.5%;
+  height: 2px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--np-accent) 76%, transparent), color-mix(in srgb, var(--np-secondary) 78%, transparent));
+}
+
+.neon-puzzle-surface-viewport {
+  position: absolute;
+  inset: var(--np-viewport-inset, 13% 16% 14%);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: clamp(0.65rem, 1.5vw, 1rem);
+}
+
+.neon-puzzle-surface-screen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: clamp(1.1rem, 2vw, 2rem);
+  border: 1px solid color-mix(in srgb, var(--np-accent) 16%, rgba(255,255,255,0.08));
+  background:
+    linear-gradient(180deg, rgba(7, 14, 28, 0.88), rgba(5, 10, 20, 0.92)),
+    radial-gradient(circle at top, color-mix(in srgb, var(--np-accent) 12%, transparent), transparent 42%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.03),
+    0 0 32px color-mix(in srgb, var(--np-accent) 8%, transparent);
+  animation: neon-viewport-glow 5.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.neon-puzzle-surface-screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(126, 216, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(126, 216, 255, 0.05) 1px, transparent 1px);
+  background-size: clamp(1.75rem, 4vw, 2.8rem) clamp(1.75rem, 4vw, 2.8rem);
+  opacity: 0.35;
+}
+
+.neon-puzzle-surface-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, transparent 42%, color-mix(in srgb, var(--np-accent) 18%, transparent) 50%, transparent 58%, transparent 100%);
+  animation: neon-board-sweep 6.5s linear infinite;
+}
+
+.neon-puzzle-surface-corner {
+  position: absolute;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-color: color-mix(in srgb, var(--np-accent) 45%, transparent);
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--np-accent) 20%, transparent));
+}
+
+.neon-puzzle-surface-corner--tl {
+  top: 0.65rem;
+  left: 0.65rem;
+  border-top: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+}
+
+.neon-puzzle-surface-corner--tr {
+  top: 0.65rem;
+  right: 0.65rem;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+}
+
+.neon-puzzle-surface-corner--br {
+  right: 0.65rem;
+  bottom: 0.65rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+}
+
+.neon-puzzle-surface-corner--bl {
+  left: 0.65rem;
+  bottom: 0.65rem;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+}
+
+.neon-puzzle-surface-scan {
+  position: absolute;
+  inset: auto 1rem 0.8rem;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--np-secondary) 72%, transparent), transparent);
+  opacity: 0.58;
+}
+
+.neon-puzzle-fit-frame {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.neon-puzzle-fit-target {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.neon-puzzle-fit-target > .match-neon-stage {
+  width: 100%;
+}
+
+.neon-puzzle-shell--surface-grid .neon-puzzle-fit-target,
+.neon-puzzle-shell--surface-word .neon-puzzle-fit-target,
+.neon-puzzle-shell--surface-quiz .neon-puzzle-fit-target {
+  width: 100%;
+}
+
+.neon-puzzle-shell--surface-quiz .match-quiz-board,
+.neon-puzzle-shell--surface-word .match-letter-board,
+.neon-puzzle-shell--surface-word .match-crossword-board,
+.neon-puzzle-shell--surface-word .match-word-search-board,
+.neon-puzzle-shell--surface-grid .match-spatial-board,
+.neon-puzzle-shell--surface-grid .match-logic-board,
+.neon-puzzle-shell--surface-grid .match-match-board,
+.neon-puzzle-shell--surface-grid .match-maze-board {
+  position: relative;
+}
+
+.neon-puzzle-shell--surface-quiz .match-quiz-board {
+  display: grid;
+  gap: clamp(0.8rem, 2vh, 1.15rem);
+  align-content: center;
+  min-height: 100%;
+}
+
+.neon-puzzle-shell--surface-quiz .match-quiz-round {
+  padding: 1rem 1.1rem;
+  border-radius: 1.4rem;
+  background:
+    linear-gradient(180deg, rgba(9, 18, 36, 0.96), rgba(6, 10, 22, 0.98)),
+    radial-gradient(circle at top, color-mix(in srgb, var(--np-accent) 10%, transparent), transparent 48%);
+}
+
+.neon-puzzle-shell--surface-quiz .match-quiz-options {
+  gap: 0.7rem;
+}
+
+.neon-puzzle-shell--surface-quiz .match-quiz-option {
+  min-height: 3.25rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1.1rem;
+}
+
+.neon-puzzle-shell--surface-word .match-letter-board,
+.neon-puzzle-shell--surface-word .match-crossword-board,
+.neon-puzzle-shell--surface-word .match-word-search-board {
+  gap: clamp(0.65rem, 1.8vh, 1.05rem);
+}
+
+.neon-puzzle-shell--surface-word .match-word-search-grid,
+.neon-puzzle-shell--surface-word .match-word-bank,
+.neon-puzzle-shell--surface-word .match-word-search-targets,
+.neon-puzzle-shell--surface-word .match-wordle-grid,
+.neon-puzzle-shell--surface-word .match-word-answer-slots {
+  backdrop-filter: blur(12px);
+}
+
+@media (max-width: 900px) {
+  .neon-puzzle-content {
+    min-height: min(54vh, 620px);
+    padding-inline: 0.5rem;
+  }
+
+  .neon-puzzle-surface-viewport {
+    padding: 0.55rem;
+  }
+
+  .neon-puzzle-surface-corner {
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
+@media (max-height: 820px) {
+  .neon-puzzle-content {
+    min-height: min(52vh, 560px);
+  }
+
+  .neon-puzzle-surface-viewport {
+    padding: 0.45rem;
+  }
+
+  .neon-puzzle-shell--surface-quiz .match-quiz-option {
+    min-height: 2.9rem;
+    padding-block: 0.68rem;
+  }
+}
+
+.neon-rivals-route-screen {
+  width: 100%;
+  min-height: 100dvh;
+  padding: 1rem;
+}
+
+.neon-rivals-route-shell {
+  margin: 0 auto;
+  display: flex;
+  min-height: calc(100dvh - 2rem);
+  width: 100%;
+  max-width: 1440px;
+  flex-direction: column;
+  gap: 1rem;
+  border-radius: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04), transparent 26%),
+    linear-gradient(160deg, rgba(9, 14, 28, 0.96), rgba(5, 8, 18, 0.98));
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.5);
+  padding: 1rem;
+}
+
+.neon-rivals-route-top {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.neon-rivals-route-copy {
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(160deg, rgba(11, 18, 36, 0.92), rgba(7, 10, 22, 0.98));
+  padding: 1.1rem 1.25rem;
+}
+
+.neon-rivals-route-title {
+  margin-top: 0.4rem;
+  font-size: clamp(2rem, 4.4vw, 3.6rem);
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  line-height: 0.94;
+  color: white;
+}
+
+.neon-rivals-route-subtitle {
+  margin-top: 0.75rem;
+  max-width: 58rem;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.neon-rivals-route-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.neon-rivals-route-grid {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+
+.neon-rivals-stage-panel,
+.neon-rivals-side-panel,
+.neon-rivals-stat-card {
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(160deg, rgba(11, 18, 36, 0.92), rgba(7, 10, 22, 0.98));
+}
+
+.neon-rivals-stage-panel {
+  display: flex;
+  min-height: 0;
+  padding: 1rem;
+}
+
+.neon-rivals-stage-frame {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(95, 226, 255, 0.12);
+  background:
+    radial-gradient(circle at top, rgba(95, 226, 255, 0.12), transparent 32%),
+    linear-gradient(180deg, rgba(6, 10, 22, 0.98), rgba(4, 7, 16, 1));
+}
+
+.neon-rivals-side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem;
+}
+
+.neon-rivals-score-grid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.neon-rivals-stat-card {
+  padding: 1rem;
+}
+
+.neon-rivals-stat-icon {
+  display: inline-flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(95, 226, 255, 0.18);
+  background: rgba(95, 226, 255, 0.1);
+  color: hsl(var(--primary));
+}
+
+.neon-rivals-progress-track {
+  position: relative;
+  height: 0.8rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.neon-rivals-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(95, 226, 255, 1), rgba(255, 88, 199, 0.95), rgba(255, 222, 94, 0.98));
+  box-shadow: 0 0 20px rgba(95, 226, 255, 0.22);
+}
+
+.neon-rivals-game-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.neon-rivals-game-host {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: min(78dvh, 920px);
+  align-items: center;
+  justify-content: center;
+}
+
+.neon-rivals-game-host > div,
+.neon-rivals-game-host canvas {
+  display: block;
+  width: 100% !important;
+  max-width: min(100%, 860px);
+  height: auto !important;
+  max-height: 100%;
+  margin: 0 auto;
+}
+
+.neon-rivals-game-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  pointer-events: none;
+}
+
+.neon-rivals-game-status-card {
+  max-width: 22rem;
+  border-radius: 24px;
+  border: 1px solid rgba(95, 226, 255, 0.14);
+  background: rgba(5, 10, 20, 0.88);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
+  padding: 1rem 1.1rem;
+  text-align: center;
+}
+
+.neon-rivals-game-status-card--error {
+  border-color: rgba(255, 109, 155, 0.18);
+}
+
+@media (max-width: 1100px) {
+  .neon-rivals-route-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .neon-rivals-side-panel {
+    order: 2;
+  }
+}
+
+@media (max-width: 720px) {
+  .neon-rivals-route-screen {
+    padding: 0.75rem;
+  }
+
+  .neon-rivals-route-shell {
+    min-height: calc(100dvh - 1.5rem);
+    border-radius: 28px;
+    padding: 0.75rem;
+  }
+
+  .neon-rivals-route-top {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .neon-rivals-route-actions {
+    width: 100%;
+  }
+
+  .neon-rivals-score-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .neon-rivals-stage-panel,
+  .neon-rivals-side-panel,
+  .neon-rivals-stat-card,
+  .neon-rivals-route-copy {
+    border-radius: 24px;
+  }
+
+  .neon-rivals-game-host {
+    min-height: min(70dvh, 720px);
+  }
+}

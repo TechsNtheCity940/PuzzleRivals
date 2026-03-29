@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Clock3,
@@ -14,7 +14,6 @@ import {
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
 import PageHeader from "@/components/layout/PageHeader";
-import MatchPuzzleBoard from "@/components/match/MatchPuzzleBoard";
 import { Button } from "@/components/ui/button";
 import { subscribeToLobby, supabaseApi } from "@/lib/api-client";
 import type { BackendLobby, BackendLobbyPlayer, MatchMode, PuzzleSubmission } from "@/lib/backend";
@@ -25,6 +24,8 @@ import { getRankColor } from "@/lib/seed-data";
 import { isSupabaseConfigured, supabaseConfigErrorMessage } from "@/lib/supabase-client";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/AuthProvider";
+
+const MatchPuzzleBoard = lazy(() => import("@/components/match/MatchPuzzleBoard"));
 
 function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -503,18 +504,30 @@ export default function MatchPage() {
           </div>
 
           <div className="match-immersive-board">
-            <MatchPuzzleBoard
-              key={`${stage}-${activeSeed}`}
-              puzzleType={lobby.selection.puzzleType}
-              seed={activeSeed}
-              difficulty={lobby.selection.difficulty}
-              isPractice={isPractice}
-              disabled={disabled}
-              isLowTime={lowTime}
-              onProgress={() => undefined}
-              onStateChange={(submission, progress) => queueProgressSubmission(stage, submission, progress)}
-              onSolve={isPractice ? () => setPracticeSolved(true) : handleLiveSolve}
-            />
+            <Suspense
+              fallback={(
+                <div className="match-board-loading-shell">
+                  <LoaderCircle size={22} className="animate-spin text-primary" />
+                  <div>
+                    <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-primary/80">Board uplink</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Streaming the active puzzle shell.</p>
+                  </div>
+                </div>
+              )}
+            >
+              <MatchPuzzleBoard
+                key={`${stage}-${activeSeed}`}
+                puzzleType={lobby.selection.puzzleType}
+                seed={activeSeed}
+                difficulty={lobby.selection.difficulty}
+                isPractice={isPractice}
+                disabled={disabled}
+                isLowTime={lowTime}
+                onProgress={() => undefined}
+                onStateChange={(submission, progress) => queueProgressSubmission(stage, submission, progress)}
+                onSolve={isPractice ? () => setPracticeSolved(true) : handleLiveSolve}
+              />
+            </Suspense>
           </div>
         </div>
       </div>
@@ -765,3 +778,5 @@ export default function MatchPage() {
     </div>
   );
 }
+
+

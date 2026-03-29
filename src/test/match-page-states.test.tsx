@@ -254,7 +254,7 @@ describe("MatchPage states", () => {
 
     expect(await screen.findByText("Practice Timer")).toBeInTheDocument();
     expect(screen.getByText("Practice Arena")).toBeInTheDocument();
-    expect(screen.getByTestId("mock-match-board")).toBeInTheDocument();
+    expect(await screen.findByTestId("mock-match-board")).toBeInTheDocument();
   });
 
   it("renders live state", async () => {
@@ -307,3 +307,4 @@ describe("MatchPage states", () => {
     expect(screen.queryByText("Practice Arena")).not.toBeInTheDocument();
   });
 });
+

@@ -14,6 +14,11 @@ export type NeonPuzzleThemeCategory =
 
 export type NeonPuzzleSurfaceVariant = "grid" | "word" | "quiz";
 
+export interface NeonPuzzleSurfaceLayout {
+  stageMaxWidth: string;
+  viewportInset: string;
+}
+
 export interface NeonPuzzleThemeDefinition {
   category: NeonPuzzleThemeCategory;
   label: string;
@@ -22,6 +27,7 @@ export interface NeonPuzzleThemeDefinition {
   puzzleTypes: MatchPlayablePuzzleType[];
   surfaceAssetRef: string;
   surfaceVariant: NeonPuzzleSurfaceVariant;
+  surfaceLayout: NeonPuzzleSurfaceLayout;
   surfaceAssetOverrides?: Partial<Record<MatchPlayablePuzzleType, string>>;
 }
 
@@ -66,6 +72,10 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     puzzleTypes: ["rotate_pipes"],
     surfaceAssetRef: "/cosmetics/boards/pipe-flow-board.svg",
     surfaceVariant: "grid",
+    surfaceLayout: {
+      stageMaxWidth: "74rem",
+      viewportInset: "13% 15% 14%",
+    },
   },
   "number-logic-grid": {
     category: "number-logic-grid",
@@ -75,6 +85,10 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     puzzleTypes: ["number_grid", "sudoku_mini", "logic_sequence", "math_race"],
     surfaceAssetRef: "/cosmetics/boards/number-crunch-board.svg",
     surfaceVariant: "grid",
+    surfaceLayout: {
+      stageMaxWidth: "74rem",
+      viewportInset: "13.5% 15.5% 14.5%",
+    },
     surfaceAssetOverrides: {
       sudoku_mini: "/cosmetics/boards/sudoku-sprint-board.svg",
     },
@@ -87,6 +101,10 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     puzzleTypes: ["pattern_match"],
     surfaceAssetRef: "/cosmetics/boards/pattern-eye-board.svg",
     surfaceVariant: "grid",
+    surfaceLayout: {
+      stageMaxWidth: "72rem",
+      viewportInset: "13.5% 15.5% 14.5%",
+    },
   },
   "word-letter-grid": {
     category: "word-letter-grid",
@@ -96,6 +114,10 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     puzzleTypes: ["word_scramble", "crossword_mini", "word_search", "wordle_guess", "vocabulary_duel"],
     surfaceAssetRef: "/cosmetics/boards/word-strike-board.svg",
     surfaceVariant: "word",
+    surfaceLayout: {
+      stageMaxWidth: "74rem",
+      viewportInset: "12.5% 14.5% 14.5%",
+    },
     surfaceAssetOverrides: {
       wordle_guess: "/cosmetics/boards/word-blitz-board.svg",
     },
@@ -108,6 +130,10 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     puzzleTypes: ["tile_slide", "spatial_reasoning"],
     surfaceAssetRef: "/cosmetics/boards/tile-shift-board.svg",
     surfaceVariant: "grid",
+    surfaceLayout: {
+      stageMaxWidth: "74rem",
+      viewportInset: "13% 16% 14%",
+    },
   },
   "maze-route": {
     category: "maze-route",
@@ -117,6 +143,10 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     puzzleTypes: ["maze", "pathfinder"],
     surfaceAssetRef: "/cosmetics/boards/maze-rush-board.svg",
     surfaceVariant: "grid",
+    surfaceLayout: {
+      stageMaxWidth: "74rem",
+      viewportInset: "12.5% 15.5% 14.5%",
+    },
   },
   "memory-recall": {
     category: "memory-recall",
@@ -126,6 +156,10 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     puzzleTypes: ["memory_grid", "matching_pairs"],
     surfaceAssetRef: "/cosmetics/boards/memory-flash-board.svg",
     surfaceVariant: "grid",
+    surfaceLayout: {
+      stageMaxWidth: "72rem",
+      viewportInset: "13.5% 15.5% 15%",
+    },
   },
   "quiz-choice": {
     category: "quiz-choice",
@@ -135,6 +169,10 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     puzzleTypes: ["riddle_choice", "trivia_blitz", "geography_quiz", "science_quiz", "analogies"],
     surfaceAssetRef: "/cosmetics/boards/riddle-relay-board.svg",
     surfaceVariant: "quiz",
+    surfaceLayout: {
+      stageMaxWidth: "76rem",
+      viewportInset: "12.5% 18.5% 12.5%",
+    },
   },
   "code-deduction": {
     category: "code-deduction",
@@ -144,6 +182,10 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     puzzleTypes: ["code_breaker", "deduction_grid"],
     surfaceAssetRef: "/cosmetics/boards/number-crunch-board.svg",
     surfaceVariant: "quiz",
+    surfaceLayout: {
+      stageMaxWidth: "76rem",
+      viewportInset: "12.5% 17% 13%",
+    },
   },
   "chess-strategy": {
     category: "chess-strategy",
@@ -153,6 +195,10 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     puzzleTypes: ["chess_tactic", "checkers_tactic", "chess_endgame", "chess_opening", "chess_mate_net"],
     surfaceAssetRef: "/cosmetics/boards/riddle-relay-board.svg",
     surfaceVariant: "quiz",
+    surfaceLayout: {
+      stageMaxWidth: "76rem",
+      viewportInset: "12.5% 15.5% 13%",
+    },
   },
 };
 
@@ -185,3 +231,4 @@ export function getNeonPuzzleSurfaceAsset(
 
   return definition.surfaceAssetRef;
 }
+

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { type CSSProperties, useEffect, useRef, useState, type ReactNode } from "react";
 import type { MatchPlayablePuzzleType } from "@/lib/backend";
 import { cn } from "@/lib/utils";
 import {
@@ -32,7 +32,6 @@ export default function NeonPuzzleShell({
   const targetRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const [fitScale, setFitScale] = useState(1);
-  const [fitHeight, setFitHeight] = useState<number | null>(null);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -49,13 +48,11 @@ export default function NeonPuzzleShell({
 
       if (!availableWidth || !availableHeight || !targetWidth || !targetHeight) {
         setFitScale(1);
-        setFitHeight(null);
         return;
       }
 
       const nextScale = Math.min(1, availableWidth / targetWidth, availableHeight / targetHeight);
       setFitScale(nextScale);
-      setFitHeight(targetHeight * nextScale);
     };
 
     const scheduleMeasure = () => {
@@ -77,7 +74,12 @@ export default function NeonPuzzleShell({
         window.cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [children]);
+  }, [children, surfaceAsset]);
+
+  const shellStyle = {
+    ["--np-stage-max-width" as string]: theme.surfaceLayout.stageMaxWidth,
+    ["--np-viewport-inset" as string]: theme.surfaceLayout.viewportInset,
+  } as CSSProperties;
 
   return (
     <section
@@ -92,6 +94,7 @@ export default function NeonPuzzleShell({
       data-category={category}
       data-puzzle-type={puzzleType}
       data-surface-variant={theme.surfaceVariant}
+      style={shellStyle}
     >
       <div className="neon-puzzle-ambient" aria-hidden="true">
         <div className="neon-puzzle-grid-glow" />
@@ -136,21 +139,31 @@ export default function NeonPuzzleShell({
         <span />
       </div>
 
-      <div ref={viewportRef} className="neon-puzzle-content">
-        <div className="neon-puzzle-surface-shell" aria-hidden="true">
-          <img src={surfaceAsset} alt="" className="neon-puzzle-surface-art" />
-          <div className="neon-puzzle-surface-glow" />
-        </div>
-        <div
-          className="neon-puzzle-fit-frame"
-          style={fitHeight ? { height: `${fitHeight}px` } : undefined}
-        >
-          <div
-            ref={targetRef}
-            className="neon-puzzle-fit-target"
-            style={{ transform: `scale(${fitScale})` }}
-          >
-            {children}
+      <div className="neon-puzzle-content">
+        <div className="neon-puzzle-surface-shell">
+          <img src={surfaceAsset} alt="" className="neon-puzzle-surface-art" aria-hidden="true" />
+          <div className="neon-puzzle-surface-glow" aria-hidden="true" />
+          <div className="neon-puzzle-surface-trace neon-puzzle-surface-trace--left" aria-hidden="true" />
+          <div className="neon-puzzle-surface-trace neon-puzzle-surface-trace--right" aria-hidden="true" />
+          <div className="neon-puzzle-surface-trace neon-puzzle-surface-trace--bottom" aria-hidden="true" />
+
+          <div ref={viewportRef} className="neon-puzzle-surface-viewport">
+            <div className="neon-puzzle-surface-screen" aria-hidden="true">
+              <span className="neon-puzzle-surface-corner neon-puzzle-surface-corner--tl" />
+              <span className="neon-puzzle-surface-corner neon-puzzle-surface-corner--tr" />
+              <span className="neon-puzzle-surface-corner neon-puzzle-surface-corner--br" />
+              <span className="neon-puzzle-surface-corner neon-puzzle-surface-corner--bl" />
+              <span className="neon-puzzle-surface-scan" />
+            </div>
+            <div className="neon-puzzle-fit-frame">
+              <div
+                ref={targetRef}
+                className="neon-puzzle-fit-target"
+                style={{ transform: `scale(${fitScale})` }}
+              >
+                {children}
+              </div>
+            </div>
           </div>
         </div>
       </div>

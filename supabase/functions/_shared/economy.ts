@@ -198,6 +198,46 @@ export function calculateMatchReward(input: {
   return reward;
 }
 
+export function calculateArcadeRunReward(input: {
+  mode: string;
+  success: boolean;
+  score: number;
+  maxCombo: number;
+  matchedTiles: number;
+  movesLeft: number;
+  durationMs: number;
+}) {
+  const reward: MatchRewardDelta = input.success
+    ? { xp: 200, coins: 120, elo: 0, rankPoints: 0, passXp: 150, shards: 10 }
+    : { xp: 70, coins: 35, elo: 0, rankPoints: 0, passXp: 45, shards: 2 };
+
+  reward.xp += Math.min(90, Math.floor(Math.max(input.score, 0) / 600) * 10);
+  reward.coins += Math.min(80, Math.floor(Math.max(input.matchedTiles, 0) / 12) * 10);
+  reward.passXp += Math.min(60, Math.floor(Math.max(input.score, 0) / 900) * 10);
+  reward.shards += Math.min(6, Math.floor(Math.max(input.maxCombo, 0) / 2));
+
+  if (input.mode === "combo_rush") {
+    reward.passXp += input.success ? 35 : 10;
+  } else if (input.mode === "color_hunt") {
+    reward.coins += 20;
+    reward.shards += input.success ? 4 : 1;
+  } else if (input.mode === "clear_rush") {
+    reward.xp += input.success ? 30 : 10;
+  } else {
+    reward.coins += input.success ? 25 : 0;
+  }
+
+  if (input.success && input.movesLeft >= 4) {
+    reward.coins += 20;
+  }
+
+  if (input.success && input.durationMs > 0 && input.durationMs <= 120000) {
+    reward.passXp += 10;
+  }
+
+  return reward;
+}
+
 export function getQuestPeriodKey(
   track: QuestTrack,
   metadata: Record<string, unknown> | null,
@@ -312,3 +352,4 @@ export async function grantQuestItems(
     await applyProductGrant(admin, userId, product, source);
   }
 }
+

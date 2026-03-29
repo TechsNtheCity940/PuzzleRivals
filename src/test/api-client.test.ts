@@ -72,6 +72,63 @@ describe("supabase api client", () => {
     );
   });
 
+  it("submits Neon Rivals run reports through the live function bridge", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "token-arcade",
+        },
+      },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ ok: true, alreadySubmitted: false, runId: "run-1", reward: { xp: 1, coins: 2, gems: 0, passXp: 3, shards: 4, itemIds: [] }, questReward: { xp: 0, coins: 0, gems: 0, passXp: 0, shards: 0, itemIds: [] }, totalReward: { xp: 1, coins: 2, gems: 0, passXp: 3, shards: 4, itemIds: [] } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { supabaseApi } = await import("@/lib/api-client");
+    await supabaseApi.submitNeonRivalsRun({
+      sessionSeed: 123,
+      mode: "combo_rush",
+      status: "complete",
+      score: 3400,
+      combo: 3,
+      maxCombo: 4,
+      matchedTiles: 42,
+      movesLeft: 5,
+      targetScore: 1800,
+      objectiveTitle: "Combo Rush",
+      objectiveLabel: "Hit a peak combo of x4 before the board runs out of moves.",
+      objectiveValue: 4,
+      objectiveTarget: 4,
+      durationMs: 28000,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://puzzlerivals.supabase.co/functions/v1/submit-neon-rivals-run",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          sessionSeed: 123,
+          mode: "combo_rush",
+          status: "complete",
+          score: 3400,
+          combo: 3,
+          maxCombo: 4,
+          matchedTiles: 42,
+          movesLeft: 5,
+          targetScore: 1800,
+          objectiveTitle: "Combo Rush",
+          objectiveLabel: "Hit a peak combo of x4 before the board runs out of moves.",
+          objectiveValue: 4,
+          objectiveTarget: 4,
+          durationMs: 28000,
+        }),
+      }),
+    );
+  });
+
   it("surfaces Supabase Edge Function error messages", async () => {
     mocks.getSession.mockResolvedValue({
       data: {

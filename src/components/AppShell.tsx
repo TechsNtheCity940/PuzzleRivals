@@ -36,7 +36,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const { openSignIn, openSignUp } = useAuthDialog();
   const [unreadCount, setUnreadCount] = useState(0);
   const isMatchRoute = location.pathname.startsWith("/match");
-  const hideHeader = isMatchRoute;
+  const isNeonRivalsRoute = location.pathname.startsWith("/play/neon-rival");
+  const hideHeader = isMatchRoute || isNeonRivalsRoute;
+  const hideBottomNav = isNeonRivalsRoute;
   const accountNeedsSync = hasSession && !user;
   const theme = getThemeVisual(user?.themeId);
   const themeVars = {
@@ -163,8 +165,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
       )}
 
       <main
-        className={`relative mx-auto flex ${isMatchRoute ? "min-h-screen" : "min-h-[calc(100vh-88px)]"} w-full flex-col ${
-          isMatchRoute ? "pb-0" : "pb-32"
+        className={`relative mx-auto flex ${hideHeader ? "min-h-screen" : "min-h-[calc(100vh-88px)]"} w-full flex-col ${
+          hideHeader ? "pb-0" : "pb-32"
         } ${hideHeader ? "" : "pt-4"}`}
       >
         {backendWarning && !hideHeader ? (
@@ -177,7 +179,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
         ) : null}
         {children}
       </main>
-      <BottomNav />
+      {!hideBottomNav ? <BottomNav /> : null}
     </div>
   );
 }
+
+

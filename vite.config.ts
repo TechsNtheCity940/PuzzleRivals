@@ -17,7 +17,42 @@ const legacyServerProxy = enableLegacyServerProxy
     }
   : undefined;
 
-// https://vitejs.dev/config/
+function manualChunks(id: string) {
+  if (!id.includes("node_modules")) {
+    return undefined;
+  }
+
+  if (id.includes("node_modules/phaser")) {
+    return "phaser";
+  }
+
+  if (
+    id.includes("node_modules/react") ||
+    id.includes("node_modules/react-dom") ||
+    id.includes("node_modules/react-router")
+  ) {
+    return "react-vendor";
+  }
+
+  if (
+    id.includes("node_modules/@tanstack/react-query") ||
+    id.includes("node_modules/@supabase/supabase-js")
+  ) {
+    return "data-vendor";
+  }
+
+  if (
+    id.includes("node_modules/@radix-ui") ||
+    id.includes("node_modules/lucide-react") ||
+    id.includes("node_modules/framer-motion") ||
+    id.includes("node_modules/recharts")
+  ) {
+    return "ui-vendor";
+  }
+
+  return "vendor";
+}
+
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -31,6 +66,13 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks,
+      },
     },
   },
 }));

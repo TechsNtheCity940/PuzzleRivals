@@ -29,6 +29,21 @@ type MatchActivityInput = {
   occurredAt?: string;
 };
 
+type ArcadeRunActivityInput = {
+  userId: string;
+  runId: string;
+  mode: string;
+  objectiveTitle: string;
+  objectiveLabel: string;
+  status: "complete" | "failed";
+  score: number;
+  xpDelta: number;
+  coinDelta: number;
+  passXpDelta: number;
+  shardDelta: number;
+  occurredAt?: string;
+};
+
 type PurchaseActivityInput = {
   userId: string;
   purchaseId: string;
@@ -147,9 +162,9 @@ export async function recordMatchActivity(
     sourceKey: input.roundId,
     label: `${modeLabel} Match`,
     title,
-    description: [performanceBits.join(" · "), input.roundNo ? `Round ${input.roundNo}` : null]
+    description: [performanceBits.join(" | "), input.roundNo ? `Round ${input.roundNo}` : null]
       .filter((entry): entry is string => Boolean(entry))
-      .join(" · "),
+      .join(" | "),
     occurredAt: input.occurredAt,
     metadata: {
       roundId: input.roundId,
@@ -161,6 +176,44 @@ export async function recordMatchActivity(
       xpDelta: input.xpDelta,
       coinDelta: input.coinDelta,
       eloDelta: input.eloDelta,
+    },
+  });
+}
+
+export async function recordArcadeRunActivity(
+  admin: SupabaseClient,
+  input: ArcadeRunActivityInput,
+) {
+  const performanceBits = [
+    `Score ${input.score.toLocaleString()}`,
+    formatSignedValue(input.xpDelta, "XP"),
+    formatSignedValue(input.coinDelta, "Coins"),
+    formatSignedValue(input.passXpDelta, "Pass XP"),
+    formatSignedValue(input.shardDelta, "Shards"),
+  ].filter((entry): entry is string => Boolean(entry));
+
+  return upsertProfileActivityEvent(admin, {
+    userId: input.userId,
+    eventType: "match",
+    sourceType: "neon_rivals_run",
+    sourceKey: input.runId,
+    label: "Neon Rivals Run",
+    title: input.status === "complete" ? `Cleared ${input.objectiveTitle}` : `Missed ${input.objectiveTitle}`,
+    description: [input.objectiveLabel, performanceBits.join(" | ")]
+      .filter((entry): entry is string => Boolean(entry))
+      .join(" | "),
+    occurredAt: input.occurredAt,
+    metadata: {
+      runId: input.runId,
+      mode: input.mode,
+      objectiveTitle: input.objectiveTitle,
+      objectiveLabel: input.objectiveLabel,
+      status: input.status,
+      score: input.score,
+      xpDelta: input.xpDelta,
+      coinDelta: input.coinDelta,
+      passXpDelta: input.passXpDelta,
+      shardDelta: input.shardDelta,
     },
   });
 }
@@ -189,7 +242,7 @@ export async function recordPurchaseActivity(
     title,
     description: [formatCurrencyAmount(input.amount, input.currency), productKind, status]
       .filter((entry): entry is string => Boolean(entry))
-      .join(" · "),
+      .join(" | "),
     occurredAt: input.occurredAt,
     metadata: {
       purchaseId: input.purchaseId,
