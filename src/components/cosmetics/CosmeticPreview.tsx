@@ -56,6 +56,7 @@ export default function CosmeticPreview({ kind, productId, label, className }: C
     const banner = getBannerVisual(productId);
     return (
       <div className={cn("cosmetic-preview-banner", banner.className, className)} style={backgroundVars(banner.assetPath)}>
+        {banner.assetPath ? <img src={banner.assetPath} alt="" aria-hidden="true" className="cosmetic-preview-surface-art" /> : null}
         <span>{label ?? banner.label}</span>
       </div>
     );
@@ -63,11 +64,13 @@ export default function CosmeticPreview({ kind, productId, label, className }: C
 
   if (kind === "theme") {
     const theme = getCosmeticVisual(kind, productId);
+    const themeArt = "shellArt" in theme ? theme.shellArt : undefined;
     return (
       <div
         className={cn("cosmetic-preview-theme", theme.shellClass, className)}
-        style={backgroundVars("shellArt" in theme ? theme.shellArt : undefined)}
+        style={backgroundVars(themeArt)}
       >
+        {themeArt ? <img src={themeArt} alt="" aria-hidden="true" className="cosmetic-preview-surface-art" /> : null}
         <span>{label ?? theme.label}</span>
       </div>
     );
@@ -76,6 +79,7 @@ export default function CosmeticPreview({ kind, productId, label, className }: C
   const card = getPlayerCardVisual(productId);
   return (
     <div className={cn("cosmetic-preview-card", card.className, className)} style={backgroundVars(card.assetPath)}>
+      {card.assetPath ? <img src={card.assetPath} alt="" aria-hidden="true" className="cosmetic-preview-surface-art" /> : null}
       <span>{label ?? card.label}</span>
     </div>
   );

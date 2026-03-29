@@ -661,7 +661,7 @@
   }
 
   .match-immersive-board > div {
-    @apply relative z-10 flex max-h-full w-full max-w-5xl flex-col items-center justify-center;
+    @apply relative z-10 flex h-full max-h-full w-full max-w-5xl flex-col items-center justify-center;
   }
 
   .match-results-table {
@@ -2687,4 +2687,427 @@
 .match-immersive-copy,
 .match-immersive-board {
   border-color: color-mix(in srgb, var(--arena-accent) 14%, rgba(255,255,255,0.1));
+}
+
+
+@media (max-width: 900px) {
+  .match-immersive-top,
+  .match-results-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .match-countdown-card {
+    min-height: 92px;
+  }
+
+  .neon-puzzle-content {
+    padding-inline: 1rem;
+    padding-bottom: 1rem;
+  }
+}
+
+@media (max-height: 820px) {
+  .match-immersive-shell,
+  .match-results-shell {
+    gap: 0.75rem;
+  }
+
+  .match-immersive-copy {
+    padding: 1rem 1.1rem;
+  }
+
+  .match-immersive-title,
+  .match-results-title {
+    font-size: clamp(2rem, 4vw, 3.4rem);
+  }
+
+  .match-immersive-help,
+  .match-results-subtitle {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.35rem;
+  }
+
+  .match-immersive-rule {
+    margin-top: 0.5rem;
+  }
+
+  .match-immersive-utility {
+    gap: 0.75rem;
+  }
+
+  .match-hint-button {
+    min-height: 48px;
+    padding: 0.7rem 1rem;
+  }
+
+  .match-hint-panel {
+    padding: 0.85rem 1rem;
+    line-height: 1.45rem;
+  }
+
+  .neon-puzzle-trim {
+    padding: 0.7rem 1rem 0;
+  }
+
+  .neon-puzzle-content {
+    padding-top: 0.75rem;
+  }
+}
+
+
+.neon-puzzle-content {
+  position: relative;
+}
+
+.neon-puzzle-surface-shell {
+  position: absolute;
+  inset: 0.35rem 0.55rem 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.neon-puzzle-surface-art {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: saturate(1.08) drop-shadow(0 0 28px color-mix(in srgb, var(--np-accent) 20%, transparent));
+  opacity: 0.84;
+}
+
+.neon-puzzle-surface-glow {
+  position: absolute;
+  inset: 8% 10% 10%;
+  border-radius: 2rem;
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--np-accent) 20%, transparent), transparent 52%),
+    radial-gradient(circle at bottom right, color-mix(in srgb, var(--np-secondary) 18%, transparent), transparent 40%);
+  mix-blend-mode: screen;
+  animation: neon-board-pulse 4.8s ease-in-out infinite;
+}
+
+.neon-puzzle-fit-frame {
+  position: relative;
+  z-index: 1;
+}
+
+.neon-puzzle-fit-target {
+  position: relative;
+  z-index: 1;
+}
+
+.neon-puzzle-shell--surface-grid .neon-puzzle-fit-frame,
+.neon-puzzle-shell--surface-word .neon-puzzle-fit-frame,
+.neon-puzzle-shell--surface-quiz .neon-puzzle-fit-frame {
+  width: min(100%, 58rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.neon-puzzle-shell--surface-grid .neon-puzzle-fit-target {
+  width: min(100%, 72%);
+}
+
+.neon-puzzle-shell--surface-word .neon-puzzle-fit-target {
+  width: min(100%, 68%);
+}
+
+.neon-puzzle-shell--surface-quiz .neon-puzzle-fit-target {
+  width: min(100%, 76%);
+}
+
+.neon-puzzle-shell--surface-word .match-letter-board,
+.neon-puzzle-shell--surface-word .match-crossword-board {
+  gap: clamp(0.55rem, 1.8vh, 1rem);
+}
+
+.neon-puzzle-shell--surface-word .match-letter-board > p:first-child,
+.neon-puzzle-shell--surface-quiz .match-quiz-board > p:first-child,
+.neon-puzzle-shell--surface-word .match-crossword-board > p:first-child {
+  max-width: 30rem;
+  font-size: 0.72rem;
+  line-height: 1.1rem;
+  color: rgba(223, 232, 255, 0.68);
+}
+
+.neon-puzzle-shell--surface-word .match-letter-board .space-y-2 > div > div,
+.neon-puzzle-shell--surface-word .match-letter-board .flex.flex-wrap.justify-center.gap-2 > button,
+.neon-puzzle-shell--surface-word .match-letter-board input,
+.neon-puzzle-shell--surface-word .match-crossword-board input,
+.neon-puzzle-shell--surface-word .match-word-search-grid,
+.neon-puzzle-shell--surface-word .match-word-bank,
+.neon-puzzle-shell--surface-word .match-word-search-targets {
+  border-color: color-mix(in srgb, var(--np-accent) 24%, rgba(255,255,255,0.1));
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.03),
+    0 0 24px color-mix(in srgb, var(--np-accent) 14%, transparent);
+}
+
+.neon-puzzle-shell--surface-word .match-word-search-grid {
+  padding: 0.65rem;
+  border-radius: 1.25rem;
+  background: linear-gradient(180deg, rgba(10, 18, 38, 0.94), rgba(7, 11, 28, 0.98));
+}
+
+.neon-puzzle-shell--surface-word .match-word-search-grid button,
+.neon-puzzle-shell--surface-word .match-wordle-grid > div > div,
+.neon-puzzle-shell--surface-word .match-word-answer-slots > div,
+.neon-puzzle-shell--surface-word .match-word-bank button {
+  min-width: clamp(2.35rem, 4.4vw, 3rem);
+  min-height: clamp(2.35rem, 4.4vw, 3rem);
+  border-radius: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.neon-puzzle-shell--surface-word .match-word-search-targets,
+.neon-puzzle-shell--surface-word .match-word-bank {
+  justify-content: center;
+  padding: 0.45rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(7, 12, 30, 0.78);
+}
+
+.neon-puzzle-shell--surface-word .match-wordle-input {
+  max-width: 24rem;
+  margin-inline: auto;
+}
+
+.neon-puzzle-shell--surface-quiz .match-quiz-board {
+  display: grid;
+  gap: clamp(0.7rem, 2vh, 1rem);
+}
+
+.neon-puzzle-shell--surface-quiz .match-quiz-round {
+  padding: 1rem 1.05rem;
+  border-radius: 1.35rem;
+  background: linear-gradient(180deg, rgba(10, 18, 36, 0.94), rgba(8, 12, 28, 0.98));
+}
+
+.neon-puzzle-shell--surface-quiz .match-quiz-prompt {
+  margin-top: 0.45rem;
+  font-size: clamp(1rem, 1.55vw, 1.18rem);
+  line-height: 1.45;
+  color: rgba(247, 251, 255, 0.96);
+}
+
+.neon-puzzle-shell--surface-quiz .match-quiz-options {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.neon-puzzle-shell--surface-quiz .match-quiz-option {
+  min-height: 3.25rem;
+  border-radius: 1.1rem;
+  padding: 0.85rem 1rem;
+  text-align: left;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+@media (max-width: 900px) {
+  .neon-puzzle-shell--surface-grid .neon-puzzle-fit-target {
+    width: min(100%, 80%);
+  }
+
+  .neon-puzzle-shell--surface-word .neon-puzzle-fit-target,
+  .neon-puzzle-shell--surface-quiz .neon-puzzle-fit-target {
+    width: min(100%, 78%);
+  }
+
+  .neon-puzzle-surface-shell {
+    inset: 0.2rem 0.3rem 0.4rem;
+  }
+}
+
+@media (max-height: 820px) {
+  .neon-puzzle-shell--surface-grid .neon-puzzle-fit-target {
+    width: min(100%, 68%);
+  }
+
+  .neon-puzzle-shell--surface-word .neon-puzzle-fit-target {
+    width: min(100%, 62%);
+  }
+
+  .neon-puzzle-shell--surface-quiz .neon-puzzle-fit-target {
+    width: min(100%, 70%);
+  }
+
+  .neon-puzzle-shell--surface-word .match-letter-board > p:first-child,
+  .neon-puzzle-shell--surface-quiz .match-quiz-board > p:first-child,
+  .neon-puzzle-shell--surface-word .match-crossword-board > p:first-child {
+    font-size: 0.66rem;
+    line-height: 1rem;
+  }
+
+  .neon-puzzle-shell--surface-quiz .match-quiz-option {
+    min-height: 2.9rem;
+    padding-block: 0.7rem;
+  }
+}
+
+.identity-loadout-card {
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.identity-loadout-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(6, 10, 20, 0.12), rgba(6, 10, 20, 0.68));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.identity-loadout-banner,
+.identity-loadout-main {
+  position: relative;
+  z-index: 1;
+}
+
+.identity-loadout-banner {
+  overflow: hidden;
+}
+
+.identity-loadout-banner-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.98;
+}
+
+.identity-loadout-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(8, 12, 24, 0.78), rgba(8, 12, 24, 0.28));
+}
+
+.identity-loadout-banner-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.identity-loadout-meta {
+  align-items: center;
+}
+
+.identity-loadout-meta-item {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(7, 12, 24, 0.62);
+  padding: 0.3rem 0.65rem 0.3rem 0.3rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+.identity-loadout-meta-item--card {
+  max-width: min(100%, 220px);
+}
+
+.identity-loadout-meta-preview {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(5, 8, 18, 0.9);
+}
+
+.identity-loadout-meta-preview--emblem {
+  width: 34px;
+  height: 34px;
+}
+
+.identity-loadout-meta-preview--card {
+  width: 58px;
+  height: 34px;
+  border-radius: 12px;
+}
+
+.identity-loadout-meta-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.identity-loadout-meta-art--contain {
+  object-fit: contain;
+  padding: 0.15rem;
+}
+
+.identity-loadout-meta-glyph {
+  font-family: "Chakra Petch", monospace;
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: white;
+}
+
+.identity-loadout-meta-copy {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "Chakra Petch", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.92);
+}
+
+.cosmetic-preview-card,
+.cosmetic-preview-theme,
+.cosmetic-preview-banner,
+.cosmetic-preview-frame,
+.cosmetic-preview-title,
+.cosmetic-preview-emblem {
+  position: relative;
+  overflow: hidden;
+}
+
+.cosmetic-preview-surface-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.96;
+}
+
+.cosmetic-preview-card::after,
+.cosmetic-preview-theme::after,
+.cosmetic-preview-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(6, 10, 20, 0.12), rgba(6, 10, 20, 0.58));
+}
+
+.cosmetic-preview-card span,
+.cosmetic-preview-theme span,
+.cosmetic-preview-banner span {
+  z-index: 1;
+}
+
+@media (max-width: 640px) {
+  .identity-loadout-meta-item--card {
+    max-width: 100%;
+  }
+
+  .identity-loadout-meta-copy {
+    max-width: 140px;
+  }
 }

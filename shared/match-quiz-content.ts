@@ -64,45 +64,109 @@ const RIDDLE_BANK: FixedQuizEntry[] = [
   { prompt: "What has keys but cannot open locks?", answer: "A piano", distractors: ["A map", "A castle", "A deck of cards"] },
   { prompt: "The more you take, the more you leave behind. What are they?", answer: "Footsteps", distractors: ["Coins", "Hints", "Breaths"] },
   { prompt: "What gets wetter the more it dries?", answer: "A towel", distractors: ["A sponge", "Rain", "Soap"] },
-  { prompt: "What has hands but can not clap?", answer: "A clock", distractors: ["A robot", "A statue", "A card dealer"] },
-  { prompt: "What has a face and two hands but no arms or legs?", answer: "A clock", distractors: ["A coin", "A mask", "A mirror"] },
-  { prompt: "What can travel around the world while staying in one corner?", answer: "A stamp", distractors: ["A satellite", "A shadow", "A compass"] },
-  { prompt: "What has one eye but cannot see?", answer: "A needle", distractors: ["A potato", "A storm", "A camera"] },
-  { prompt: "What gets bigger the more you take away?", answer: "A hole", distractors: ["A mountain", "A puzzle board", "A trophy case"] },
-  { prompt: "What has many teeth but cannot bite?", answer: "A comb", distractors: ["A zipper", "A saw", "A key ring"] },
-  { prompt: "What can you catch but not throw?", answer: "A cold", distractors: ["A train", "A clue", "A fish"] },
-  { prompt: "What goes up but never comes down?", answer: "Your age", distractors: ["The sun", "Steam", "A ladder"] },
+  { prompt: "What has hands but cannot clap?", answer: "A clock", distractors: ["A robot", "A statue", "A dealer"] },
+  { prompt: "What can travel around the world while staying in one corner?", answer: "A stamp", distractors: ["A satellite", "A compass", "A shadow"] },
+  { prompt: "What has one eye but cannot see?", answer: "A needle", distractors: ["A storm", "A potato", "A camera"] },
+  { prompt: "What gets bigger the more you take away?", answer: "A hole", distractors: ["A mountain", "A clue", "A vault"] },
+  { prompt: "What has many teeth but cannot bite?", answer: "A comb", distractors: ["A saw", "A zipper", "A key ring"] },
+  { prompt: "What can you catch but not throw?", answer: "A cold", distractors: ["A train", "A fish", "A clue"] },
+  { prompt: "What goes up but never comes down?", answer: "Your age", distractors: ["Steam", "The sun", "A ladder"] },
   { prompt: "What has a neck but no head?", answer: "A bottle", distractors: ["A shirt", "A guitar", "A lamp"] },
+  { prompt: "What has words but never speaks?", answer: "A book", distractors: ["A radio", "A mirror", "A poster"] },
+  { prompt: "What building has the most stories?", answer: "A library", distractors: ["A theater", "A hotel", "A museum"] },
+  { prompt: "What can fill a room but takes up no space?", answer: "Light", distractors: ["Steam", "Music", "Fog"] },
+  { prompt: "What has a thumb and four fingers but is not alive?", answer: "A glove", distractors: ["A mannequin", "A robot hand", "A statue"] },
+  { prompt: "What has a head and a tail but no body?", answer: "A coin", distractors: ["A comet", "A kite", "A fish hook"] },
+  { prompt: "What begins with T, ends with T, and has T in it?", answer: "A teapot", distractors: ["A tent", "A train", "A tablet"] },
+  { prompt: "What runs around a yard without moving?", answer: "A fence", distractors: ["A hose", "A dog", "A mower"] },
+  { prompt: "What comes once in a minute, twice in a moment, and never in a thousand years?", answer: "The letter M", distractors: ["The moon", "A breath", "A blink"] },
+  { prompt: "What breaks when you say its name?", answer: "Silence", distractors: ["Glass", "A spell", "A promise"] },
+  { prompt: "What has a bed but never sleeps?", answer: "A river", distractors: ["A hotel", "A cat", "A cloud"] },
+  { prompt: "What has a ring but no finger?", answer: "A phone", distractors: ["A bell", "A coin", "A planet"] },
+  { prompt: "What is full of holes but still holds water?", answer: "A sponge", distractors: ["A net", "A bucket", "A sieve"] },
+  { prompt: "What can be cracked, made, told, and played?", answer: "A joke", distractors: ["A gem", "A rope", "A map"] },
 ];
 
-const TRIVIA_BANK: FixedQuizEntry[] = [
-  { prompt: "Which planet is known as the Red Planet?", answer: "Mars", distractors: ["Venus", "Mercury", "Jupiter"] },
-  { prompt: "Which instrument has 88 keys?", answer: "Piano", distractors: ["Violin", "Trumpet", "Harp"] },
-  { prompt: "What color do you get by mixing blue and yellow?", answer: "Green", distractors: ["Purple", "Orange", "Red"] },
-  { prompt: "Which ocean is the largest on Earth?", answer: "Pacific Ocean", distractors: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean"] },
-  { prompt: "How many days are in a leap year?", answer: "366", distractors: ["365", "364", "360"] },
-  { prompt: "Which animal is known as the king of the jungle?", answer: "Lion", distractors: ["Tiger", "Elephant", "Leopard"] },
-  { prompt: "What do bees make?", answer: "Honey", distractors: ["Wax paper", "Pollen dust", "Maple syrup"] },
-  { prompt: "Which sport uses a net, a shuttlecock, and rackets?", answer: "Badminton", distractors: ["Tennis", "Volleyball", "Squash"] },
-  { prompt: "Which month has the fewest days?", answer: "February", distractors: ["April", "June", "September"] },
-  { prompt: "Which shape has eight sides?", answer: "Octagon", distractors: ["Hexagon", "Pentagon", "Decagon"] },
-  { prompt: "Which holiday is celebrated on December 25?", answer: "Christmas", distractors: ["Halloween", "Thanksgiving", "New Year's Day"] },
-  { prompt: "Which game piece usually moves in an L-shape?", answer: "Knight", distractors: ["Bishop", "Rook", "Queen"] },
+const TRIVIA_PLANETS = [
+  ["Which planet is known as the Red Planet?", "Mars", ["Venus", "Mercury", "Jupiter"]],
+  ["Which planet is famous for its rings?", "Saturn", ["Mars", "Venus", "Mercury"]],
+  ["Which planet is closest to the Sun?", "Mercury", ["Venus", "Earth", "Mars"]],
+  ["Which planet is known for the Great Red Spot?", "Jupiter", ["Neptune", "Mars", "Saturn"]],
 ];
 
-const SCIENCE_BANK: FixedQuizEntry[] = [
+const TRIVIA_ARTS = [
+  ["Which instrument has 88 keys?", "Piano", ["Violin", "Trumpet", "Harp"]],
+  ["Which string instrument is usually played with a bow?", "Violin", ["Drum", "Flute", "Trumpet"]],
+  ["Which instrument has black and white keys and pedals?", "Piano", ["Clarinet", "Harp", "Cello"]],
+  ["Which instrument keeps time with sticks and cymbals?", "Drums", ["Flute", "Violin", "Tuba"]],
+];
+
+const TRIVIA_MIXES = [
+  ["What color do you get by mixing blue and yellow?", "Green", ["Purple", "Orange", "Red"]],
+  ["What color do you get by mixing red and blue?", "Purple", ["Green", "Orange", "Yellow"]],
+  ["What color do you get by mixing red and yellow?", "Orange", ["Purple", "Green", "Blue"]],
+  ["Which color is made by mixing black and white?", "Gray", ["Silver", "Brown", "Blue"]],
+];
+
+const TRIVIA_MISC = [
+  ["Which ocean is the largest on Earth?", "Pacific Ocean", ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean"]],
+  ["How many days are in a leap year?", "366", ["365", "364", "360"]],
+  ["Which shape has eight sides?", "Octagon", ["Hexagon", "Pentagon", "Decagon"]],
+  ["Which holiday is celebrated on December 25?", "Christmas", ["Halloween", "Thanksgiving", "New Year's Day"]],
+  ["Which game piece usually moves in an L-shape?", "Knight", ["Bishop", "Rook", "Queen"]],
+  ["Which continent is the Sahara Desert mostly in?", "Africa", ["Asia", "Europe", "Australia"]],
+  ["What do bees make?", "Honey", ["Maple syrup", "Wax paper", "Milk"]],
+  ["Which sport uses a shuttlecock?", "Badminton", ["Tennis", "Squash", "Volleyball"]],
+  ["Which month has the fewest days?", "February", ["April", "June", "September"]],
+  ["Which animal is known as the king of the jungle?", "Lion", ["Tiger", "Elephant", "Leopard"]],
+  ["How many continents are there?", "7", ["5", "6", "8"]],
+  ["Which gas do humans breathe in to survive?", "Oxygen", ["Carbon dioxide", "Hydrogen", "Helium"]],
+];
+
+const SCIENCE_FACT_BANK: FixedQuizEntry[] = [
   { prompt: "What gas do plants absorb from the atmosphere?", answer: "Carbon dioxide", distractors: ["Oxygen", "Nitrogen", "Helium"] },
   { prompt: "How many bones does an adult human typically have?", answer: "206", distractors: ["201", "212", "198"] },
   { prompt: "Which device measures earthquakes?", answer: "Seismograph", distractors: ["Barometer", "Telescope", "Altimeter"] },
   { prompt: "What is the boiling point of water at sea level in Celsius?", answer: "100", distractors: ["90", "110", "120"] },
   { prompt: "Which blood cells carry oxygen?", answer: "Red blood cells", distractors: ["White blood cells", "Platelets", "Plasma cells"] },
   { prompt: "What force keeps planets in orbit around the sun?", answer: "Gravity", distractors: ["Magnetism", "Friction", "Static charge"] },
-  { prompt: "What part of the cell contains the genetic material?", answer: "Nucleus", distractors: ["Membrane", "Ribosome", "Vacuole"] },
+  { prompt: "What part of the cell contains most genetic material?", answer: "Nucleus", distractors: ["Membrane", "Ribosome", "Vacuole"] },
   { prompt: "Which organ pumps blood through the body?", answer: "Heart", distractors: ["Liver", "Lungs", "Kidney"] },
   { prompt: "What is H2O commonly called?", answer: "Water", distractors: ["Hydrogen", "Oxygen", "Salt"] },
-  { prompt: "Which planet has prominent rings?", answer: "Saturn", distractors: ["Mars", "Venus", "Neptune"] },
-  { prompt: "What kind of energy is stored in food?", answer: "Chemical energy", distractors: ["Solar energy", "Nuclear energy", "Sound energy"] },
-  { prompt: "Which simple machine is used to lift a bucket from a well?", answer: "Pulley", distractors: ["Wedge", "Screw", "Wheel axle"] },
+  { prompt: "Which simple machine helps lift a bucket from a well?", answer: "Pulley", distractors: ["Wedge", "Screw", "Wheel axle"] },
+  { prompt: "What kind of energy is stored in food?", answer: "Chemical energy", distractors: ["Solar energy", "Sound energy", "Nuclear energy"] },
+  { prompt: "Which planet has the most prominent ring system?", answer: "Saturn", distractors: ["Mars", "Venus", "Neptune"] },
+  { prompt: "What part of a plant usually absorbs water from soil?", answer: "Roots", distractors: ["Leaves", "Stem", "Petals"] },
+  { prompt: "Which star is at the center of our solar system?", answer: "The Sun", distractors: ["Polaris", "Sirius", "Betelgeuse"] },
+  { prompt: "What state of matter has a definite shape and volume?", answer: "Solid", distractors: ["Liquid", "Gas", "Plasma"] },
+  { prompt: "Which organ helps the body exchange oxygen and carbon dioxide?", answer: "Lungs", distractors: ["Stomach", "Kidneys", "Pancreas"] },
+  { prompt: "What do magnets attract?", answer: "Certain metals", distractors: ["Plastic", "Glass", "Wood"] },
+  { prompt: "What is the center of an atom called?", answer: "Nucleus", distractors: ["Shell", "Proton ring", "Orbit"] },
+];
+const SCIENCE_ELEMENTS = [
+  ["O", "Oxygen"], ["H", "Hydrogen"], ["N", "Nitrogen"], ["Fe", "Iron"], ["Na", "Sodium"],
+  ["K", "Potassium"], ["Ca", "Calcium"], ["Au", "Gold"], ["Ag", "Silver"], ["He", "Helium"],
+  ["Ne", "Neon"], ["Cu", "Copper"],
+];
+
+const SCIENCE_BODY_SYSTEMS = [
+  ["heart", "circulatory system"],
+  ["lungs", "respiratory system"],
+  ["brain", "nervous system"],
+  ["stomach", "digestive system"],
+  ["bones", "skeletal system"],
+  ["muscles", "muscular system"],
+  ["kidneys", "urinary system"],
+  ["skin", "integumentary system"],
+];
+
+const SCIENCE_STATES = [
+  ["ice", "solid"],
+  ["steam", "gas"],
+  ["lava", "liquid"],
+  ["fog", "gas"],
+  ["granite", "solid"],
+  ["mercury at room temperature", "liquid"],
 ];
 
 const VOCAB_BANK = [
@@ -116,15 +180,31 @@ const VOCAB_BANK = [
   { word: "bold", synonym: "brave", definition: "showing confidence and willingness to take risks" },
   { word: "subtle", synonym: "delicate", definition: "not obvious; hard to notice at first" },
   { word: "vast", synonym: "immense", definition: "of very great extent or quantity" },
+  { word: "steady", synonym: "stable", definition: "firmly fixed, supported, or consistent" },
+  { word: "nimble", synonym: "agile", definition: "quick and light in movement or action" },
+  { word: "ancient", synonym: "very old", definition: "belonging to the distant past" },
+  { word: "curious", synonym: "eager to know", definition: "wanting to learn or understand more" },
+  { word: "fierce", synonym: "intense", definition: "strong, aggressive, or powerful in energy" },
+  { word: "luminous", synonym: "glowing", definition: "giving off or reflecting bright light" },
+  { word: "careful", synonym: "cautious", definition: "taking pains to avoid mistakes or harm" },
+  { word: "massive", synonym: "huge", definition: "very large and heavy or solid" },
+  { word: "brief", synonym: "short", definition: "lasting only a little time" },
+  { word: "vital", synonym: "essential", definition: "absolutely necessary or important" },
 ];
 
 const ANALOGY_BANK = [
-  { left: "Knight", relation: "plays on", right: "Chessboard", answer: "checkers piece", choices: ["checkers piece", "deck of cards", "soccer ball", "domino tile"] },
-  { left: "Puzzle", relation: "is meant to be", right: "Solved", answer: "race", choices: ["race", "book", "rain", "paint"] },
-  { left: "Seed", relation: "grows into", right: "Tree", answer: "clue", choices: ["clue", "scoreboard", "timer", "bot"] },
-  { left: "Compass", relation: "helps you", right: "Navigate", answer: "flashlight", choices: ["flashlight", "blanket", "trophy", "coin"] },
-  { left: "Brush", relation: "is used to", right: "Paint", answer: "keyboard", choices: ["keyboard", "curtain", "backpack", "ladder"] },
-  { left: "Coach", relation: "guides a", right: "Team", answer: "teacher", choices: ["teacher", "eraser", "helmet", "traffic light"] },
+  { prompt: "Knight is to chess as king is to ?", answer: "checkers", distractors: ["cards", "board", "crown"] },
+  { prompt: "Puzzle is to solve as race is to ?", answer: "win", distractors: ["sprint", "track", "start"] },
+  { prompt: "Seed is to tree as clue is to ?", answer: "answer", distractors: ["timer", "question", "penalty"] },
+  { prompt: "Brush is to paint as keyboard is to ?", answer: "type", distractors: ["erase", "sleep", "fold"] },
+  { prompt: "Map is to navigate as recipe is to ?", answer: "cook", distractors: ["paint", "measure", "repair"] },
+  { prompt: "Coach is to team as teacher is to ?", answer: "class", distractors: ["grade", "desk", "bell"] },
+  { prompt: "Battery is to power as lungs are to ?", answer: "breathing", distractors: ["thinking", "hearing", "balance"] },
+  { prompt: "Compass is to direction as clock is to ?", answer: "time", distractors: ["speed", "distance", "weather"] },
+  { prompt: "Helmet is to safety as bookmark is to ?", answer: "placekeeping", distractors: ["decoration", "drawing", "typing"] },
+  { prompt: "Painter is to canvas as coder is to ?", answer: "editor", distractors: ["ladder", "helmet", "stadium"] },
+  { prompt: "Rook is to file as bishop is to ?", answer: "diagonal", distractors: ["circle", "column", "fork"] },
+  { prompt: "Thermometer is to temperature as scale is to ?", answer: "weight", distractors: ["volume", "height", "speed"] },
 ];
 
 const CHESS_BANK: FixedQuizEntry[] = [
@@ -134,6 +214,8 @@ const CHESS_BANK: FixedQuizEntry[] = [
   { prompt: "White to move: exploit the pinned knight first.", answer: "Bxf7+", distractors: ["Qd5", "Nh4", "a4"] },
   { prompt: "Black to move: remove the defender and open the king.", answer: "Bxh2+", distractors: ["Qg5", "Rc8", "a5"] },
   { prompt: "White to move: a discovered attack wins the queen. Start with?", answer: "Nd5", distractors: ["Qc2", "Re1", "h4"] },
+  { prompt: "Black to move: a skewer on the open file wins material. Which move starts it?", answer: "Rc1+", distractors: ["Qg5", "Bb4", "a6"] },
+  { prompt: "White to move: force the king onto a mating square with the first check.", answer: "Qh7+", distractors: ["Re1", "Nd5", "a3"] },
 ];
 
 const CHECKERS_BANK: FixedQuizEntry[] = [
@@ -196,7 +278,7 @@ const LANDMARKS = [
 
 export function buildGeneratedQuizRounds(kind: QuizPuzzleKind, seed: number, difficulty: number): GeneratedQuizRound[] {
   const rng = new SeededRandom(seed);
-  const totalRounds = Math.min(5, Math.max(4, difficulty + 1));
+  const totalRounds = Math.min(6, Math.max(5, difficulty + 1));
 
   switch (kind) {
     case "riddle_choice":
@@ -206,9 +288,9 @@ export function buildGeneratedQuizRounds(kind: QuizPuzzleKind, seed: number, dif
     case "checkers_tactic":
       return buildFixedRounds(rng, totalRounds, CHECKERS_BANK);
     case "trivia_blitz":
-      return buildFixedRounds(rng, totalRounds, TRIVIA_BANK);
+      return buildUniqueRounds(rng, totalRounds, () => buildTriviaRound(rng));
     case "science_quiz":
-      return buildFixedRounds(rng, totalRounds, SCIENCE_BANK);
+      return buildUniqueRounds(rng, totalRounds, () => buildScienceRound(rng));
     case "deduction_grid":
       return buildFixedRounds(rng, totalRounds, DEDUCTION_BANK);
     case "chess_endgame":
@@ -218,22 +300,96 @@ export function buildGeneratedQuizRounds(kind: QuizPuzzleKind, seed: number, dif
     case "chess_mate_net":
       return buildFixedRounds(rng, totalRounds, CHESS_MATE_NET_BANK);
     case "geography_quiz":
-      return Array.from({ length: totalRounds }, () => buildGeographyRound(rng));
+      return buildUniqueRounds(rng, totalRounds, () => buildGeographyRound(rng));
     case "logic_sequence":
-      return Array.from({ length: totalRounds }, () => buildLogicSequenceRound(rng));
+      return buildUniqueRounds(rng, totalRounds, () => buildLogicSequenceRound(rng));
     case "math_race":
-      return Array.from({ length: totalRounds }, () => buildMathRound(rng));
+      return buildUniqueRounds(rng, totalRounds, () => buildMathRound(rng));
     case "code_breaker":
-      return Array.from({ length: totalRounds }, () => buildCodeBreakerRound(rng));
+      return buildUniqueRounds(rng, totalRounds, () => buildCodeBreakerRound(rng));
     case "analogies":
-      return Array.from({ length: totalRounds }, () => buildAnalogyRound(rng));
+      return buildUniqueRounds(rng, totalRounds, () => buildAnalogyRound(rng));
     case "vocabulary_duel":
-      return Array.from({ length: totalRounds }, () => buildVocabularyRound(rng));
+      return buildUniqueRounds(rng, totalRounds, () => buildVocabularyRound(rng));
   }
 }
 
 function buildFixedRounds(rng: SeededRandom, totalRounds: number, bank: FixedQuizEntry[]): GeneratedQuizRound[] {
   return rng.shuffle(bank).slice(0, totalRounds).map((entry) => createRound(rng, entry.prompt, entry.answer, entry.distractors));
+}
+
+function buildUniqueRounds(rng: SeededRandom, totalRounds: number, builder: () => GeneratedQuizRound): GeneratedQuizRound[] {
+  const seenPrompts = new Set<string>();
+  const rounds: GeneratedQuizRound[] = [];
+  let attempts = 0;
+
+  while (rounds.length < totalRounds && attempts < totalRounds * 30) {
+    attempts += 1;
+    const round = builder();
+    if (seenPrompts.has(round.prompt)) continue;
+    seenPrompts.add(round.prompt);
+    rounds.push(round);
+  }
+
+  return rounds;
+}
+
+function buildTriviaRound(rng: SeededRandom): GeneratedQuizRound {
+  const mode = rng.nextInt(0, 5);
+
+  if (mode === 0) {
+    const [prompt, answer, distractors] = rng.pick(TRIVIA_PLANETS);
+    return createRound(rng, prompt, answer, distractors);
+  }
+
+  if (mode === 1) {
+    const [prompt, answer, distractors] = rng.pick(TRIVIA_ARTS);
+    return createRound(rng, prompt, answer, distractors);
+  }
+
+  if (mode === 2) {
+    const [prompt, answer, distractors] = rng.pick(TRIVIA_MIXES);
+    return createRound(rng, prompt, answer, distractors);
+  }
+
+  if (mode === 3) {
+    const [prompt, answer, distractors] = rng.pick(TRIVIA_MISC);
+    return createRound(rng, prompt, answer, distractors);
+  }
+
+  if (mode === 4) {
+    const [country, capital] = rng.pick(CAPITALS);
+    const distractors = rng.shuffle(CAPITALS.filter((entry) => entry[0] !== country).map((entry) => entry[1])).slice(0, 3);
+    return createRound(rng, `Which capital belongs to ${country}?`, capital, distractors);
+  }
+
+  const [country, landmark] = rng.pick(LANDMARKS);
+  const distractors = rng.shuffle(LANDMARKS.filter((entry) => entry[0] !== country).map((entry) => entry[0])).slice(0, 3);
+  return createRound(rng, `${landmark} is found in which country?`, country, distractors);
+}
+
+function buildScienceRound(rng: SeededRandom): GeneratedQuizRound {
+  const mode = rng.nextInt(0, 3);
+
+  if (mode === 0) {
+    return buildFixedRounds(rng, 1, SCIENCE_FACT_BANK)[0];
+  }
+
+  if (mode === 1) {
+    const [symbol, name] = rng.pick(SCIENCE_ELEMENTS);
+    const distractors = rng.shuffle(SCIENCE_ELEMENTS.filter((entry) => entry[1] !== name).map((entry) => entry[1])).slice(0, 3);
+    return createRound(rng, `Which element uses the symbol ${symbol}?`, name, distractors);
+  }
+
+  if (mode === 2) {
+    const [part, system] = rng.pick(SCIENCE_BODY_SYSTEMS);
+    const distractors = rng.shuffle(SCIENCE_BODY_SYSTEMS.filter((entry) => entry[1] !== system).map((entry) => entry[1])).slice(0, 3);
+    return createRound(rng, `${part.charAt(0).toUpperCase()}${part.slice(1)} belong to which body system?`, system, distractors);
+  }
+
+  const [example, state] = rng.pick(SCIENCE_STATES);
+  const distractors = rng.shuffle(SCIENCE_STATES.filter((entry) => entry[1] !== state).map((entry) => entry[1])).filter((value, index, values) => values.indexOf(value) === index).slice(0, 3);
+  return createRound(rng, `What state of matter is ${example}?`, state, distractors);
 }
 
 function buildGeographyRound(rng: SeededRandom): GeneratedQuizRound {
@@ -264,36 +420,21 @@ function buildLogicSequenceRound(rng: SeededRandom): GeneratedQuizRound {
     const step = rng.nextInt(2, 8);
     const values = Array.from({ length: 5 }, (_, index) => start + step * index);
     const answer = String(start + step * 5);
-    return createRound(
-      rng,
-      `What comes next: ${values.join(", ")}, ?`,
-      answer,
-      [String(Number(answer) + step), String(Number(answer) - step), String(Number(answer) + step * 2)],
-    );
+    return createRound(rng, `What comes next: ${values.join(", ")}, ?`, answer, [String(Number(answer) + step), String(Number(answer) - step), String(Number(answer) + step * 2)]);
   }
 
   if (mode === 1) {
     const base = rng.nextInt(2, 5);
     const values = Array.from({ length: 5 }, (_, index) => base ** (index + 1));
     const answer = String(base ** 6);
-    return createRound(
-      rng,
-      `Continue the pattern: ${values.join(", ")}, ?`,
-      answer,
-      [String(base ** 5), String(base ** 6 + base), String(base ** 6 - base)],
-    );
+    return createRound(rng, `Continue the pattern: ${values.join(", ")}, ?`, answer, [String(base ** 5), String(base ** 6 + base), String(base ** 6 - base)]);
   }
 
   const symbols = ["circle", "triangle", "square", "diamond", "star"];
   const cycle = rng.shuffle(symbols).slice(0, 3);
   const values = Array.from({ length: 5 }, (_, index) => cycle[index % cycle.length]);
   const answer = cycle[5 % cycle.length];
-  return createRound(
-    rng,
-    `Which symbol comes next: ${values.join(", ")}, ?`,
-    answer,
-    rng.shuffle(symbols.filter((symbol) => symbol !== answer)).slice(0, 3),
-  );
+  return createRound(rng, `Which symbol comes next: ${values.join(", ")}, ?`, answer, rng.shuffle(symbols.filter((symbol) => symbol !== answer)).slice(0, 3));
 }
 
 function buildMathRound(rng: SeededRandom): GeneratedQuizRound {
@@ -303,12 +444,7 @@ function buildMathRound(rng: SeededRandom): GeneratedQuizRound {
     const left = rng.nextInt(12, 48);
     const right = rng.nextInt(3, 12);
     const answer = left * right;
-    return createRound(
-      rng,
-      `What is ${left} x ${right}?`,
-      String(answer),
-      [String(answer + right), String(answer - right), String(answer + left)],
-    );
+    return createRound(rng, `What is ${left} x ${right}?`, String(answer), [String(answer + right), String(answer - right), String(answer + left)]);
   }
 
   if (mode === 1) {
@@ -316,23 +452,13 @@ function buildMathRound(rng: SeededRandom): GeneratedQuizRound {
     const quotient = rng.nextInt(8, 24);
     const offset = rng.nextInt(4, 16);
     const answer = quotient + offset;
-    return createRound(
-      rng,
-      `Solve: ${divisor * quotient} / ${divisor} + ${offset}`,
-      String(answer),
-      [String(answer - 1), String(answer + 1), String(answer + divisor)],
-    );
+    return createRound(rng, `Solve: ${divisor * quotient} / ${divisor} + ${offset}`, String(answer), [String(answer - 1), String(answer + 1), String(answer + divisor)]);
   }
 
   const sideA = rng.nextInt(4, 16);
   const sideB = rng.nextInt(4, 16);
   const answer = 2 * (sideA + sideB);
-  return createRound(
-    rng,
-    `What is the perimeter of a rectangle with sides ${sideA} and ${sideB}?`,
-    String(answer),
-    [String(answer + 2), String(answer - 2), String(sideA * sideB)],
-  );
+  return createRound(rng, `What is the perimeter of a rectangle with sides ${sideA} and ${sideB}?`, String(answer), [String(answer + 2), String(answer - 2), String(sideA * sideB)]);
 }
 
 function buildCodeBreakerRound(rng: SeededRandom): GeneratedQuizRound {
@@ -341,12 +467,7 @@ function buildCodeBreakerRound(rng: SeededRandom): GeneratedQuizRound {
   if (mode === 0) {
     const start = rng.nextInt(0, 3) * 2;
     const digits = Array.from({ length: 4 }, (_, index) => start + index * 2).join("");
-    return createRound(
-      rng,
-      "A lock code uses ascending even digits. Which code fits the rule?",
-      digits,
-      [digits.split("").reverse().join(""), "1357", "2486"],
-    );
+    return createRound(rng, "A lock code uses ascending even digits. Which code fits the rule?", digits, [digits.split("").reverse().join(""), "1357", "2486"]);
   }
 
   if (mode === 1) {
@@ -356,33 +477,18 @@ function buildCodeBreakerRound(rng: SeededRandom): GeneratedQuizRound {
     const left = rng.nextInt(1, 7);
     const right = rng.nextInt(1, 7);
     const answer = `${first}${second}${left}${right}`;
-    return createRound(
-      rng,
-      "Which code follows the pattern: two letters followed by two digits?",
-      answer,
-      [`${first}${left}${second}${right}`, `${left}${right}${first}${second}`, `${first}${second}${right}`],
-    );
+    return createRound(rng, "Which code follows the pattern: two letters followed by two digits?", answer, [`${first}${left}${second}${right}`, `${left}${right}${first}${second}`, `${first}${second}${right}`]);
   }
 
   const correct = `${rng.pick(["2468", "8642", "3579", "9753"])}`;
   const reversed = correct.split("").reverse().join("");
   const odd = "1357";
-  return createRound(
-    rng,
-    "Choose the code that stays in strict ascending order.",
-    correct[0] < correct[correct.length - 1] ? correct : reversed,
-    [correct[0] < correct[correct.length - 1] ? reversed : correct, odd, "2486"],
-  );
+  return createRound(rng, "Choose the code that stays in strict ascending order.", correct[0] < correct[correct.length - 1] ? correct : reversed, [correct[0] < correct[correct.length - 1] ? reversed : correct, odd, "2486"]);
 }
 
 function buildAnalogyRound(rng: SeededRandom): GeneratedQuizRound {
   const entry = rng.pick(ANALOGY_BANK);
-  return createRound(
-    rng,
-    `${entry.left} is to ${entry.right} as ${entry.answer} is to ?`,
-    entry.choices[0],
-    entry.choices.slice(1),
-  );
+  return createRound(rng, entry.prompt, entry.answer, entry.distractors);
 }
 
 function buildVocabularyRound(rng: SeededRandom): GeneratedQuizRound {
@@ -391,20 +497,10 @@ function buildVocabularyRound(rng: SeededRandom): GeneratedQuizRound {
   const distractorWords = rng.shuffle(VOCAB_BANK.filter((candidate) => candidate.word !== entry.word));
 
   if (mode === 0) {
-    return createRound(
-      rng,
-      `Which word is closest in meaning to ${entry.word}?`,
-      entry.synonym,
-      distractorWords.slice(0, 3).map((candidate) => candidate.synonym),
-    );
+    return createRound(rng, `Which word is closest in meaning to ${entry.word}?`, entry.synonym, distractorWords.slice(0, 3).map((candidate) => candidate.synonym));
   }
 
-  return createRound(
-    rng,
-    `Choose the best definition of ${entry.word}.`,
-    entry.definition,
-    distractorWords.slice(0, 3).map((candidate) => candidate.definition),
-  );
+  return createRound(rng, `Choose the best definition of ${entry.word}.`, entry.definition, distractorWords.slice(0, 3).map((candidate) => candidate.definition));
 }
 
 function createRound(rng: SeededRandom, prompt: string, answer: string, distractors: string[]): GeneratedQuizRound {
@@ -415,3 +511,6 @@ function createRound(rng: SeededRandom, prompt: string, answer: string, distract
     correctOption: options.findIndex((option) => option === answer),
   };
 }
+
+
+

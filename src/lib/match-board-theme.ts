@@ -12,12 +12,17 @@ export type NeonPuzzleThemeCategory =
   | "code-deduction"
   | "chess-strategy";
 
+export type NeonPuzzleSurfaceVariant = "grid" | "word" | "quiz";
+
 export interface NeonPuzzleThemeDefinition {
   category: NeonPuzzleThemeCategory;
   label: string;
   kicker: string;
   summary: string;
   puzzleTypes: MatchPlayablePuzzleType[];
+  surfaceAssetRef: string;
+  surfaceVariant: NeonPuzzleSurfaceVariant;
+  surfaceAssetOverrides?: Partial<Record<MatchPlayablePuzzleType, string>>;
 }
 
 export const PUZZLE_THEME_CATEGORY_BY_TYPE: Record<MatchPlayablePuzzleType, NeonPuzzleThemeCategory> = {
@@ -59,6 +64,8 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     kicker: "Flow Reactor",
     summary: "Glowing conduits, power nodes, and current pulses built for route-completion pressure.",
     puzzleTypes: ["rotate_pipes"],
+    surfaceAssetRef: "/cosmetics/boards/pipe-flow-board.svg",
+    surfaceVariant: "grid",
   },
   "number-logic-grid": {
     category: "number-logic-grid",
@@ -66,6 +73,11 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     kicker: "Precision Matrix",
     summary: "Angular cells, row-column targeting, and clean logic-readability under pressure.",
     puzzleTypes: ["number_grid", "sudoku_mini", "logic_sequence", "math_race"],
+    surfaceAssetRef: "/cosmetics/boards/number-crunch-board.svg",
+    surfaceVariant: "grid",
+    surfaceAssetOverrides: {
+      sudoku_mini: "/cosmetics/boards/sudoku-sprint-board.svg",
+    },
   },
   "pattern-match": {
     category: "pattern-match",
@@ -73,6 +85,8 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     kicker: "Signal Match",
     summary: "Color-coded icon tiles with link beams, combo flashes, and sharp recognition cues.",
     puzzleTypes: ["pattern_match"],
+    surfaceAssetRef: "/cosmetics/boards/pattern-eye-board.svg",
+    surfaceVariant: "grid",
   },
   "word-letter-grid": {
     category: "word-letter-grid",
@@ -80,6 +94,11 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     kicker: "Lex Grid",
     summary: "Readable letter tiles, path glows, and lock-in feedback for fast language rounds.",
     puzzleTypes: ["word_scramble", "crossword_mini", "word_search", "wordle_guess", "vocabulary_duel"],
+    surfaceAssetRef: "/cosmetics/boards/word-strike-board.svg",
+    surfaceVariant: "word",
+    surfaceAssetOverrides: {
+      wordle_guess: "/cosmetics/boards/word-blitz-board.svg",
+    },
   },
   "sliding-spatial": {
     category: "sliding-spatial",
@@ -87,6 +106,8 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     kicker: "Assembly Board",
     summary: "Glossy blocks, assembly rails, and snap-in energy trails for spatial solves.",
     puzzleTypes: ["tile_slide", "spatial_reasoning"],
+    surfaceAssetRef: "/cosmetics/boards/tile-shift-board.svg",
+    surfaceVariant: "grid",
   },
   "maze-route": {
     category: "maze-route",
@@ -94,6 +115,8 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     kicker: "Route Grid",
     summary: "Start and goal pulse states, trace lines, and wrong-route dimming for pathfinding.",
     puzzleTypes: ["maze", "pathfinder"],
+    surfaceAssetRef: "/cosmetics/boards/maze-rush-board.svg",
+    surfaceVariant: "grid",
   },
   "memory-recall": {
     category: "memory-recall",
@@ -101,6 +124,8 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     kicker: "Recall Stack",
     summary: "Reveal shimmer, match arcs, and glitch-reset cues for high-speed recall boards.",
     puzzleTypes: ["memory_grid", "matching_pairs"],
+    surfaceAssetRef: "/cosmetics/boards/memory-flash-board.svg",
+    surfaceVariant: "grid",
   },
   "quiz-choice": {
     category: "quiz-choice",
@@ -108,6 +133,8 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     kicker: "Prompt Relay",
     summary: "Large readable question panels, crisp choice buttons, and clear correctness feedback.",
     puzzleTypes: ["riddle_choice", "trivia_blitz", "geography_quiz", "science_quiz", "analogies"],
+    surfaceAssetRef: "/cosmetics/boards/riddle-relay-board.svg",
+    surfaceVariant: "quiz",
   },
   "code-deduction": {
     category: "code-deduction",
@@ -115,6 +142,8 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     kicker: "Cipher Deck",
     summary: "Segmented puzzle lab panels with slot indicators and deduction-marker rhythm.",
     puzzleTypes: ["code_breaker", "deduction_grid"],
+    surfaceAssetRef: "/cosmetics/boards/number-crunch-board.svg",
+    surfaceVariant: "quiz",
   },
   "chess-strategy": {
     category: "chess-strategy",
@@ -122,6 +151,8 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     kicker: "Tactical Board",
     summary: "Premium dark squares, threat glows, and prestige highlights for board strategy rounds.",
     puzzleTypes: ["chess_tactic", "checkers_tactic", "chess_endgame", "chess_opening", "chess_mate_net"],
+    surfaceAssetRef: "/cosmetics/boards/riddle-relay-board.svg",
+    surfaceVariant: "quiz",
   },
 };
 
@@ -137,4 +168,20 @@ export function getNeonPuzzleThemeDefinition(
     : PUZZLE_THEME_CATEGORY_BY_TYPE[puzzleTypeOrCategory as MatchPlayablePuzzleType];
 
   return NEON_PUZZLE_THEME_DEFINITIONS[category];
+}
+
+export function getNeonPuzzleSurfaceAsset(
+  puzzleTypeOrCategory: MatchPlayablePuzzleType | NeonPuzzleThemeCategory,
+  puzzleType?: MatchPlayablePuzzleType,
+) {
+  const definition = getNeonPuzzleThemeDefinition(puzzleTypeOrCategory);
+  const resolvedPuzzleType = puzzleType ?? (puzzleTypeOrCategory in PUZZLE_THEME_CATEGORY_BY_TYPE
+    ? (puzzleTypeOrCategory as MatchPlayablePuzzleType)
+    : undefined);
+
+  if (resolvedPuzzleType && definition.surfaceAssetOverrides?.[resolvedPuzzleType]) {
+    return definition.surfaceAssetOverrides[resolvedPuzzleType] as string;
+  }
+
+  return definition.surfaceAssetRef;
 }

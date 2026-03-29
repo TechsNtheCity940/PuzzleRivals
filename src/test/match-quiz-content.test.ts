@@ -3,11 +3,23 @@ import { buildGeneratedQuizRounds } from "@/lib/match-quiz-content";
 import { buildGeneratedQuizRounds as buildBackendGeneratedQuizRounds } from "../../supabase/functions/_shared/match-quiz-content.ts";
 
 describe("match quiz generation", () => {
-  it("builds more than three rounds for quiz puzzle types", () => {
+  it("builds at least five rounds for quiz puzzle types without repeats in the same match", () => {
     const rounds = buildGeneratedQuizRounds("trivia_blitz", 14829, 3);
 
-    expect(rounds).toHaveLength(4);
+    expect(rounds.length).toBeGreaterThanOrEqual(5);
     expect(new Set(rounds.map((round) => round.prompt)).size).toBe(rounds.length);
+  });
+
+  it("creates a large deterministic prompt pool across different seeds", () => {
+    const prompts = new Set<string>();
+
+    for (let seed = 100; seed < 140; seed += 1) {
+      for (const round of buildGeneratedQuizRounds("trivia_blitz", seed, 4)) {
+        prompts.add(round.prompt);
+      }
+    }
+
+    expect(prompts.size).toBeGreaterThan(25);
   });
 
   it("is deterministic for the same seed and difficulty", () => {
@@ -15,7 +27,7 @@ describe("match quiz generation", () => {
     const second = buildGeneratedQuizRounds("geography_quiz", 88421, 4);
 
     expect(second).toEqual(first);
-    expect(first).toHaveLength(5);
+    expect(first.length).toBeGreaterThanOrEqual(5);
   });
 
   it("matches the authoritative backend quiz contract for the same seed", () => {

@@ -186,9 +186,9 @@ export default function AuthDialog({ open, mode, onOpenChange, onModeChange }: A
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100%-1.5rem)] max-w-lg rounded-[32px] border border-white/10 bg-slate-950/95 p-0 text-foreground shadow-[0_30px_90px_rgba(0,0,0,0.55)]">
+      <DialogContent className="w-[calc(100%-1rem)] max-w-lg overflow-hidden rounded-[32px] border border-white/10 bg-slate-950/95 p-0 text-foreground shadow-[0_30px_90px_rgba(0,0,0,0.55)] sm:w-[calc(100%-2rem)] max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(191,255,0,0.14),_transparent_34%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.18),_transparent_40%)]" />
-        <div className="relative z-10 space-y-6 p-6">
+        <div className="relative z-10 flex max-h-[calc(100dvh-1rem)] flex-col gap-6 overflow-y-auto overscroll-contain p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:max-h-[calc(100dvh-2rem)] sm:p-6 sm:pb-6">
           <DialogHeader className="space-y-2 text-left">
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 font-hud text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
               {mode === "sign-in" ? "Sign In" : mode === "sign-up" ? "Create Account" : "Password Recovery"}
@@ -445,3 +445,4 @@ export default function AuthDialog({ open, mode, onOpenChange, onModeChange }: A
     </Dialog>
   );
 }
+
