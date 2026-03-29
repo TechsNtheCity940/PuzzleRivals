@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Clock3,
@@ -191,6 +191,15 @@ export default function MatchPage() {
   const lastSubmissionRef = useRef<PuzzleSubmission | null>(null);
   const readySentLobbyIdRef = useRef<string | null>(null);
   const completedRoundRef = useRef<string | null>(null);
+  const progressSubmissionKeyRef = useRef<string | null>(null);
+  const rejectedStageRef = useRef<"practice" | "live" | null>(null);
+  const syncInFlightRef = useRef(false);
+  const syncFailureCountRef = useRef(0);
+  const syncPausedUntilRef = useRef(0);
+  const lobbyRef = useRef<BackendLobby | null>(null);
+  const practiceTimeLeftRef = useRef(0);
+  const liveTimeLeftRef = useRef(0);
+  const solvePendingRef = useRef(false);
 
   useEffect(() => {
     setLocalHintBalance(user?.hintBalance ?? 0);
@@ -208,6 +217,10 @@ export default function MatchPage() {
     setResultsSnapshot(null);
     readySentLobbyIdRef.current = null;
     completedRoundRef.current = null;
+    progressSubmissionKeyRef.current = null;
+    rejectedStageRef.current = null;
+    syncFailureCountRef.current = 0;
+    syncPausedUntilRef.current = 0;
 
     void supabaseApi
       .joinLobby(mode)
@@ -239,11 +252,28 @@ export default function MatchPage() {
 
     const intervalMs = lobby.status === "filling" ? 2000 : 1000;
     const interval = window.setInterval(() => {
+      if (syncInFlightRef.current) return;
+      if (Date.now() < syncPausedUntilRef.current) return;
+
+      syncInFlightRef.current = true;
       void supabaseApi
         .syncLobby(lobby.id)
-        .then((response) => setLobby(response.lobby))
+        .then((response) => {
+          syncFailureCountRef.current = 0;
+          syncPausedUntilRef.current = 0;
+          setLobby(response.lobby);
+        })
         .catch((error) => {
-          console.error("Failed to sync lobby", error);
+          syncFailureCountRef.current += 1;
+          const backoffMs = Math.min(intervalMs * 2 ** Math.min(syncFailureCountRef.current, 3), 8000);
+          syncPausedUntilRef.current = Date.now() + backoffMs;
+
+          if (syncFailureCountRef.current <= 2 || syncFailureCountRef.current % 5 === 0) {
+            console.error("Failed to sync lobby", error);
+          }
+        })
+        .finally(() => {
+          syncInFlightRef.current = false;
         });
     }, intervalMs);
 
@@ -311,7 +341,14 @@ export default function MatchPage() {
 
   useEffect(() => {
     setHintUnlocked(false);
+    progressSubmissionKeyRef.current = null;
+    rejectedStageRef.current = null;
   }, [lobby?.selection?.selectedAt]);
+
+  useEffect(() => {
+    progressSubmissionKeyRef.current = null;
+    rejectedStageRef.current = null;
+  }, [lobby?.status]);
 
   useEffect(() => {
     return () => {
@@ -381,8 +418,42 @@ export default function MatchPage() {
   const helpText = lobby?.selection ? getPuzzleHelpText(lobby.selection.puzzleType) : "";
   const hintText = lobby?.selection ? getPuzzleHintText(lobby.selection.puzzleType) : "";
 
-  function queueProgressSubmission(stage: "practice" | "live", submission: PuzzleSubmission, progress: number) {
-    if (!lobby) return;
+  useEffect(() => {
+    lobbyRef.current = lobby;
+  }, [lobby]);
+
+  useEffect(() => {
+    practiceTimeLeftRef.current = practiceTimeLeft;
+    liveTimeLeftRef.current = liveTimeLeft;
+  }, [liveTimeLeft, practiceTimeLeft]);
+
+  useEffect(() => {
+    solvePendingRef.current = solvePending;
+  }, [solvePending]);
+
+  const handlePracticeSolve = useCallback(() => {
+    setPracticeSolved(true);
+  }, []);
+
+  const handleBoardProgress = useCallback((_progress: number) => {
+    // Progress is synced through explicit submission events only.
+  }, []);
+
+  const queueProgressSubmission = useCallback((stage: "practice" | "live", submission: PuzzleSubmission, progress: number) => {
+    const currentLobby = lobbyRef.current;
+    if (!currentLobby) return;
+
+    const stageTimeLeft = stage === "practice" ? practiceTimeLeftRef.current : liveTimeLeftRef.current;
+    if (currentLobby.status !== stage || stageTimeLeft <= 0 || rejectedStageRef.current === stage) {
+      return;
+    }
+
+    const submissionKey = `${currentLobby.id}:${stage}:${progress}:${JSON.stringify(submission)}`;
+    if (progressSubmissionKeyRef.current === submissionKey) {
+      return;
+    }
+
+    progressSubmissionKeyRef.current = submissionKey;
     lastSubmissionRef.current = submission;
 
     if (progressTimeoutRef.current !== null) {
@@ -390,29 +461,58 @@ export default function MatchPage() {
     }
 
     progressTimeoutRef.current = window.setTimeout(() => {
+      const latestLobby = lobbyRef.current;
+      const latestTimeLeft = stage === "practice" ? practiceTimeLeftRef.current : liveTimeLeftRef.current;
+      if (!latestLobby || latestLobby.id !== currentLobby.id) return;
+      if (latestLobby.status !== stage || latestTimeLeft <= 0 || rejectedStageRef.current === stage) return;
+
       void supabaseApi
-        .submitProgress(lobby.id, stage, submission)
-        .then((response) => setLobby(response.lobby))
+        .submitProgress(latestLobby.id, stage, submission)
+        .then((response) => {
+          syncFailureCountRef.current = 0;
+          syncPausedUntilRef.current = 0;
+          setLobby(response.lobby);
+        })
         .catch((error) => {
+          const message = error instanceof Error ? error.message : "Failed to submit progress.";
+
+          if (message.includes("not accepted right now")) {
+            rejectedStageRef.current = stage;
+            return;
+          }
+
+          if (message.includes("not having enough compute resources")) {
+            syncPausedUntilRef.current = Date.now() + 4000;
+          }
+
           console.error("Failed to submit progress", error);
         });
-    }, 160);
-  }
+    }, 220);
+  }, []);
 
-  function handleLiveSolve() {
-    if (!lobby || !lastSubmissionRef.current || solvePending) return;
+  const handleLiveSolve = useCallback(() => {
+    const currentLobby = lobbyRef.current;
+    const currentSubmission = lastSubmissionRef.current;
+    if (!currentLobby || !currentSubmission || solvePendingRef.current) return;
+    if (currentLobby.status !== "live" || liveTimeLeftRef.current <= 0) return;
 
     setSolvePending(true);
+    solvePendingRef.current = true;
+
     void supabaseApi
-      .submitSolve(lobby.id, "live", lastSubmissionRef.current)
+      .submitSolve(currentLobby.id, "live", currentSubmission)
       .then((response) => setLobby(response.lobby))
       .catch((error) => {
-        console.error("Failed to submit solve", error);
+        const message = error instanceof Error ? error.message : "Failed to submit solve.";
+        if (!message.includes("not accepted right now")) {
+          console.error("Failed to submit solve", error);
+        }
       })
       .finally(() => {
         setSolvePending(false);
+        solvePendingRef.current = false;
       });
-  }
+  }, []);
 
   async function handleHintUnlock() {
     if (!user || hintUnlocked || localHintBalance <= 0 || hintSaving) return;
@@ -453,7 +553,7 @@ export default function MatchPage() {
     const timeLeft = isPractice ? practiceTimeLeft : liveTimeLeft;
     const lowTime = isPractice ? timeLeft <= 3 : timeLeft <= 10;
     const boardCategory = getNeonPuzzleThemeCategory(lobby.selection.puzzleType);
-    const disabled = isPractice ? false : solvePending || (!rapidFire && selfPlayer.solvedAtMs !== null) || timeLeft <= 0;
+    const disabled = timeLeft <= 0 || (!isPractice && (solvePending || (!rapidFire && selfPlayer.solvedAtMs !== null)));
     const liveScoreLine = rapidFire
       ? `Score ${selfPlayer.score} | Clears ${selfPlayer.completions} | New personal boards stop rolling at 0:05.`
       : selfPlayer.solvedAtMs !== null
@@ -523,9 +623,9 @@ export default function MatchPage() {
                 isPractice={isPractice}
                 disabled={disabled}
                 isLowTime={lowTime}
-                onProgress={() => undefined}
-                onStateChange={(submission, progress) => queueProgressSubmission(stage, submission, progress)}
-                onSolve={isPractice ? () => setPracticeSolved(true) : handleLiveSolve}
+                onProgress={handleBoardProgress}
+                onStateChange={queueProgressSubmission}
+                onSolve={isPractice ? handlePracticeSolve : handleLiveSolve}
               />
             </Suspense>
           </div>

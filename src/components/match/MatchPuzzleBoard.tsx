@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import {
   SeededRandom,
   checkPipeConnections,
@@ -181,7 +181,7 @@ function RotatePipesBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
       kind: "rotate_pipes",
       rotations: grid.flat().map((cell) => cell.rotation),
     }, progress);
-  }, [grid, props]);
+  }, [grid, props.onProgress, props.onStateChange]);
 
   function handleRotate(rowIndex: number, colIndex: number) {
     if (props.disabled || solved) return;
@@ -283,7 +283,7 @@ function NumberGridBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
       kind: "number_grid",
       values,
     }, progress);
-  }, [puzzle.solution, props, values]);
+  }, [puzzle.solution, props.onProgress, props.onStateChange, values]);
 
   function handleChange(index: number, nextValue: string) {
     if (props.disabled || solved) return;
@@ -372,7 +372,7 @@ function PatternMatchBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
       kind: "pattern_match",
       answers,
     }, progress);
-  }, [answers, props, rounds.length]);
+  }, [answers, props.onProgress, props.onStateChange, rounds.length]);
 
   function handleSelect(optionIndex: number) {
     if (props.disabled || selectedIndex !== null) return;
@@ -472,7 +472,7 @@ function WordScrambleBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
       kind: "word_scramble",
       selectedIndices,
     }, progress);
-  }, [props, puzzle.scrambled, puzzle.targetWord, selectedIndices]);
+  }, [props.onProgress, props.onStateChange, puzzle.scrambled, puzzle.targetWord, selectedIndices]);
 
   function handleLetterTap(index: number) {
     if (props.disabled || solved) return;
@@ -556,7 +556,7 @@ function CrosswordMiniBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
     const progress = clampProgress((correct / Math.max(entries.length, 1)) * 100);
     props.onProgress(progress);
     props.onStateChange?.({ kind: "crossword_mini", answers }, progress);
-  }, [answers, entries, props]);
+  }, [answers, entries, props.onProgress, props.onStateChange]);
 
   function handleAnswerChange(index: number, value: string) {
     if (props.disabled || solved) return;
@@ -609,7 +609,7 @@ function WordSearchBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
     const progress = clampProgress((foundSegments.length / Math.max(puzzle.placements.length, 1)) * 100);
     props.onProgress(progress);
     props.onStateChange?.({ kind: "word_search", segments: foundSegments }, progress);
-  }, [foundSegments, props, puzzle.placements.length]);
+  }, [foundSegments, props.onProgress, props.onStateChange, puzzle.placements.length]);
 
   function handleCellTap(index: number) {
     if (props.disabled || solved) return;
@@ -698,7 +698,7 @@ function MatchingPairsBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
     const progress = clampProgress((matchedPairIds.length / Math.max(pairs.length, 1)) * 100);
     props.onProgress(progress);
     props.onStateChange?.({ kind: "matching_pairs", matchedPairIds }, progress);
-  }, [matchedPairIds, pairs.length, props]);
+  }, [matchedPairIds, pairs.length, props.onProgress, props.onStateChange]);
 
   function handleCardTap(cardKey: string, pairId: number) {
     if (props.disabled || solved || matchedPairIds.includes(pairId)) return;
@@ -782,7 +782,7 @@ function SpatialReasoningBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">)
     const progress = clampProgress((answers.length / rounds.length) * 100);
     props.onProgress(progress);
     props.onStateChange?.({ kind: "spatial_reasoning", answers }, progress);
-  }, [answers, props, rounds.length]);
+  }, [answers, props.onProgress, props.onStateChange, rounds.length]);
 
   function handleOption(optionIndex: number) {
     if (props.disabled || locked !== null) return;
@@ -860,7 +860,7 @@ function TileSlidingBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
       kind: "tile_slide",
       tiles,
     }, progress);
-  }, [props, tiles]);
+  }, [props.onProgress, props.onStateChange, tiles]);
 
   function handleTileTap(index: number) {
     if (props.disabled || solved || tiles[index] === 0) return;
@@ -1021,7 +1021,7 @@ function MazeBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
     const progress = getMazeProgress(maze, position);
     props.onProgress(progress);
     props.onStateChange?.({ kind: "maze", position }, progress);
-  }, [maze.goalIndex, position, props]);
+  }, [maze.goalIndex, position, props.onProgress, props.onStateChange]);
 
   function move(delta: number) {
     if (props.disabled || solved) return;
@@ -1100,7 +1100,7 @@ function PathfinderBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
     const progress = clampProgress((matchingPrefix / Math.max(puzzle.solutionPath.length, 1)) * 100);
     props.onProgress(progress);
     props.onStateChange?.({ kind: "pathfinder", path }, progress);
-  }, [path, props, puzzle.solutionPath]);
+  }, [path, props.onProgress, props.onStateChange, puzzle.solutionPath]);
 
   function handleCellTap(index: number) {
     if (props.disabled || solved || blocked.has(index)) return;
@@ -1181,7 +1181,7 @@ function MemoryGridBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
     const progress = clampProgress((correct / puzzle.targets.length) * 100);
     props.onProgress(progress);
     props.onStateChange?.({ kind: "memory_grid", selectedIndices }, progress);
-  }, [props, puzzle.targets, selectedIndices]);
+  }, [props.onProgress, props.onStateChange, puzzle.targets, selectedIndices]);
 
   function toggle(index: number) {
     if (props.disabled || solved || revealed) return;
@@ -1245,7 +1245,7 @@ function QuizScenarioBoard(
     const progress = clampProgress((answers.length / rounds.length) * 100);
     props.onProgress(progress);
     props.onStateChange?.({ kind: props.kind, answers }, progress);
-  }, [answers, props, rounds.length]);
+  }, [answers, props.onProgress, props.onStateChange, rounds.length]);
 
   function handleAnswer(optionIndex: number) {
     if (props.disabled || locked !== null) return;
@@ -1314,7 +1314,7 @@ function WordleGuessBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
     const progress = clampProgress((correct / target.length) * 100);
     props.onProgress(progress);
     props.onStateChange?.({ kind: "wordle_guess", guesses }, progress);
-  }, [guesses, props, target]);
+  }, [guesses, props.onProgress, props.onStateChange, target]);
 
   function submitGuess() {
     if (props.disabled || solved || guess.length !== target.length) return;
@@ -1375,7 +1375,7 @@ function WordleGuessBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
   );
 }
 
-export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
+const MatchPuzzleBoard = memo(function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
   const category = getNeonPuzzleThemeCategory(props.puzzleType);
   const [celebrating, setCelebrating] = useState(false);
 
@@ -1386,10 +1386,10 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
     return () => window.clearTimeout(timeout);
   }, [celebrating]);
 
-  const handleSolve = () => {
+  const handleSolve = useCallback(() => {
     setCelebrating(true);
     props.onSolve();
-  };
+  }, [props.onSolve]);
 
   const boardProps = { ...props, onSolve: handleSolve };
 
@@ -1555,4 +1555,6 @@ export default function MatchPuzzleBoard(props: MatchPuzzleBoardProps) {
       {board}
     </NeonPuzzleShell>
   );
-}
+});
+
+export default MatchPuzzleBoard;
