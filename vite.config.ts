@@ -26,31 +26,7 @@ function manualChunks(id: string) {
     return "phaser";
   }
 
-  if (
-    id.includes("node_modules/react") ||
-    id.includes("node_modules/react-dom") ||
-    id.includes("node_modules/react-router")
-  ) {
-    return "react-vendor";
-  }
-
-  if (
-    id.includes("node_modules/@tanstack/react-query") ||
-    id.includes("node_modules/@supabase/supabase-js")
-  ) {
-    return "data-vendor";
-  }
-
-  if (
-    id.includes("node_modules/@radix-ui") ||
-    id.includes("node_modules/lucide-react") ||
-    id.includes("node_modules/framer-motion") ||
-    id.includes("node_modules/recharts")
-  ) {
-    return "ui-vendor";
-  }
-
-  return "vendor";
+  return undefined;
 }
 
 export default defineConfig(({ mode }) => ({
