@@ -1,4 +1,4 @@
-﻿import Phaser from "phaser";
+import Phaser from "phaser";
 import { checkPipeConnections, generatePipePuzzle, rotatePipeCell, type PipeCell } from "@/lib/puzzle-engine";
 import { buildNeonRivalsObjective, getObjectiveProgressPercent } from "@/game/config/runModes";
 import type {
@@ -56,6 +56,8 @@ export default class PipeBoard {
   private cellSize = 108;
   private gridLeft = 0;
   private gridTop = 0;
+  private selectedRow = -1;
+  private selectedCol = -1;
   private grid: PipeCell[][] = [];
   private visuals: PipeVisual[][] = [];
   private boardShadow?: Phaser.GameObjects.Rectangle;
@@ -79,6 +81,8 @@ export default class PipeBoard {
     this.score = 0;
     this.combo = 0;
     this.maxCombo = 0;
+    this.selectedRow = -1;
+    this.selectedCol = -1;
     this.buildBoardSurface();
     this.refreshAllVisuals();
     this.status = "running";
@@ -179,6 +183,8 @@ export default class PipeBoard {
     }
 
     this.inputLocked = true;
+    this.selectedRow = row;
+    this.selectedCol = col;
     this.movesLeft = Math.max(0, this.movesLeft - 1);
     const previousConnected = this.countConnected(this.grid);
 
@@ -196,7 +202,7 @@ export default class PipeBoard {
 
     await Promise.all([
       this.tweenPromise(visual.container, {
-        angle: this.grid[row][col].rotation,
+        angle: visual.container.angle + 90,
         duration: 180,
         ease: "Cubic.easeOut",
       }),
@@ -243,26 +249,27 @@ export default class PipeBoard {
       for (let col = 0; col < this.size; col += 1) {
         const cell = this.grid[row][col];
         const visual = this.visuals[row][col];
-        this.drawPipeVisual(cell, visual);
+        this.drawPipeVisual(cell, visual, row, col);
         visual.container.setAngle(cell.rotation);
       }
     }
   }
 
-  private drawPipeVisual(cell: PipeCell, visual: PipeVisual) {
+  private drawPipeVisual(cell: PipeCell, visual: PipeVisual, row: number, col: number) {
     const isEndpoint = Boolean(cell.isSource || cell.isSink);
+    const isSelected = row === this.selectedRow && col === this.selectedCol;
     const connectedColor = isEndpoint ? 0xffec66 : 0x86f8ff;
-    const baseColor = cell.isConnected ? 0x0d2546 : 0x0a1630;
-    const strokeColor = cell.isConnected ? 0x4fdfff : 0x21415d;
-    const pipeColor = cell.isConnected ? connectedColor : 0x5d8aa7;
-    const glowColor = cell.isSink ? 0xc8ff4d : isEndpoint ? 0xffec66 : 0x5fe2ff;
+    const baseColor = cell.isConnected ? 0x0d2546 : isSelected ? 0x11264a : 0x0a1630;
+    const strokeColor = isSelected ? 0xffe86b : cell.isConnected ? 0x4fdfff : 0x21415d;
+    const pipeColor = isSelected ? 0xfff089 : cell.isConnected ? connectedColor : 0x5d8aa7;
+    const glowColor = isSelected ? 0xffe86b : cell.isSink ? 0xc8ff4d : isEndpoint ? 0xffec66 : 0x5fe2ff;
     const arm = this.cellSize * 0.34;
     const pipeWidth = Math.max(8, Math.round(this.cellSize * 0.13));
 
     visual.plate.setFillStyle(baseColor, 0.9);
-    visual.plate.setStrokeStyle(2, strokeColor, cell.isConnected ? 0.7 : 0.4);
-    visual.glow.setFillStyle(glowColor, cell.isConnected || isEndpoint ? 0.16 : 0.04);
-    visual.marker.setFillStyle(cell.isSink ? 0xc8ff4d : 0xffec66, isEndpoint ? 0.95 : 0.12);
+    visual.plate.setStrokeStyle(2, strokeColor, isSelected ? 0.86 : cell.isConnected ? 0.7 : 0.4);
+    visual.glow.setFillStyle(glowColor, isSelected ? 0.22 : cell.isConnected || isEndpoint ? 0.16 : 0.04);
+    visual.marker.setFillStyle(cell.isSink ? 0xc8ff4d : 0xffec66, isEndpoint ? 0.95 : isSelected ? 0.34 : 0.12);
 
     visual.pipe.clear();
     visual.pipe.lineStyle(pipeWidth, pipeColor, 1);
@@ -388,3 +395,4 @@ export default class PipeBoard {
     });
   }
 }
+

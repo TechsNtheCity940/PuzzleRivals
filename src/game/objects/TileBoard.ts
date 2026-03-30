@@ -1,4 +1,4 @@
-﻿import Phaser from "phaser";
+import Phaser from "phaser";
 import { buildTilePuzzle, isTilePuzzleSolved } from "../../../shared/match-puzzle-contract";
 import { buildNeonRivalsObjective, getObjectiveProgressPercent } from "@/game/config/runModes";
 import type {
@@ -56,6 +56,7 @@ export default class TileBoard {
   private gridLeft = 0;
   private gridTop = 0;
   private tiles: number[] = [];
+  private selectedTileValue: number | null = null;
   private cellBackgrounds: Phaser.GameObjects.Rectangle[] = [];
   private blankSlot?: Phaser.GameObjects.Rectangle;
   private tileVisuals = new Map<number, TileVisual>();
@@ -81,6 +82,7 @@ export default class TileBoard {
     this.score = 0;
     this.combo = 0;
     this.maxCombo = 0;
+    this.selectedTileValue = null;
     this.buildBoardSurface();
     this.refreshTileVisuals();
     this.status = "running";
@@ -162,6 +164,10 @@ export default class TileBoard {
     this.blankSlot = this.scene.add.rectangle(0, 0, this.cellSize - 20, this.cellSize - 20, 0x0a1630, 0.28);
     this.blankSlot.setStrokeStyle(3, 0x5fe2ff, 0.2);
     this.blankSlot.setDepth(23);
+    this.blankSlot.setInteractive({ useHandCursor: true });
+    this.blankSlot.on("pointerdown", () => {
+      void this.handleBlankSlotTap();
+    });
 
     for (let value = 1; value < this.size * this.size; value += 1) {
       const container = this.scene.add.container(0, 0);
@@ -196,14 +202,36 @@ export default class TileBoard {
       return;
     }
 
+    this.selectedTileValue = this.selectedTileValue === value ? null : value;
+    this.refreshTileVisuals();
+    this.emitState();
+  }
+
+  private async handleBlankSlotTap() {
+    if (this.inputLocked || this.status === "complete" || this.status === "failed") {
+      return;
+    }
+
+    const emptyIndex = this.tiles.indexOf(0);
+    if (this.selectedTileValue === null) {
+      await this.playInvalidMove(emptyIndex);
+      return;
+    }
+
+    const tileIndex = this.tiles.indexOf(this.selectedTileValue);
+    if (!this.areAdjacent(tileIndex, emptyIndex)) {
+      await this.playInvalidMove(tileIndex);
+      return;
+    }
+
     this.inputLocked = true;
     this.movesLeft = Math.max(0, this.movesLeft - 1);
     const beforeCorrect = this.countCorrectTiles(this.tiles);
 
-    this.tiles[emptyIndex] = value;
+    this.tiles[emptyIndex] = this.selectedTileValue;
     this.tiles[tileIndex] = 0;
 
-    const visual = this.tileVisuals.get(value);
+    const visual = this.tileVisuals.get(this.selectedTileValue);
     const target = this.getCellCenterFromIndex(emptyIndex);
     const ring = this.scene.add.image(target.x, target.y, "impact_ring");
     ring.setTint(0xff4ed0);
@@ -228,6 +256,7 @@ export default class TileBoard {
     ]);
     ring.destroy();
 
+    this.selectedTileValue = null;
     const afterCorrect = this.countCorrectTiles(this.tiles);
     this.matchedTiles = Math.max(0, afterCorrect - (this.tiles[this.tiles.length - 1] === 0 ? 1 : 0));
     this.score += 60 + Math.max(0, afterCorrect - beforeCorrect) * 120;
@@ -260,6 +289,11 @@ export default class TileBoard {
     const blankCenter = this.getCellCenterFromIndex(emptyIndex);
     this.blankSlot?.setPosition(blankCenter.x, blankCenter.y);
 
+    const selectedIndex = this.selectedTileValue === null ? -1 : this.tiles.indexOf(this.selectedTileValue);
+    const selectedCanMove = selectedIndex >= 0 && this.areAdjacent(selectedIndex, emptyIndex);
+    this.blankSlot?.setFillStyle(selectedCanMove ? 0x143a5f : 0x0a1630, selectedCanMove ? 0.44 : 0.28);
+    this.blankSlot?.setStrokeStyle(3, selectedCanMove ? 0xffe86b : 0x5fe2ff, selectedCanMove ? 0.62 : 0.2);
+
     for (let index = 0; index < this.tiles.length; index += 1) {
       const value = this.tiles[index];
       if (value === 0) continue;
@@ -268,10 +302,11 @@ export default class TileBoard {
       const center = this.getCellCenterFromIndex(index);
       visual.container.setPosition(center.x, center.y);
       const isLocked = value === index + 1;
-      visual.plate.setFillStyle(isLocked ? 0x213b1d : 0x18274a, 0.96);
-      visual.plate.setStrokeStyle(2, isLocked ? 0xc8ff4d : 0x59dfff, isLocked ? 0.82 : 0.42);
-      visual.glow.setFillStyle(isLocked ? 0xc8ff4d : 0x65f2ff, isLocked ? 0.16 : 0.05);
-      visual.label.setColor(isLocked ? "#f6ffcf" : "#ffffff");
+      const isSelected = value === this.selectedTileValue;
+      visual.plate.setFillStyle(isLocked ? 0x213b1d : isSelected ? 0x2b2354 : 0x18274a, 0.96);
+      visual.plate.setStrokeStyle(2, isLocked ? 0xc8ff4d : isSelected ? 0xffe86b : 0x59dfff, isLocked ? 0.82 : isSelected ? 0.84 : 0.42);
+      visual.glow.setFillStyle(isLocked ? 0xc8ff4d : isSelected ? 0xffe86b : 0x65f2ff, isLocked ? 0.16 : isSelected ? 0.2 : 0.05);
+      visual.label.setColor(isLocked ? "#f6ffcf" : isSelected ? "#fff7cc" : "#ffffff");
     }
   }
 
@@ -412,3 +447,4 @@ export default class TileBoard {
     });
   }
 }
+

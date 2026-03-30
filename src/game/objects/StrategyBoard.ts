@@ -42,11 +42,21 @@ interface PieceVisual {
   label: Phaser.GameObjects.Text;
 }
 
+type StrategyPieceKind = "knight" | "bishop" | "rook" | "queen" | "checker" | "checker_king";
+
+interface StrategyPieceSpec {
+  kind: StrategyPieceKind;
+  playerGlyph: string;
+  enemyGlyph: string;
+  label: string;
+}
+
 interface StrategyLayout {
   activeSquare: number;
   candidateSquares: number[];
   ambientSquares: number[];
-  activeGlyph: string;
+  activePiece: StrategyPieceSpec;
+  ambientPieces: StrategyPieceSpec[];
 }
 
 class SeededRandom {
@@ -120,8 +130,88 @@ function getQuizKind(mode: NeonRivalsRunMode): QuizPuzzleKind {
   return "chess_tactic";
 }
 
-function getGlyphPool(mode: NeonRivalsRunMode) {
-  return mode === "checkers_trap" ? ["M", "K"] : ["N", "B", "R", "Q"];
+function getStrategyPiecePool(mode: NeonRivalsRunMode): StrategyPieceSpec[] {
+  if (mode === "checkers_trap") {
+    return [
+      { kind: "checker", playerGlyph: "", enemyGlyph: "", label: "Checker" },
+      { kind: "checker_king", playerGlyph: "\u2726", enemyGlyph: "\u2726", label: "Checker King" },
+    ];
+  }
+
+  return [
+    { kind: "knight", playerGlyph: "\u2658", enemyGlyph: "\u265E", label: "Knight" },
+    { kind: "bishop", playerGlyph: "\u2657", enemyGlyph: "\u265D", label: "Bishop" },
+    { kind: "rook", playerGlyph: "\u2656", enemyGlyph: "\u265C", label: "Rook" },
+    { kind: "queen", playerGlyph: "\u2655", enemyGlyph: "\u265B", label: "Queen" },
+  ];
+}
+
+function addCandidateSquare(candidates: number[], seen: Set<number>, row: number, col: number, size: number) {
+  if (row < 0 || row >= size || col < 0 || col >= size) {
+    return;
+  }
+  const squareIndex = row * size + col;
+  if (seen.has(squareIndex)) {
+    return;
+  }
+  seen.add(squareIndex);
+  candidates.push(squareIndex);
+}
+
+function addCandidateRay(candidates: number[], seen: Set<number>, row: number, col: number, dr: number, dc: number, size: number) {
+  let nextRow = row + dr;
+  let nextCol = col + dc;
+  while (nextRow >= 0 && nextRow < size && nextCol >= 0 && nextCol < size) {
+    addCandidateSquare(candidates, seen, nextRow, nextCol, size);
+    nextRow += dr;
+    nextCol += dc;
+  }
+}
+
+function getCandidateSquaresForPiece(kind: StrategyPieceKind, row: number, col: number, size: number) {
+  const candidates: number[] = [];
+  const seen = new Set<number>();
+
+  switch (kind) {
+    case "knight": {
+      [[-2, 1], [-1, 2], [1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1]].forEach(([dr, dc]) => {
+        addCandidateSquare(candidates, seen, row + dr, col + dc, size);
+      });
+      break;
+    }
+    case "bishop": {
+      [[-1, -1], [-1, 1], [1, 1], [1, -1]].forEach(([dr, dc]) => {
+        addCandidateRay(candidates, seen, row, col, dr, dc, size);
+      });
+      break;
+    }
+    case "rook": {
+      [[-1, 0], [0, 1], [1, 0], [0, -1]].forEach(([dr, dc]) => {
+        addCandidateRay(candidates, seen, row, col, dr, dc, size);
+      });
+      break;
+    }
+    case "queen": {
+      [[-1, -1], [-1, 1], [1, 1], [1, -1], [-1, 0], [0, 1], [1, 0], [0, -1]].forEach(([dr, dc]) => {
+        addCandidateRay(candidates, seen, row, col, dr, dc, size);
+      });
+      break;
+    }
+    case "checker": {
+      [[-1, -1], [-1, 1], [-2, -2], [-2, 2]].forEach(([dr, dc]) => {
+        addCandidateSquare(candidates, seen, row + dr, col + dc, size);
+      });
+      break;
+    }
+    case "checker_king": {
+      [[-1, -1], [-1, 1], [1, 1], [1, -1], [-2, -2], [-2, 2], [2, 2], [2, -2]].forEach(([dr, dc]) => {
+        addCandidateSquare(candidates, seen, row + dr, col + dc, size);
+      });
+      break;
+    }
+  }
+
+  return candidates;
 }
 
 export default class StrategyBoard {
@@ -341,12 +431,10 @@ export default class StrategyBoard {
     );
 
     this.highlightBoardFocus();
-    this.activePiece = this.createPiece(this.currentLayout.activeSquare, this.currentLayout.activeGlyph, palette.playerPiece, true);
-    this.ambientPieces = this.currentLayout.ambientSquares.map((squareIndex, index) => {
-      const glyphPool = this.mode === "checkers_trap" ? ["M", "M", "K"] : ["P", "N", "B", "R"];
-      const glyph = glyphPool[index % glyphPool.length];
-      return this.createPiece(squareIndex, glyph, palette.enemyPiece, false);
-    });
+    this.activePiece = this.createPiece(this.currentLayout.activeSquare, this.currentLayout.activePiece, palette.playerPiece, true, false);
+    this.ambientPieces = this.currentLayout.ambientSquares.map((squareIndex, index) =>
+      this.createPiece(squareIndex, this.currentLayout!.ambientPieces[index], palette.enemyPiece, false, true),
+    );
 
     this.candidateVisuals = this.currentLayout.candidateSquares.map((squareIndex, optionIndex) => {
       const center = this.getSquareCenter(squareIndex);
@@ -388,28 +476,15 @@ export default class StrategyBoard {
 
   private buildLayout(roundIndex: number): StrategyLayout {
     const rng = new SeededRandom(this.sessionSeed + roundIndex * 7919 + (this.mode === "checkers_trap" ? 97 : 31));
+    const piecePool = getStrategyPiecePool(this.mode);
+    const activePiece = piecePool[rng.nextInt(0, piecePool.length - 1)];
     const activeRow = rng.nextInt(2, 5);
     const activeCol = rng.nextInt(2, 5);
     const activeSquare = activeRow * this.size + activeCol;
 
-    const preferredCandidates = [
-      [activeRow - 2, activeCol + 1],
-      [activeRow - 1, activeCol + 2],
-      [activeRow + 1, activeCol + 2],
-      [activeRow + 2, activeCol + 1],
-      [activeRow + 2, activeCol - 1],
-      [activeRow + 1, activeCol - 2],
-      [activeRow - 1, activeCol - 2],
-      [activeRow - 2, activeCol - 1],
-      [activeRow - 2, activeCol + 2],
-      [activeRow + 2, activeCol + 2],
-      [activeRow + 2, activeCol - 2],
-      [activeRow - 2, activeCol - 2],
-    ]
-      .filter(([row, col]) => row >= 0 && row < this.size && col >= 0 && col < this.size)
-      .map(([row, col]) => row * this.size + col);
-
-    const candidateSquares = rng.shuffle([...new Set(preferredCandidates)]).slice(0, 4);
+    const legalSquares = getCandidateSquaresForPiece(activePiece.kind, activeRow, activeCol, this.size)
+      .filter((squareIndex) => squareIndex !== activeSquare);
+    const candidateSquares = rng.shuffle(legalSquares).slice(0, 4);
     while (candidateSquares.length < 4) {
       const next = rng.nextInt(0, this.size * this.size - 1);
       if (next !== activeSquare && !candidateSquares.includes(next)) {
@@ -420,14 +495,14 @@ export default class StrategyBoard {
     const ambientPool = Array.from({ length: this.size * this.size }, (_, index) => index)
       .filter((index) => index !== activeSquare && !candidateSquares.includes(index));
     const ambientSquares = rng.shuffle(ambientPool).slice(0, this.mode === "checkers_trap" ? 7 : 6);
-    const glyphPool = getGlyphPool(this.mode);
-    const activeGlyph = glyphPool[rng.nextInt(0, glyphPool.length - 1)];
+    const ambientPieces = ambientSquares.map(() => piecePool[rng.nextInt(0, piecePool.length - 1)]);
 
     return {
       activeSquare,
       candidateSquares,
       ambientSquares,
-      activeGlyph,
+      activePiece,
+      ambientPieces,
     };
   }
 
@@ -438,20 +513,26 @@ export default class StrategyBoard {
     });
   }
 
-  private createPiece(squareIndex: number, glyph: string, fillColor: number, active: boolean) {
+  private createPiece(squareIndex: number, piece: StrategyPieceSpec, fillColor: number, active: boolean, enemy: boolean) {
     const center = this.getSquareCenter(squareIndex);
     const container = this.scene.add.container(center.x, center.y);
     container.setDepth(active ? 38 : 31);
     const glow = this.scene.add.circle(0, 0, this.cellSize * 0.28, fillColor, active ? 0.2 : 0.1);
     const base = this.scene.add.circle(0, 0, this.cellSize * 0.22, fillColor, 0.92);
     base.setStrokeStyle(2, 0xffffff, active ? 0.32 : 0.18);
+    const rim = this.scene.add.circle(0, 0, this.cellSize * 0.18, enemy ? 0x091321 : 0x11213c, piece.kind.startsWith("checker") ? 0.36 : 0.18);
+    rim.setStrokeStyle(1.5, 0xffffff, piece.kind.startsWith("checker") ? 0.24 : 0.12);
+    const glyph = enemy ? piece.enemyGlyph : piece.playerGlyph;
     const label = this.scene.add.text(0, 0, glyph, {
-      fontFamily: "Arial Black, Arial",
-      fontSize: `${Math.max(18, Math.floor(this.cellSize * 0.25))}px`,
-      color: active ? "#08131f" : "#0b1525",
+      fontFamily: "Segoe UI Symbol, Arial Unicode MS, Arial",
+      fontSize: `${Math.max(18, Math.floor(this.cellSize * (piece.kind.startsWith("checker") ? 0.19 : 0.34)))}px`,
+      color: piece.kind.startsWith("checker") ? "#f8fbff" : active ? "#08131f" : "#0b1525",
       align: "center",
     }).setOrigin(0.5);
-    container.add([glow, base, label]);
+    if (piece.kind === "checker") {
+      label.setText("");
+    }
+    container.add([glow, base, rim, label]);
 
     this.scene.tweens.add({
       targets: [glow, base],
@@ -686,3 +767,4 @@ export default class StrategyBoard {
     });
   }
 }
+
