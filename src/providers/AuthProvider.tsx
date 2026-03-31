@@ -221,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
       options: {
+        emailRedirectTo: buildAppUrl("/profile"),
         data: {
           username: user?.username ?? buildGuestUser().username,
         },
@@ -371,3 +372,5 @@ export function useAuth() {
   }
   return context;
 }
+
+

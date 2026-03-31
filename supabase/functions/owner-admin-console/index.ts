@@ -22,6 +22,12 @@ type AdminDashboardMetrics = {
   openTickets: number;
 };
 
+type AdminDashboardMonitoring = {
+  paypalMode: "live" | "sandbox";
+  paypalConfigured: boolean;
+  activeProductCount: number;
+};
+
 type AdminUserRecord = {
   id: string;
   email: string | null;
@@ -289,8 +295,16 @@ async function loadDashboard(admin: SupabaseClient) {
     .filter((entry) => entry.currency === "USD")
     .reduce((sum, entry) => sum + (entry.amount ?? 0), 0);
 
+  const products = ((productsResult.data ?? []) as Array<{ id: string; kind: string; metadata: Record<string, unknown> | null }>).map((entry) => ({
+    id: entry.id,
+    kind: entry.kind,
+    name: readProductName(entry.metadata),
+  })) satisfies ProductSummary[];
+
   const authUsers = await listAllAuthUsers(admin);
   const authUserMap = new Map(authUsers.map((entry) => [entry.id, entry.email]));
+  const paypalMode = (Deno.env.get("PAYPAL_ENV") ?? "live") === "live" ? "live" : "sandbox";
+  const paypalConfigured = Boolean(Deno.env.get("PAYPAL_CLIENT_ID") && Deno.env.get("PAYPAL_CLIENT_SECRET"));
 
   return {
     metrics: {
@@ -305,11 +319,12 @@ async function loadDashboard(admin: SupabaseClient) {
       vipAccessUsers: vipAccessUsersResult.count ?? 0,
       openTickets: openTicketsResult.count ?? 0,
     } satisfies AdminDashboardMetrics,
-    products: ((productsResult.data ?? []) as Array<{ id: string; kind: string; metadata: Record<string, unknown> | null }>).map((entry) => ({
-      id: entry.id,
-      kind: entry.kind,
-      name: readProductName(entry.metadata),
-    })) satisfies ProductSummary[],
+    monitoring: {
+      paypalMode,
+      paypalConfigured,
+      activeProductCount: products.length,
+    } satisfies AdminDashboardMonitoring,
+    products,
     recentUsers: ((recentUsersResult.data ?? []) as ProfileRow[]).map((profile) => mapUserRecord(profile, authUserMap.get(profile.id) ?? null)),
     recentTickets: await mapTickets(admin, (recentTicketsResult.data ?? []) as TicketRow[], authUserMap),
   };
@@ -560,3 +575,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+

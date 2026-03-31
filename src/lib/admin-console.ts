@@ -14,6 +14,12 @@ export interface AdminDashboardMetrics {
   openTickets: number;
 }
 
+export interface AdminDashboardMonitoring {
+  paypalMode: "live" | "sandbox";
+  paypalConfigured: boolean;
+  activeProductCount: number;
+}
+
 export interface AdminProductSummary {
   id: string;
   kind: string;
@@ -61,6 +67,7 @@ export interface AdminSupportTicket {
 
 export interface AdminDashboardSnapshot {
   metrics: AdminDashboardMetrics;
+  monitoring: AdminDashboardMonitoring;
   products: AdminProductSummary[];
   recentUsers: AdminUserRecord[];
   recentTickets: AdminSupportTicket[];
@@ -90,6 +97,17 @@ export interface AdminTicketUpdateInput {
   assignedTo?: string | null;
 }
 
+function mapAdminFunctionError(message: string) {
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes("no edge functions") ||
+    normalized.includes("failed to send a request to the edge function")
+  ) {
+    return "The owner admin console backend is unavailable. Deploy the Supabase function `owner-admin-console` and retry.";
+  }
+  return message;
+}
+
 async function invoke<T>(body: Record<string, unknown>) {
   if (!supabase) {
     throw new Error(supabaseConfigErrorMessage);
@@ -97,7 +115,7 @@ async function invoke<T>(body: Record<string, unknown>) {
 
   const { data, error } = await supabase.functions.invoke("owner-admin-console", { body });
   if (error) {
-    throw new Error(error.message);
+    throw new Error(mapAdminFunctionError(error.message));
   }
 
   return data as T;
@@ -126,3 +144,4 @@ export function loadAdminTickets(status: SupportTicketStatus | "all" = "open", l
 export function updateAdminTicket(input: AdminTicketUpdateInput) {
   return invoke<{ ticket: AdminSupportTicket }>({ action: "update_ticket", ...input });
 }
+

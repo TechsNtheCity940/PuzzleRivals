@@ -62,6 +62,13 @@ function formatDateTime(value: string | null) {
   return new Date(parsed).toLocaleString();
 }
 
+function formatCompactDate(value: string | null) {
+  if (!value) return "Not set";
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) return value;
+  return new Date(parsed).toLocaleDateString();
+}
+
 function toLocalDateTimeValue(value: string | null) {
   if (!value) return "";
   const parsed = new Date(value);
@@ -101,12 +108,18 @@ function metricCards(snapshot: AdminDashboardSnapshot | null) {
     { label: "Total Users", value: snapshot.metrics.totalUsers.toLocaleString() },
     { label: "New Today", value: snapshot.metrics.signupsToday.toLocaleString() },
     { label: "New 7 Days", value: snapshot.metrics.signups7d.toLocaleString() },
+    { label: "New 30 Days", value: snapshot.metrics.signups30d.toLocaleString() },
     { label: "Sales USD", value: `$${snapshot.metrics.totalSalesUsd.toFixed(2)}` },
     { label: "Captured Orders", value: snapshot.metrics.capturedPurchases.toLocaleString() },
     { label: "Season Pass", value: snapshot.metrics.seasonPassUsers.toLocaleString() },
+    { label: "Paid VIP", value: snapshot.metrics.paidVipUsers.toLocaleString() },
     { label: "VIP Access", value: snapshot.metrics.vipAccessUsers.toLocaleString() },
     { label: "Open Tickets", value: snapshot.metrics.openTickets.toLocaleString() },
   ];
+}
+
+function monitoringTone(isHealthy: boolean) {
+  return isHealthy ? "text-emerald-300" : "text-amber-300";
 }
 
 export default function AdminPage() {
@@ -262,7 +275,10 @@ export default function AdminPage() {
       setUsers((current) => current.map((entry) => (entry.id === response.user.id ? response.user : entry)));
       setSelectedUserId(response.user.id);
       setUserDraft(createUserDraft(response.user));
-      setDashboard((current) => current ? { ...current, recentUsers: current.recentUsers.map((entry) => (entry.id === response.user.id ? response.user : entry)) } : current);
+      setDashboard((current) => current ? {
+        ...current,
+        recentUsers: current.recentUsers.map((entry) => (entry.id === response.user.id ? response.user : entry)),
+      } : current);
       toast.success(`${response.user.username} updated.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update user.");
@@ -298,7 +314,10 @@ export default function AdminPage() {
       setTickets((current) => current.map((entry) => (entry.id === response.ticket.id ? response.ticket : entry)));
       setSelectedTicketId(response.ticket.id);
       setTicketDraft(createTicketDraft(response.ticket));
-      setDashboard((current) => current ? { ...current, recentTickets: current.recentTickets.map((entry) => (entry.id === response.ticket.id ? response.ticket : entry)) } : current);
+      setDashboard((current) => current ? {
+        ...current,
+        recentTickets: current.recentTickets.map((entry) => (entry.id === response.ticket.id ? response.ticket : entry)),
+      } : current);
       toast.success(`Ticket ${response.ticket.subject} updated.`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update ticket.");
@@ -317,7 +336,76 @@ export default function AdminPage() {
           right={<Button onClick={() => { void refreshDashboard().catch((error) => toast.error(error instanceof Error ? error.message : "Refresh failed.")); void refreshUsers(searchQuery).catch(() => undefined); void refreshTickets(ticketFilter).catch(() => undefined); }} variant="outline" size="sm"><RefreshCw size={16} />Refresh</Button>}
         />
         {loadError ? <section className="command-panel-soft p-4 text-sm text-muted-foreground">{loadError}</section> : null}
-        <section className="hero-panel"><div className="metric-grid">{metricCards(dashboard).map((card) => <div key={card.label} className="rich-stat"><p className="hud-label">{card.label}</p><p className="stat-value">{card.value}</p></div>)}</div></section>
+        <section className="hero-panel">
+          <div className="metric-grid">{metricCards(dashboard).map((card) => <div key={card.label} className="rich-stat"><p className="hud-label">{card.label}</p><p className="stat-value">{card.value}</p></div>)}</div>
+          {dashboard ? (
+            <div className="mt-6 grid gap-4 xl:grid-cols-[320px,1fr,1fr]">
+              <div className="command-panel-soft p-4">
+                <p className="section-kicker">Commerce Readiness</p>
+                <h2 className="section-title mt-1">Checkout status</h2>
+                <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+                  <div className="flex items-center justify-between gap-3">
+                    <span>PayPal mode</span>
+                    <span className={monitoringTone(dashboard.monitoring.paypalMode === "live")}>{dashboard.monitoring.paypalMode.toUpperCase()}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Credentials</span>
+                    <span className={monitoringTone(dashboard.monitoring.paypalConfigured)}>{dashboard.monitoring.paypalConfigured ? "Configured" : "Missing"}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Active catalog</span>
+                    <span className="text-foreground">{dashboard.monitoring.activeProductCount}</span>
+                  </div>
+                </div>
+                {!dashboard.monitoring.paypalConfigured ? (
+                  <p className="mt-4 text-xs text-amber-300">Set `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` in Supabase secrets before beta payments.</p>
+                ) : null}
+              </div>
+              <div className="command-panel-soft p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="section-kicker">Recent Signups</p>
+                    <h2 className="section-title mt-1">Newest accounts</h2>
+                  </div>
+                  <span className="hud-label">30d: {dashboard.metrics.signups30d}</span>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {dashboard.recentUsers.length > 0 ? dashboard.recentUsers.map((entry) => (
+                    <button key={entry.id} type="button" onClick={() => setSelectedUserId(entry.id)} className="command-panel w-full p-3 text-left">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black text-foreground">{entry.username}</p>
+                          <p className="truncate text-xs text-muted-foreground">{entry.email ?? "No email found"}</p>
+                        </div>
+                        <span className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">{formatCompactDate(entry.createdAt)}</span>
+                      </div>
+                    </button>
+                  )) : <div className="command-panel p-3 text-sm text-muted-foreground">No recent signups yet.</div>}
+                </div>
+              </div>
+              <div className="command-panel-soft p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="section-kicker">Complaint Queue</p>
+                    <h2 className="section-title mt-1">Recent tickets</h2>
+                  </div>
+                  <span className="hud-label">Open: {dashboard.metrics.openTickets}</span>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {dashboard.recentTickets.length > 0 ? dashboard.recentTickets.map((ticket) => (
+                    <button key={ticket.id} type="button" onClick={() => setSelectedTicketId(ticket.id)} className="command-panel w-full p-3 text-left">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="truncate text-sm font-black text-foreground">{ticket.subject}</p>
+                        <span className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">{ticket.status}</span>
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">{ticket.category} | {ticket.reporterUsername} | {formatCompactDate(ticket.createdAt)}</p>
+                    </button>
+                  )) : <div className="command-panel p-3 text-sm text-muted-foreground">No complaints or bug tickets yet.</div>}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </section>
         <div className="page-grid">
           <section className="section-panel lg:col-span-2">
             <div className="section-header"><div><p className="section-kicker">User Search</p><h2 className="section-title">Profiles and privileges</h2></div></div>
@@ -340,11 +428,19 @@ export default function AdminPage() {
               <div className="section-stack">
                 {selectedUser && userDraft ? (
                   <div className="command-panel-soft grid gap-4 p-4 md:grid-cols-2">
-                    <div className="md:col-span-2 flex items-start justify-between gap-4"><div><p className="section-kicker">Selected Player</p><h3 className="text-2xl font-black">{selectedUser.username}</h3><p className="mt-1 text-sm text-muted-foreground">{selectedUser.email ?? "No email available"}</p></div><div className="text-right text-xs text-muted-foreground"><p>Rank {selectedUser.rank ?? "unranked"}</p><p>ELO {selectedUser.elo}</p><p>Created {formatDateTime(selectedUser.createdAt)}</p></div></div>
+                    <div className="md:col-span-2 flex items-start justify-between gap-4">
+                      <div>
+                        <p className="section-kicker">Selected Player</p>
+                        <h3 className="text-2xl font-black">{selectedUser.username}</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">{selectedUser.email ?? "No email available"}</p>
+                        <p className="mt-2 text-xs text-muted-foreground">Role {selectedUser.appRole ?? "player"} | Season Pass {selectedUser.hasSeasonPass ? "Yes" : "No"} | Paid VIP {selectedUser.isVip ? "Yes" : "No"} | VIP Access {selectedUser.vipAccess ? "Yes" : "No"}</p>
+                      </div>
+                      <div className="text-right text-xs text-muted-foreground"><p>Rank {selectedUser.rank ?? "unranked"}</p><p>ELO {selectedUser.elo}</p><p>Created {formatDateTime(selectedUser.createdAt)}</p></div>
+                    </div>
                     <div><label className="hud-label">Username</label><Input value={userDraft.username} onChange={(event) => setUserDraft({ ...userDraft, username: event.target.value })} className="mt-2" /></div>
                     <div><label className="hud-label">Role</label><Select value={userDraft.appRole} onValueChange={(value) => setUserDraft({ ...userDraft, appRole: value as UserAppRole })}><SelectTrigger className="mt-2"><SelectValue /></SelectTrigger><SelectContent>{ROLE_OPTIONS.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent></Select></div>
-                    <div className="command-panel-soft p-4"><div className="flex items-center justify-between gap-3"><div><p className="font-black">Season Pass</p><p className="text-xs text-muted-foreground">Owner can grant or remove premium season access.</p></div><Switch checked={userDraft.hasSeasonPass} onCheckedChange={(checked) => setUserDraft({ ...userDraft, hasSeasonPass: checked })} /></div></div>
-                    <div className="command-panel-soft p-4"><div className="flex items-center justify-between gap-3"><div><p className="font-black">Paid VIP</p><p className="text-xs text-muted-foreground">Represents the standard membership state and expiry.</p></div><Switch checked={userDraft.isVip} onCheckedChange={(checked) => setUserDraft({ ...userDraft, isVip: checked })} /></div></div>
+                    <div className="command-panel-soft p-4"><div className="flex items-center justify-between gap-3"><div><p className="font-black">Season Pass</p><p className="text-xs text-muted-foreground">Grant or remove premium season access.</p></div><Switch checked={userDraft.hasSeasonPass} onCheckedChange={(checked) => setUserDraft({ ...userDraft, hasSeasonPass: checked })} /></div></div>
+                    <div className="command-panel-soft p-4"><div className="flex items-center justify-between gap-3"><div><p className="font-black">Paid VIP</p><p className="text-xs text-muted-foreground">Standard membership state and expiry.</p></div><Switch checked={userDraft.isVip} onCheckedChange={(checked) => setUserDraft({ ...userDraft, isVip: checked })} /></div></div>
                     <div className="command-panel-soft p-4 md:col-span-2"><div className="flex items-center justify-between gap-3"><div><p className="font-black">VIP Access</p><p className="text-xs text-muted-foreground">Very Intelligent Puzzler. Complimentary access to purchasable cosmetics, season items, and store unlocks.</p></div><Switch checked={userDraft.vipAccess} onCheckedChange={(checked) => setUserDraft({ ...userDraft, vipAccess: checked })} /></div></div>
                     <div><label className="hud-label">VIP Expiration</label><Input type="datetime-local" value={userDraft.vipExpiresAt} onChange={(event) => setUserDraft({ ...userDraft, vipExpiresAt: event.target.value })} className="mt-2" /></div><div />
                     <div><label className="hud-label">Coins</label><Input type="number" value={userDraft.coins} onChange={(event) => setUserDraft({ ...userDraft, coins: event.target.value })} className="mt-2" /></div>
@@ -365,7 +461,7 @@ export default function AdminPage() {
             <div className="flex flex-wrap gap-2">{TICKET_FILTERS.map((entry) => <button key={entry} type="button" onClick={() => { setTicketFilter(entry); void refreshTickets(entry).catch((error) => toast.error(error instanceof Error ? error.message : "Failed to load tickets.")); }} className={`segment-chip ${ticketFilter === entry ? "segment-chip-active" : ""}`}>{entry}</button>)}</div>
             <div className="mt-4 grid gap-4 lg:grid-cols-[320px,1fr]">
               <div className="section-stack">{tickets.map((ticket) => <button key={ticket.id} type="button" onClick={() => setSelectedTicketId(ticket.id)} className={`command-panel-soft w-full p-4 text-left ${selectedTicketId === ticket.id ? "border-primary/50 bg-primary/10" : ""}`}><div className="flex items-center justify-between gap-3"><p className="truncate text-sm font-black">{ticket.subject}</p><span className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">{ticket.status}</span></div><p className="mt-2 text-xs text-muted-foreground">{ticket.reporterUsername} | {ticket.category} | {formatDateTime(ticket.createdAt)}</p></button>)}{isTicketsLoading ? <div className="command-panel-soft p-4 text-sm text-muted-foreground">Loading tickets...</div> : null}</div>
-              <div className="section-stack">{selectedTicket && ticketDraft ? <div className="command-panel-soft grid gap-4 p-4"><div><p className="section-kicker">Reporter</p><h3 className="text-xl font-black">{selectedTicket.reporterUsername}</h3><p className="mt-1 text-sm text-muted-foreground">{selectedTicket.reporterEmail ?? "No email available"}</p></div><div><p className="hud-label">Subject</p><p className="mt-2 text-base font-black">{selectedTicket.subject}</p></div><div><p className="hud-label">Ticket Body</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{selectedTicket.body}</p></div><div className="grid gap-4 md:grid-cols-2"><div><label className="hud-label">Status</label><Select value={ticketDraft.status} onValueChange={(value) => setTicketDraft({ ...ticketDraft, status: value as SupportTicketStatus })}><SelectTrigger className="mt-2"><SelectValue /></SelectTrigger><SelectContent>{TICKET_STATUSES.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent></Select></div><div><label className="hud-label">Priority</label><Select value={ticketDraft.priority} onValueChange={(value) => setTicketDraft({ ...ticketDraft, priority: value as SupportTicketPriority })}><SelectTrigger className="mt-2"><SelectValue /></SelectTrigger><SelectContent>{TICKET_PRIORITIES.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent></Select></div></div><div><label className="hud-label">Admin Notes</label><Textarea value={ticketDraft.adminNotes} onChange={(event) => setTicketDraft({ ...ticketDraft, adminNotes: event.target.value })} className="mt-2 min-h-[160px]" /></div><div className="flex flex-wrap gap-3"><Button onClick={() => void handleSaveTicket()} variant="play" size="lg" disabled={isSavingTicket}>{isSavingTicket ? "Saving..." : "Save Ticket Review"}</Button><div className="text-sm text-muted-foreground">Updated {formatDateTime(selectedTicket.updatedAt)}</div></div></div> : <div className="command-panel-soft p-4 text-sm text-muted-foreground">Select a ticket to review bug details, complaints, or player support requests.</div>}</div>
+              <div className="section-stack">{selectedTicket && ticketDraft ? <div className="command-panel-soft grid gap-4 p-4"><div><p className="section-kicker">Reporter</p><h3 className="text-xl font-black">{selectedTicket.reporterUsername}</h3><p className="mt-1 text-sm text-muted-foreground">{selectedTicket.reporterEmail ?? "No email available"}</p><p className="mt-2 text-xs text-muted-foreground">Assigned to {selectedTicket.assignedToUsername ?? "unassigned"} | Resolved {formatDateTime(selectedTicket.resolvedAt)}</p></div><div><p className="hud-label">Subject</p><p className="mt-2 text-base font-black">{selectedTicket.subject}</p></div><div><p className="hud-label">Ticket Body</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{selectedTicket.body}</p></div><div className="grid gap-4 md:grid-cols-2"><div><label className="hud-label">Status</label><Select value={ticketDraft.status} onValueChange={(value) => setTicketDraft({ ...ticketDraft, status: value as SupportTicketStatus })}><SelectTrigger className="mt-2"><SelectValue /></SelectTrigger><SelectContent>{TICKET_STATUSES.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent></Select></div><div><label className="hud-label">Priority</label><Select value={ticketDraft.priority} onValueChange={(value) => setTicketDraft({ ...ticketDraft, priority: value as SupportTicketPriority })}><SelectTrigger className="mt-2"><SelectValue /></SelectTrigger><SelectContent>{TICKET_PRIORITIES.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent></Select></div></div><div><label className="hud-label">Admin Notes</label><Textarea value={ticketDraft.adminNotes} onChange={(event) => setTicketDraft({ ...ticketDraft, adminNotes: event.target.value })} className="mt-2 min-h-[160px]" /></div><div className="flex flex-wrap gap-3"><Button onClick={() => void handleSaveTicket()} variant="play" size="lg" disabled={isSavingTicket}>{isSavingTicket ? "Saving..." : "Save Ticket Review"}</Button><div className="text-sm text-muted-foreground">Updated {formatDateTime(selectedTicket.updatedAt)}</div></div></div> : <div className="command-panel-soft p-4 text-sm text-muted-foreground">Select a ticket to review bug details, complaints, or player support requests.</div>}</div>
             </div>
           </section>
         </div>
