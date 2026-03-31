@@ -9,6 +9,7 @@ import { getThemeVisual } from "@/lib/cosmetics";
 import { loadNotificationSummary } from "@/lib/game-content";
 import { useAuth } from "@/providers/AuthProvider";
 import BottomNav from "./BottomNav";
+import { resolveCanonicalBrowserUrl, shouldRedirectToCanonical } from "@/lib/app-origin";
 
 function unreadBadgeLabel(unreadCount: number) {
   if (unreadCount <= 0) return "Account";
@@ -45,6 +46,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
     "--theme-shell-art": theme.shellArt ? `url("${theme.shellArt}")` : "none",
     "--theme-board-art": theme.boardArt ? `url("${theme.boardArt}")` : "none",
   } as CSSProperties;
+
+  useEffect(() => {
+    if (shouldRedirectToCanonical()) {
+      window.location.replace(resolveCanonicalBrowserUrl());
+      return;
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;

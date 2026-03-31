@@ -36,6 +36,7 @@ type WalletRow = {
   hint_balance: number;
   has_season_pass: boolean;
   is_vip: boolean;
+  vip_access: boolean;
   vip_expires_at: string | null;
   theme_id: string | null;
   frame_id: string | null;
@@ -51,6 +52,7 @@ export interface StorefrontWallet {
   coins: number;
   gems: number;
   isPrivileged: boolean;
+  vipAccess: boolean;
   puzzleShards: number;
   rankPoints: number;
   passXp: number;
@@ -142,6 +144,7 @@ function toWallet(profile?: UserProfile | null): StorefrontWallet | null {
     coins: profile.coins,
     gems: profile.gems,
     isPrivileged: privileged,
+    vipAccess: Boolean(profile.vipAccess),
     puzzleShards: profile.puzzleShards,
     rankPoints: profile.rankPoints,
     passXp: profile.passXp,
@@ -166,6 +169,7 @@ function mapWallet(wallet: WalletRow | null, profile?: UserProfile | null): Stor
       coins: wallet.coins,
       gems: wallet.gems,
       isPrivileged: privileged,
+      vipAccess: Boolean(wallet.vip_access),
       puzzleShards: wallet.puzzle_shards,
       rankPoints: wallet.rank_points,
       passXp: wallet.pass_xp,
@@ -364,7 +368,7 @@ export async function fetchStorefront(profile?: UserProfile | null): Promise<Sto
     shouldLoadProfileState
       ? supabase
           .from("profiles")
-          .select("coins, gems, puzzle_shards, rank_points, pass_xp, hint_balance, has_season_pass, is_vip, vip_expires_at, theme_id, frame_id, player_card_id, banner_id, emblem_id, title_id")
+          .select("coins, gems, puzzle_shards, rank_points, pass_xp, hint_balance, has_season_pass, is_vip, vip_access, vip_expires_at, theme_id, frame_id, player_card_id, banner_id, emblem_id, title_id")
           .eq("id", profile.id)
           .single<WalletRow>()
       : Promise.resolve({ data: null, error: null }),

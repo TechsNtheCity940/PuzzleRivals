@@ -4,3 +4,9 @@
 
 [build.environment]
   SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY"
+
+[[redirects]]
+  from = "https://puzzlerivals.com/*"
+  to = "https://www.puzzlerivals.com/:splat"
+  status = 301
+  force = true

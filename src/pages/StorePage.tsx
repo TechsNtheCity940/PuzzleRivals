@@ -27,8 +27,8 @@ import { useAuth } from "@/providers/AuthProvider";
 
 type Tab = "all" | ItemCategory;
 
-function formatPrice(item: StorefrontItem) {
-  if (item.isComplimentary) return "Owner Complimentary";
+function formatPrice(item: StorefrontItem, wallet?: StorefrontSnapshot["wallet"]) {
+  if (item.isComplimentary) return wallet?.vipAccess ? "VIP Complimentary" : "Complimentary Access";
   if (item.priceUsd) return `$${item.priceUsd.toFixed(2)}`;
   if (item.priceGems) return `${item.priceGems} Gems`;
   if (item.priceCoins) return `${item.priceCoins.toLocaleString()} Coins`;
@@ -177,7 +177,13 @@ export default function StorePage() {
   const pageCount = Math.max(1, Math.ceil(items.length / 6));
   const visibleItems = items.slice(page * 6, page * 6 + 6);
   const vip = snapshot.vipProduct;
-  const vipButtonLabel = snapshot.wallet?.isPrivileged ? "Owner Access" : snapshot.wallet?.isVip ? "Extend VIP" : "Subscribe";
+  const vipButtonLabel = snapshot.wallet?.isPrivileged
+    ? snapshot.wallet?.vipAccess
+      ? "VIP Access"
+      : "Owner Access"
+    : snapshot.wallet?.isVip
+      ? "Extend VIP"
+      : "Subscribe";
 
   async function refreshSnapshot() {
     const next = await loadStoreContent(user);
@@ -299,7 +305,7 @@ export default function StorePage() {
               </div>
               <p className="text-sm leading-6 text-muted-foreground">
                 {vip
-                  ? formatPrice(vip)
+                  ? formatPrice(vip, snapshot.wallet)
                   : vipMembership
                     ? `$${vipMembership.priceUsd.toFixed(2)}/month`
                     : vipResolution === "empty"
@@ -434,7 +440,7 @@ export default function StorePage() {
                           <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                             {item.collection ? `${item.collection} - ` : ""}Tier {romanNumeral(item.rarity)}
                           </p>
-                          <p className="mt-1 text-xs font-black text-primary">{formatPrice(item)}</p>
+                          <p className="mt-1 text-xs font-black text-primary">{formatPrice(item, snapshot.wallet)}</p>
                         </div>
                       )
                     }

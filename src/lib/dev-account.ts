@@ -14,6 +14,14 @@ export function isPrivilegedRole(appRole?: UserAppRole | null) {
   return appRole === "owner" || appRole === "admin";
 }
 
-export function isPrivilegedUser(user?: Pick<UserProfile, "email" | "appRole"> | null) {
-  return Boolean(user) && (isPrivilegedRole(user.appRole) || isOwnerEmail(user.email));
+export function hasVipAccess(user?: Pick<UserProfile, "vipAccess"> | null) {
+  return Boolean(user?.vipAccess);
+}
+
+export function isOwnerUser(user?: Pick<UserProfile, "email" | "appRole"> | null) {
+  return Boolean(user) && (user.appRole === "owner" || isOwnerEmail(user.email));
+}
+
+export function isPrivilegedUser(user?: Pick<UserProfile, "email" | "appRole" | "vipAccess"> | null) {
+  return Boolean(user) && (isPrivilegedRole(user.appRole) || isOwnerEmail(user.email) || hasVipAccess(user));
 }

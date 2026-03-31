@@ -54,8 +54,8 @@ Deno.serve(async (req) => {
       if (walletError) throw walletError;
     }
 
-    await applyProductGrant(admin, user.id, product, privileged ? "owner_comp" : "virtual");
-    const currency = privileged ? "OWNER" : (product.price_gems ? "GEMS" : "COINS");
+    await applyProductGrant(admin, user.id, product, privileged ? "complimentary" : "virtual");
+    const currency = privileged ? "COMP" : (product.price_gems ? "GEMS" : "COINS");
     const amount = privileged ? 0 : (product.price_gems ?? product.price_coins ?? 0);
     const purchaseId = await createPurchaseRecord(admin, user.id, product, {
       currency,

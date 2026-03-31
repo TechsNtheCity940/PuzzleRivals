@@ -16,6 +16,9 @@ const TournamentsPage = lazy(() => import("./pages/TournamentsPage"));
 const StorePage = lazy(() => import("./pages/StorePage"));
 const SeasonPage = lazy(() => import("./pages/SeasonPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const FriendsPage = lazy(() => import("./pages/FriendsPage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
+const SupportPage = lazy(() => import("./pages/SupportPage"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 function RouteFallback() {
@@ -59,6 +62,9 @@ const App = () => (
                   <Route path="/store" element={<StorePage />} />
                   <Route path="/season" element={<SeasonPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/friends" element={<FriendsPage />} />
+                  <Route path="/admin" element={<AdminPage />} />
+                  <Route path="/support" element={<SupportPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>

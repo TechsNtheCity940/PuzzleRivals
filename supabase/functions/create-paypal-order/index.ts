@@ -3,6 +3,7 @@ import { requireUser } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { createPayPalOrder } from "../_shared/paypal.ts";
 import { assertPurchasable, createPurchaseRecord, getActiveProduct } from "../_shared/store.ts";
+import { resolveAppOrigin } from "../_shared/origin.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -17,7 +18,7 @@ Deno.serve(async (req) => {
       throw new Error("productId is required.");
     }
 
-    const origin = req.headers.get("origin") ?? "http://localhost:8080";
+    const origin = resolveAppOrigin(req.headers.get("origin") ?? undefined);
     const admin = createAdminClient();
     const product = await getActiveProduct(admin, productId);
     await assertPurchasable(admin, user.id, product);

@@ -19,6 +19,7 @@ type ProfileWalletRow = {
   rank_points: number;
   pass_xp: number;
   is_vip: boolean;
+  vip_access: boolean;
   vip_expires_at: string | null;
   has_season_pass: boolean;
   theme_id: string | null;
@@ -39,8 +40,12 @@ function normalizeEmail(email: string | null | undefined) {
 export async function isPrivilegedStoreAccount(
   admin: SupabaseClient,
   userId: string,
-  profile?: Pick<ProfileWalletRow, "app_role"> | null,
+  profile?: Pick<ProfileWalletRow, "app_role" | "vip_access"> | null,
 ) {
+  if (profile?.vip_access) {
+    return true;
+  }
+
   if (profile?.app_role === "owner" || profile?.app_role === "admin") {
     return true;
   }
@@ -92,7 +97,7 @@ export async function getActiveProduct(admin: SupabaseClient, productId: string)
 export async function getProfileWallet(admin: SupabaseClient, userId: string) {
   const { data, error } = await admin
     .from("profiles")
-    .select("id, app_role, coins, gems, puzzle_shards, rank_points, pass_xp, is_vip, vip_expires_at, has_season_pass, theme_id, frame_id, player_card_id, banner_id, emblem_id, title_id, hint_balance")
+    .select("id, app_role, coins, gems, puzzle_shards, rank_points, pass_xp, is_vip, vip_access, vip_expires_at, has_season_pass, theme_id, frame_id, player_card_id, banner_id, emblem_id, title_id, hint_balance")
     .eq("id", userId)
     .single();
 

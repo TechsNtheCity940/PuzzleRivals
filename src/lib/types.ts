@@ -87,6 +87,7 @@ export interface UserProfile {
   hintBalance?: number;
   hasSeasonPass?: boolean;
   vipExpiresAt?: string | null;
+  vipAccess?: boolean;
   elo: number;
   rank: RankTier;
   level: number;
@@ -336,6 +337,12 @@ export interface VipMembership {
   perks: string[];
   priceUsd: number;
 }
+
+export type SupportTicketCategory = "bug" | "complaint" | "support" | "feedback";
+
+export type SupportTicketStatus = "open" | "reviewing" | "resolved" | "dismissed";
+
+export type SupportTicketPriority = "low" | "normal" | "high" | "urgent";
 
 // ---------- Clan ----------
 export interface Clan {

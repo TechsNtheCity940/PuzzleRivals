@@ -19,6 +19,7 @@ import {
   supabaseConfigErrorMessage,
 } from "@/lib/supabase-client";
 import type { UserProfile } from "@/lib/types";
+import { buildAppUrl } from "@/lib/app-origin";
 
 interface AuthContextValue {
   isReady: boolean;
@@ -273,7 +274,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "facebook",
       options: {
-        redirectTo: `${window.location.origin}/profile`,
+        redirectTo: buildAppUrl("/profile"),
       },
     });
 
@@ -290,7 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: TIKTOK_PROVIDER,
       options: {
-        redirectTo: `${window.location.origin}/profile`,
+        redirectTo: buildAppUrl("/profile"),
       },
     });
 
@@ -307,7 +308,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.linkIdentity({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/profile`,
+        redirectTo: buildAppUrl("/profile"),
       },
     });
 

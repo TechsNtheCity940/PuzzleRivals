@@ -30,6 +30,7 @@ type ProfileRow = {
   rank_points: number;
   pass_xp: number;
   is_vip: boolean;
+  vip_access: boolean;
   vip_expires_at: string | null;
   has_season_pass: boolean;
   theme_id: string | null;
@@ -75,6 +76,10 @@ type SocialDirectoryEntry = {
 
 type SecurityQuestionsRow = {
   user_id: string;
+};
+
+type FriendshipSummaryRow = {
+  friend_id: string;
 };
 
 function defaultUsernameForSession(session: Session) {
@@ -150,6 +155,7 @@ export function buildGuestUser(overrides: Partial<UserProfile> = {}): UserProfil
     hintBalance: overrides.hintBalance ?? 0,
     hasSeasonPass: overrides.hasSeasonPass ?? false,
     vipExpiresAt: overrides.vipExpiresAt ?? null,
+    vipAccess: overrides.vipAccess ?? false,
     puzzleShards: overrides.puzzleShards ?? 0,
     rankPoints: overrides.rankPoints ?? 0,
     passXp: overrides.passXp ?? 0,
@@ -232,11 +238,13 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
 
   const [
     { data: profile, error: profileError },
+    { data: friendships, error: friendshipsError },
     { data: stats, error: statsError },
     { data: puzzleStats, error: puzzleStatsError },
     { data: securityQuestions, error: securityQuestionsError },
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", session.user.id).single<ProfileRow>(),
+    supabase.from("friendships").select("friend_id").eq("user_id", session.user.id),
     supabase.from("player_stats").select("*").eq("user_id", session.user.id).single<PlayerStatsRow>(),
     supabase.from("player_puzzle_stats").select("puzzle_type, matches_played, wins, total_progress").eq("user_id", session.user.id),
     supabase.from("user_security_questions").select("user_id").eq("user_id", session.user.id).maybeSingle<SecurityQuestionsRow>(),
@@ -253,6 +261,10 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
     throw securityQuestionsError;
   }
 
+  if (friendshipsError && !isSupabaseSchemaSetupIssue(friendshipsError)) {
+    throw friendshipsError;
+  }
+
   if (!profile) {
     throw toSupabaseSchemaSetupError(
       { message: "Profile row was unavailable after auth bootstrap." },
@@ -262,7 +274,8 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
 
   const computed = computePuzzleSnapshot((puzzleStatsError ? [] : puzzleStats ?? []) as PuzzleStatsRow[]);
   const linkedProviders = buildLinkedProviders(session);
-  const privilegedAccount = isPrivilegedRole(profile.app_role) || isOwnerEmail(session.user.email ?? null);
+  const privilegedAccount =
+    Boolean(profile.vip_access) || isPrivilegedRole(profile.app_role) || isOwnerEmail(session.user.email ?? null);
 
   return {
     ...CURRENT_USER,
@@ -280,6 +293,7 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
     hintBalance: privilegedAccount ? Math.max(profile.hint_balance, 99) : profile.hint_balance,
     hasSeasonPass: privilegedAccount ? true : profile.has_season_pass,
     vipExpiresAt: privilegedAccount ? (profile.vip_expires_at ?? "2099-12-31T00:00:00Z") : profile.vip_expires_at,
+    vipAccess: privilegedAccount,
     elo: profile.elo,
     rank: getRankBand(profile.elo).tier,
     level: profile.level,
@@ -309,6 +323,7 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
       tiktok: profile.tiktok_handle ?? undefined,
     },
     puzzleSkills: computed.puzzleSkills,
+    friends: ((isSupabaseSchemaSetupIssue(friendshipsError) ? [] : friendships ?? []) as FriendshipSummaryRow[]).map((entry) => entry.friend_id),
   };
 }
 

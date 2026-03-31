@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, ChevronRight, Eye, Flame, Swords, TimerReset, Trophy } from "lucide-react";
+import { Bell, ChevronRight, Eye, Flame, LifeBuoy, Shield, Swords, TimerReset, Trophy, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import PageHeader from "@/components/layout/PageHeader";
@@ -14,6 +14,7 @@ import {
   type GameContentResolution,
   type GameContentSource,
 } from "@/lib/game-content";
+import { isOwnerUser } from "@/lib/dev-account";
 import { getRankBand, getRankColor } from "@/lib/seed-data";
 import type { DailyChallenge, LeaderboardEntry, ProfileActivityEvent } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
@@ -73,6 +74,7 @@ export default function HomePage() {
   const [isContentLoading, setIsContentLoading] = useState(true);
   const [contentError, setContentError] = useState<string | null>(null);
   const winRate = user && user.matchesPlayed > 0 ? Math.round((user.wins / user.matchesPlayed) * 100) : 0;
+  const ownerAccess = isOwnerUser(user);
 
   useEffect(() => {
     let cancelled = false;
@@ -442,6 +444,20 @@ export default function HomePage() {
                     <Eye size={16} />
                     Open Profile Deck
                   </Button>
+                  <Button onClick={() => navigate("/friends")} variant="outline" size="lg" className="w-full">
+                    <Users size={16} />
+                    Open Friends Console
+                  </Button>
+                  <Button onClick={() => navigate("/support")} variant="outline" size="lg" className="w-full">
+                    <LifeBuoy size={16} />
+                    Report Issue
+                  </Button>
+                  {ownerAccess ? (
+                    <Button onClick={() => navigate("/admin")} variant="outline" size="lg" className="w-full">
+                      <Shield size={16} />
+                      Open Admin Console
+                    </Button>
+                  ) : null}
                 </>
               )}
             </div>
