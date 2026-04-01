@@ -1,5 +1,13 @@
-import type { NeonRivalsBoardFamily, NeonRivalsGameState, NeonRivalsRunMode } from "@/game/types";
-import { BOARD_ASSET_ROOT, TILE_TYPES, type TileTextureKey } from "@/game/utils/constants";
+import type {
+  NeonRivalsBoardFamily,
+  NeonRivalsGameState,
+  NeonRivalsRunMode,
+} from "@/game/types";
+import {
+  BOARD_ASSET_ROOT,
+  TILE_TYPES,
+  type TileTextureKey,
+} from "@/game/utils/constants";
 
 export interface NeonRivalsRunModeOption {
   id: NeonRivalsRunMode;
@@ -22,6 +30,8 @@ export interface NeonRivalsObjectiveConfig {
   targetColor?: TileTextureKey;
   targetColorLabel?: string;
 }
+
+type ObjectivePreset = Omit<NeonRivalsObjectiveConfig, "mode" | "targetColor" | "targetColorLabel">;
 
 const COLOR_LABELS: Record<TileTextureKey, string> = {
   tile_red: "Crimson",
@@ -96,6 +106,55 @@ export const NEON_RIVALS_RUN_MODE_OPTIONS: NeonRivalsRunModeOption[] = [
     description: "Read the rotation or mirror rule, then snap the right silhouette before the next shape drops in.",
   },
   {
+    id: "riddle_relay",
+    boardFamily: "quiz",
+    label: "Riddle Relay",
+    kicker: "Prompt lane",
+    description: "Read the clue, pressure the answer panels, and keep the relay alive across the whole quiz board.",
+  },
+  {
+    id: "trivia_blitz",
+    boardFamily: "quiz",
+    label: "Trivia Blitz",
+    kicker: "Fact lane",
+    description: "Burn through fast fact boards and bank clean answer streaks before the timer feel collapses.",
+  },
+  {
+    id: "geography_dash",
+    boardFamily: "quiz",
+    label: "Geography Dash",
+    kicker: "Map lane",
+    description: "Read capitals, landmarks, and countries from the animated board and fire the correct panel fast.",
+  },
+  {
+    id: "science_spark",
+    boardFamily: "quiz",
+    label: "Science Spark",
+    kicker: "Lab lane",
+    description: "Work through live science prompts, symbol recalls, and system clues under a tighter solve pace.",
+  },
+  {
+    id: "analogy_arc",
+    boardFamily: "quiz",
+    label: "Analogy Arc",
+    kicker: "Reasoning lane",
+    description: "Track the relation pattern and snap the cleanest parallel before the panel arc resets.",
+  },
+  {
+    id: "vocabulary_duel",
+    boardFamily: "quiz",
+    label: "Vocabulary Duel",
+    kicker: "Word lane",
+    description: "Read word meaning and synonym pressure boards, then lock the strongest answer route quickly.",
+  },
+  {
+    id: "memory_flash",
+    boardFamily: "memory",
+    label: "Memory Flash",
+    kicker: "Recall lane",
+    description: "Watch the live memory pulse, hold the sequence, and tap the glowing cells back into place.",
+  },
+  {
     id: "chess_shot",
     boardFamily: "strategy",
     label: "Chess Shot",
@@ -109,7 +168,221 @@ export const NEON_RIVALS_RUN_MODE_OPTIONS: NeonRivalsRunModeOption[] = [
     kicker: "Capture lane",
     description: "Spot the strongest jump lane and trigger the best continuation straight from the animated board.",
   },
+  {
+    id: "chess_endgame",
+    boardFamily: "strategy",
+    label: "Chess Endgame",
+    kicker: "Conversion lane",
+    description: "Convert tense endgame positions on the live board and squeeze the winning square without drift.",
+  },
+  {
+    id: "chess_opening",
+    boardFamily: "strategy",
+    label: "Chess Opening",
+    kicker: "Development lane",
+    description: "Read the opening principle or move order, then tap the strongest developing continuation on board.",
+  },
+  {
+    id: "chess_mate_net",
+    boardFamily: "strategy",
+    label: "Mate Net",
+    kicker: "Finisher lane",
+    description: "Close the king box, cover the last escape square, and trigger the forcing mating line from the board.",
+  },
 ];
+
+const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo_rush">, ObjectivePreset> = {
+  score_attack: {
+    boardFamily: "match3",
+    title: "Score Attack",
+    label: "Reach 2,400 score in 18 moves.",
+    description: "The cleanest Neon Rivals lane. Build stable cascades and push raw score to the finish line.",
+    targetValue: 2400,
+    targetScore: 2400,
+    startingMoves: 18,
+    resourceLabel: "moves",
+  },
+  clear_rush: {
+    boardFamily: "match3",
+    title: "Clear Rush",
+    label: "Clear 42 total tiles before the last move expires.",
+    description: "Fast clears beat perfect setup here. Keep the board moving and stay ahead of the move clock.",
+    targetValue: 42,
+    targetScore: 2000,
+    startingMoves: 14,
+    resourceLabel: "moves",
+  },
+  maze_rush: {
+    boardFamily: "maze",
+    title: "Maze Rush",
+    label: "Reach the exit core before the route step budget burns out.",
+    description: "Trace legal turns only. Start and goal nodes pulse live, dead turns spark red, and clean routing finishes the run instantly.",
+    targetValue: 100,
+    targetScore: 1800,
+    startingMoves: 22,
+    resourceLabel: "steps",
+  },
+  pipe_rush: {
+    boardFamily: "pipe",
+    title: "Pipe Pulse",
+    label: "Flood the full conduit grid before the move budget collapses.",
+    description: "Rotate neon conduit tiles, push the source flow deeper every turn, and light the whole network cleanly.",
+    targetValue: 100,
+    targetScore: 1750,
+    startingMoves: 20,
+    resourceLabel: "moves",
+  },
+  tile_shift: {
+    boardFamily: "tile",
+    title: "Tile Shift",
+    label: "Slide the board back into order before the last move expires.",
+    description: "Use the blank slot efficiently, lock rows cleanly, and finish the solved board under pressure.",
+    targetValue: 100,
+    targetScore: 1700,
+    startingMoves: 28,
+    resourceLabel: "moves",
+  },
+  number_crunch: {
+    boardFamily: "number",
+    title: "Number Crunch",
+    label: "Seal every blank so the row and column sum rails lock cleanly.",
+    description: "Pick an empty cell, fire a digit into place, and watch solved rails light up as the board stabilizes.",
+    targetValue: 100,
+    targetScore: 1725,
+    startingMoves: 18,
+    resourceLabel: "moves",
+  },
+  spatial_spin: {
+    boardFamily: "spatial",
+    title: "Spatial Spin",
+    label: "Read each transform and snap the correct silhouette before the round queue empties.",
+    description: "Track anchor blocks mentally. One clean read should light the next board immediately.",
+    targetValue: 100,
+    targetScore: 1680,
+    startingMoves: 12,
+    resourceLabel: "moves",
+  },
+  riddle_relay: {
+    boardFamily: "quiz",
+    title: "Riddle Relay",
+    label: "Solve every relay clue before the answer lanes dry up.",
+    description: "Read the prompt, pulse the right answer lane, and keep the board streak alive across the whole relay.",
+    targetValue: 100,
+    targetScore: 1660,
+    startingMoves: 10,
+    resourceLabel: "moves",
+  },
+  trivia_blitz: {
+    boardFamily: "quiz",
+    title: "Trivia Blitz",
+    label: "Burn through every fact board and keep the answer streak intact.",
+    description: "Facts arrive fast here. Clean streaks bank better rewards than late recoveries.",
+    targetValue: 100,
+    targetScore: 1690,
+    startingMoves: 10,
+    resourceLabel: "moves",
+  },
+  geography_dash: {
+    boardFamily: "quiz",
+    title: "Geography Dash",
+    label: "Lock the right capital or country lane before the next map prompt drops.",
+    description: "Read the globe board fast. Capitals, countries, and landmarks share the same pressure clock.",
+    targetValue: 100,
+    targetScore: 1680,
+    startingMoves: 10,
+    resourceLabel: "moves",
+  },
+  science_spark: {
+    boardFamily: "quiz",
+    title: "Science Spark",
+    label: "Trigger clean lab reads and keep the solve chain lit across the board.",
+    description: "Elements, systems, and core science facts cycle in under the same live answer pressure.",
+    targetValue: 100,
+    targetScore: 1700,
+    startingMoves: 10,
+    resourceLabel: "moves",
+  },
+  analogy_arc: {
+    boardFamily: "quiz",
+    title: "Analogy Arc",
+    label: "Read the relation and snap the matching parallel before the arc resets.",
+    description: "Pattern reading beats guessing. One clean analogy keeps the chain moving.",
+    targetValue: 100,
+    targetScore: 1670,
+    startingMoves: 10,
+    resourceLabel: "moves",
+  },
+  vocabulary_duel: {
+    boardFamily: "quiz",
+    title: "Vocabulary Duel",
+    label: "Win the word lane by locking the best meaning or synonym panel every round.",
+    description: "Read fast, but do not rush. Close distractors punish loose taps here.",
+    targetValue: 100,
+    targetScore: 1710,
+    startingMoves: 10,
+    resourceLabel: "moves",
+  },
+  memory_flash: {
+    boardFamily: "memory",
+    title: "Memory Flash",
+    label: "Repeat the live neon memory pattern before the attempt count collapses.",
+    description: "Watch the pulse sequence, hold the full shape, and replay it without drifting into decoys.",
+    targetValue: 100,
+    targetScore: 1685,
+    startingMoves: 12,
+    resourceLabel: "attempts",
+  },
+  chess_shot: {
+    boardFamily: "strategy",
+    title: "Chess Shot",
+    label: "Read the tactic and tap the winning board target before the move budget folds.",
+    description: "Checks, captures, and threats. The live board target is the answer surface now, not a side list.",
+    targetValue: 100,
+    targetScore: 1780,
+    startingMoves: 10,
+    resourceLabel: "moves",
+  },
+  checkers_trap: {
+    boardFamily: "strategy",
+    title: "Checkers Trap",
+    label: "Read the jump lane and trigger the strongest continuation from the board itself.",
+    description: "Track the capture route, pressure promotion lanes, and bank each solved board before the clock dries up.",
+    targetValue: 100,
+    targetScore: 1700,
+    startingMoves: 10,
+    resourceLabel: "moves",
+  },
+  chess_endgame: {
+    boardFamily: "strategy",
+    title: "Chess Endgame",
+    label: "Convert the ending by tapping the winning square before the move budget fades.",
+    description: "Opposition, rook activity, and passed pawns. Endgame details decide the board here.",
+    targetValue: 100,
+    targetScore: 1760,
+    startingMoves: 10,
+    resourceLabel: "moves",
+  },
+  chess_opening: {
+    boardFamily: "strategy",
+    title: "Chess Opening",
+    label: "Find the strongest developing continuation from the live board before the route resets.",
+    description: "Principles matter here: development, king safety, and center control over flashy nonsense.",
+    targetValue: 100,
+    targetScore: 1740,
+    startingMoves: 10,
+    resourceLabel: "moves",
+  },
+  chess_mate_net: {
+    boardFamily: "strategy",
+    title: "Mate Net",
+    label: "Close the forcing net and tap the key mating square before the move budget expires.",
+    description: "Remove escape squares, force checks, and finish the line cleanly while the board stays live.",
+    targetValue: 100,
+    targetScore: 1790,
+    startingMoves: 10,
+    resourceLabel: "moves",
+  },
+};
 
 export const NEON_RIVALS_ASSET_MANIFEST = [
   `${BOARD_ASSET_ROOT}/board/board_bg_far.png`,
@@ -128,7 +401,10 @@ function seededIndex(seed: number, mod: number) {
   return normalized % mod;
 }
 
-export function buildNeonRivalsObjective(mode: NeonRivalsRunMode, seed: number): NeonRivalsObjectiveConfig {
+export function buildNeonRivalsObjective(
+  mode: NeonRivalsRunMode,
+  seed: number,
+): NeonRivalsObjectiveConfig {
   if (mode === "combo_rush") {
     return {
       mode,
@@ -144,7 +420,9 @@ export function buildNeonRivalsObjective(mode: NeonRivalsRunMode, seed: number):
   }
 
   if (mode === "color_hunt") {
-    const targetColor = TILE_TYPES[seededIndex(seed, TILE_TYPES.length)] as TileTextureKey;
+    const targetColor = TILE_TYPES[
+      seededIndex(seed, TILE_TYPES.length)
+    ] as TileTextureKey;
     return {
       mode,
       boardFamily: "match3",
@@ -160,141 +438,28 @@ export function buildNeonRivalsObjective(mode: NeonRivalsRunMode, seed: number):
     };
   }
 
-  if (mode === "clear_rush") {
-    return {
-      mode,
-      boardFamily: "match3",
-      title: "Clear Rush",
-      label: "Clear 42 total tiles before the last move expires.",
-      description: "Fast clears beat perfect setup here. Keep the board moving and stay ahead of the move clock.",
-      targetValue: 42,
-      targetScore: 2000,
-      startingMoves: 14,
-      resourceLabel: "moves",
-    };
-  }
-
-  if (mode === "maze_rush") {
-    return {
-      mode,
-      boardFamily: "maze",
-      title: "Maze Rush",
-      label: "Reach the exit core before the route step budget burns out.",
-      description: "Trace legal turns only. Start and goal nodes pulse live, dead turns spark red, and clean routing finishes the run instantly.",
-      targetValue: 100,
-      targetScore: 1800,
-      startingMoves: 22,
-      resourceLabel: "steps",
-    };
-  }
-
-  if (mode === "pipe_rush") {
-    return {
-      mode,
-      boardFamily: "pipe",
-      title: "Pipe Pulse",
-      label: "Flood the full conduit grid before the move budget collapses.",
-      description: "Rotate neon conduit tiles, push the source flow deeper every turn, and light the whole network cleanly.",
-      targetValue: 100,
-      targetScore: 1750,
-      startingMoves: 20,
-      resourceLabel: "moves",
-    };
-  }
-
-  if (mode === "tile_shift") {
-    return {
-      mode,
-      boardFamily: "tile",
-      title: "Tile Shift",
-      label: "Slide the board back into order before the last move expires.",
-      description: "Use the blank slot efficiently, lock rows cleanly, and finish the solved board under pressure.",
-      targetValue: 100,
-      targetScore: 1700,
-      startingMoves: 28,
-      resourceLabel: "moves",
-    };
-  }
-
-  if (mode === "number_crunch") {
-    return {
-      mode,
-      boardFamily: "number",
-      title: "Number Crunch",
-      label: "Seal every blank so the row and column sum rails lock cleanly.",
-      description: "Pick an empty cell, fire a digit into place, and watch solved rails light up as the board stabilizes.",
-      targetValue: 100,
-      targetScore: 1725,
-      startingMoves: 18,
-      resourceLabel: "moves",
-    };
-  }
-
-  if (mode === "spatial_spin") {
-    return {
-      mode,
-      boardFamily: "spatial",
-      title: "Spatial Spin",
-      label: "Read each transform and snap the correct silhouette before the round queue empties.",
-      description: "Track anchor blocks mentally. One clean read should light the next board immediately.",
-      targetValue: 100,
-      targetScore: 1680,
-      startingMoves: 12,
-      resourceLabel: "moves",
-    };
-  }
-
-  if (mode === "chess_shot") {
-    return {
-      mode,
-      boardFamily: "strategy",
-      title: "Chess Shot",
-      label: "Read the tactic and tap the winning board target before the move budget folds.",
-      description: "Checks, captures, and threats. The live board target is the answer surface now, not a side list.",
-      targetValue: 100,
-      targetScore: 1780,
-      startingMoves: 10,
-      resourceLabel: "moves",
-    };
-  }
-
-  if (mode === "checkers_trap") {
-    return {
-      mode,
-      boardFamily: "strategy",
-      title: "Checkers Trap",
-      label: "Read the jump lane and trigger the strongest continuation from the board itself.",
-      description: "Track the capture route, pressure promotion lanes, and bank each solved board before the clock dries up.",
-      targetValue: 100,
-      targetScore: 1700,
-      startingMoves: 10,
-      resourceLabel: "moves",
-    };
-  }
-
+  const preset = OBJECTIVE_PRESETS[mode as keyof typeof OBJECTIVE_PRESETS] ?? OBJECTIVE_PRESETS.score_attack;
   return {
-    mode: "score_attack",
-    boardFamily: "match3",
-    title: "Score Attack",
-    label: "Reach 2,400 score in 18 moves.",
-    description: "The cleanest Neon Rivals lane. Build stable cascades and push raw score to the finish line.",
-    targetValue: 2400,
-    targetScore: 2400,
-    startingMoves: 18,
-    resourceLabel: "moves",
+    mode,
+    ...preset,
   };
 }
 
 export function getObjectiveValue(
   objective: NeonRivalsObjectiveConfig,
-  state: Pick<NeonRivalsGameState, "score" | "maxCombo" | "matchedTiles" | "clearedByColor" | "objectiveValue">,
+  state: Pick<
+    NeonRivalsGameState,
+    "score" | "maxCombo" | "matchedTiles" | "objectiveValue" | "clearedByColor"
+  >,
 ) {
   if (objective.mode === "combo_rush") {
     return state.maxCombo;
   }
 
   if (objective.mode === "color_hunt") {
-    return objective.targetColor ? Number(state.clearedByColor[objective.targetColor] ?? 0) : 0;
+    return objective.targetColor
+      ? Number(state.clearedByColor[objective.targetColor] ?? 0)
+      : 0;
   }
 
   if (objective.mode === "clear_rush") {
@@ -308,7 +473,10 @@ export function getObjectiveValue(
   return state.score;
 }
 
-export function getObjectiveProgressPercent(currentValue: number, targetValue: number) {
+export function getObjectiveProgressPercent(
+  currentValue: number,
+  targetValue: number,
+) {
   if (targetValue <= 0) {
     return 0;
   }
@@ -323,7 +491,10 @@ function emptyColorProgress() {
   }, {} as Partial<Record<TileTextureKey, number>>);
 }
 
-export function createInitialGameState(mode: NeonRivalsRunMode, seed: number): NeonRivalsGameState {
+export function createInitialGameState(
+  mode: NeonRivalsRunMode,
+  seed: number,
+): NeonRivalsGameState {
   const objective = buildNeonRivalsObjective(mode, seed);
 
   return {
@@ -350,4 +521,3 @@ export function createInitialGameState(mode: NeonRivalsRunMode, seed: number): N
     seed,
   };
 }
-

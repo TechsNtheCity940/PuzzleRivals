@@ -86,7 +86,9 @@ export default function NeonRivalsGame({
 
   return (
     <div className={cn("neon-rivals-game-root", className)}>
-      <div ref={hostRef} className="neon-rivals-game-host" />
+      <div className="neon-rivals-game-host">
+        <div ref={hostRef} className="neon-rivals-game-stage" />
+      </div>
       {isBooting && !loadError ? (
         <div className="neon-rivals-game-overlay">
           <div className="neon-rivals-game-status-card">

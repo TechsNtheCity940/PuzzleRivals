@@ -110,6 +110,48 @@ function boardPalette(mode: NeonRivalsRunMode) {
     };
   }
 
+  if (mode === "chess_endgame") {
+    return {
+      squareDark: 0x101828,
+      squareLight: 0x16223b,
+      edge: 0x7cf3ff,
+      candidate: 0x8ad8ff,
+      correct: 0xc8ff4d,
+      wrong: 0xff5d8f,
+      playerPiece: 0xffe27a,
+      enemyPiece: 0x9ac2ff,
+      accent: 0xc8ff4d,
+    };
+  }
+
+  if (mode === "chess_opening") {
+    return {
+      squareDark: 0x101828,
+      squareLight: 0x182744,
+      edge: 0x65f2ff,
+      candidate: 0x7cd7ff,
+      correct: 0xc8ff4d,
+      wrong: 0xff5d8f,
+      playerPiece: 0xffd76e,
+      enemyPiece: 0x8fa8ff,
+      accent: 0x65f2ff,
+    };
+  }
+
+  if (mode === "chess_mate_net") {
+    return {
+      squareDark: 0x130f22,
+      squareLight: 0x1a2440,
+      edge: 0xff86d3,
+      candidate: 0xffc56a,
+      correct: 0xc8ff4d,
+      wrong: 0xff5d8f,
+      playerPiece: 0xffe27a,
+      enemyPiece: 0xb48eff,
+      accent: 0xff86d3,
+    };
+  }
+
   return {
     squareDark: 0x101828,
     squareLight: 0x17243d,
@@ -126,6 +168,15 @@ function boardPalette(mode: NeonRivalsRunMode) {
 function getQuizKind(mode: NeonRivalsRunMode): QuizPuzzleKind {
   if (mode === "checkers_trap") {
     return "checkers_tactic";
+  }
+  if (mode === "chess_endgame") {
+    return "chess_endgame";
+  }
+  if (mode === "chess_opening") {
+    return "chess_opening";
+  }
+  if (mode === "chess_mate_net") {
+    return "chess_mate_net";
   }
   return "chess_tactic";
 }
@@ -255,7 +306,7 @@ export default class StrategyBoard {
     this.scene = scene;
     this.bridge = options.bridge;
     this.sessionSeed = Math.max(1, options.seed >>> 0);
-    this.mode = options.mode === "checkers_trap" ? "checkers_trap" : "chess_shot";
+    this.mode = options.mode;
     this.objective = buildNeonRivalsObjective(this.mode, this.sessionSeed);
     this.rounds = buildGeneratedQuizRounds(getQuizKind(this.mode), this.sessionSeed, 4);
   }
@@ -424,11 +475,7 @@ export default class StrategyBoard {
 
     this.roundText?.setText(`ROUND ${this.roundIndex + 1}/${this.rounds.length}`);
     this.promptText?.setText(round.prompt);
-    this.helperText?.setText(
-      this.mode === "checkers_trap"
-        ? "Tap the glowing landing square that completes the strongest jump line."
-        : "Tap the glowing board target that matches the winning tactical move.",
-    );
+    this.helperText?.setText(this.getRoundHelperText());
 
     this.highlightBoardFocus();
     this.activePiece = this.createPiece(this.currentLayout.activeSquare, this.currentLayout.activePiece, palette.playerPiece, true, false);
@@ -458,6 +505,22 @@ export default class StrategyBoard {
       });
       return { squareIndex, optionIndex, glow, frame, label };
     });
+  }
+
+  private getRoundHelperText() {
+    if (this.mode === "checkers_trap") {
+      return "Tap the glowing landing square that completes the strongest jump line.";
+    }
+    if (this.mode === "chess_endgame") {
+      return "Read the ending plan, then tap the square that converts the position cleanly.";
+    }
+    if (this.mode === "chess_opening") {
+      return "Development, king safety, and center control matter more than flashy early attacks.";
+    }
+    if (this.mode === "chess_mate_net") {
+      return "Look for forcing checks and covered escape squares before you commit the final hit.";
+    }
+    return "Tap the glowing board target that matches the winning tactical move.";
   }
 
   private clearRoundVisuals() {
@@ -767,4 +830,8 @@ export default class StrategyBoard {
     });
   }
 }
+
+
+
+
 

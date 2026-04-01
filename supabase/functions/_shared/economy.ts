@@ -240,7 +240,15 @@ export function calculateArcadeRunReward(input: {
     reward.xp += input.success ? 22 : 8;
     reward.shards += input.success ? 4 : 1;
     reward.passXp += input.success ? 20 : 6;
-  } else if (input.mode === "chess_shot") {
+  } else if (["riddle_relay", "trivia_blitz", "geography_dash", "science_spark", "analogy_arc", "vocabulary_duel"].includes(input.mode)) {
+    reward.xp += input.success ? 26 : 8;
+    reward.coins += input.success ? 22 : 8;
+    reward.passXp += input.success ? 18 : 6;
+  } else if (input.mode === "memory_flash") {
+    reward.xp += input.success ? 24 : 8;
+    reward.shards += input.success ? 4 : 1;
+    reward.passXp += input.success ? 20 : 6;
+  } else if (["chess_shot", "chess_endgame", "chess_opening", "chess_mate_net"].includes(input.mode)) {
     reward.xp += input.success ? 30 : 10;
     reward.shards += input.success ? 5 : 2;
     reward.passXp += input.success ? 22 : 7;
@@ -377,6 +385,7 @@ export async function grantQuestItems(
     await applyProductGrant(admin, userId, product, source);
   }
 }
+
 
 
 

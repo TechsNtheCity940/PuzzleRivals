@@ -81,5 +81,17 @@ describe("Neon Rivals run modes", () => {
     expect(checkersState.movesLeft).toBe(10);
     expect(checkersState.objectiveTarget).toBe(100);
   });
-});
 
+  it("creates additional strategy, quiz, and memory states", () => {
+    const endgameObjective = buildNeonRivalsObjective("chess_endgame", 52);
+    const quizObjective = buildNeonRivalsObjective("science_spark", 44);
+    const memoryState = createInitialGameState("memory_flash", 61);
+
+    expect(endgameObjective.boardFamily).toBe("strategy");
+    expect(endgameObjective.title).toBe("Chess Endgame");
+    expect(quizObjective.boardFamily).toBe("quiz");
+    expect(quizObjective.startingMoves).toBe(10);
+    expect(memoryState.boardFamily).toBe("memory");
+    expect(memoryState.resourceLabel).toBe("attempts");
+  });
+});

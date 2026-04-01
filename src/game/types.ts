@@ -2,7 +2,16 @@ import type { TileTextureKey } from "@/game/utils/constants";
 
 export type NeonRivalsGameStatus = "booting" | "running" | "complete" | "failed";
 
-export type NeonRivalsBoardFamily = "match3" | "maze" | "pipe" | "tile" | "number" | "spatial" | "strategy";
+export type NeonRivalsBoardFamily =
+  | "match3"
+  | "maze"
+  | "pipe"
+  | "tile"
+  | "number"
+  | "spatial"
+  | "strategy"
+  | "quiz"
+  | "memory";
 
 export type NeonRivalsRunMode =
   | "score_attack"
@@ -15,7 +24,24 @@ export type NeonRivalsRunMode =
   | "number_crunch"
   | "spatial_spin"
   | "chess_shot"
-  | "checkers_trap";
+  | "checkers_trap"
+  | "chess_endgame"
+  | "chess_opening"
+  | "chess_mate_net"
+  | "riddle_relay"
+  | "trivia_blitz"
+  | "geography_dash"
+  | "science_spark"
+  | "analogy_arc"
+  | "vocabulary_duel"
+  | "memory_flash";
+
+export interface ArenaRotationHistoryEntry {
+  mode: NeonRivalsRunMode;
+  boardFamily: NeonRivalsBoardFamily;
+  seed: number;
+  playedAt: number;
+}
 
 export interface NeonRivalsRewardSummary {
   xp: number;
@@ -84,4 +110,3 @@ export interface NeonRivalsGameBridge {
   onComplete?: (state: NeonRivalsGameState) => void;
   onFailed?: (state: NeonRivalsGameState) => void;
 }
-

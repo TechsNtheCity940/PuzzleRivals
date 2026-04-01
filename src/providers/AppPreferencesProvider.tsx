@@ -6,7 +6,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { NeonRivalsBoardFamily, NeonRivalsRunMode } from "@/game/types";
+import type {
+  ArenaRotationHistoryEntry,
+  NeonRivalsBoardFamily,
+  NeonRivalsRunMode,
+} from "@/game/types";
+import {
+  appendArenaHistory,
+  createArenaHistoryEntry,
+} from "@/game/config/arenaRotation";
 
 type PreferencesShape = {
   reduceMotion: boolean;
@@ -17,14 +25,22 @@ type PreferencesShape = {
   notificationsEnabled: boolean;
   lastArenaMode: NeonRivalsRunMode;
   dismissedArenaHints: Partial<Record<NeonRivalsBoardFamily, boolean>>;
+  recentArenaHistory: ArenaRotationHistoryEntry[];
 };
 
 type AppPreferencesContextValue = PreferencesShape & {
-  updatePreference: <K extends keyof Omit<PreferencesShape, "dismissedArenaHints" | "lastArenaMode">>(
+  updatePreference: <
+    K extends keyof Omit<
+      PreferencesShape,
+      "dismissedArenaHints" | "lastArenaMode" | "recentArenaHistory"
+    >,
+  >(
     key: K,
     value: PreferencesShape[K],
   ) => void;
   setLastArenaMode: (mode: NeonRivalsRunMode) => void;
+  recordArenaHistory: (mode: NeonRivalsRunMode, seed: number) => void;
+  clearArenaHistory: () => void;
   dismissArenaHint: (family: NeonRivalsBoardFamily) => void;
   restoreArenaHints: () => void;
   resetPreferences: () => void;
@@ -40,6 +56,7 @@ const DEFAULT_PREFERENCES: PreferencesShape = {
   notificationsEnabled: true,
   lastArenaMode: "score_attack",
   dismissedArenaHints: {},
+  recentArenaHistory: [],
 };
 
 const AppPreferencesContext =
@@ -62,8 +79,9 @@ function readStoredPreferences() {
       ...parsed,
       dismissedArenaHints:
         parsed.dismissedArenaHints ?? DEFAULT_PREFERENCES.dismissedArenaHints,
-      lastArenaMode:
-        parsed.lastArenaMode ?? DEFAULT_PREFERENCES.lastArenaMode,
+      lastArenaMode: parsed.lastArenaMode ?? DEFAULT_PREFERENCES.lastArenaMode,
+      recentArenaHistory:
+        parsed.recentArenaHistory ?? DEFAULT_PREFERENCES.recentArenaHistory,
     } satisfies PreferencesShape;
   } catch {
     return DEFAULT_PREFERENCES;
@@ -105,6 +123,21 @@ export function AppPreferencesProvider({ children }: { children: ReactNode }) {
         setPreferences((current) => ({
           ...current,
           lastArenaMode: mode,
+        }));
+      },
+      recordArenaHistory: (mode, seed) => {
+        setPreferences((current) => ({
+          ...current,
+          recentArenaHistory: appendArenaHistory(
+            current.recentArenaHistory,
+            createArenaHistoryEntry(mode, seed),
+          ),
+        }));
+      },
+      clearArenaHistory: () => {
+        setPreferences((current) => ({
+          ...current,
+          recentArenaHistory: [],
         }));
       },
       dismissArenaHint: (family) => {
