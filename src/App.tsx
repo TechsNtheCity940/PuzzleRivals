@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import AppShell from "./components/AppShell";
 import { AuthProvider } from "./providers/AuthProvider";
 import { AuthDialogProvider } from "./components/auth/AuthDialogContext";
+import { AppPreferencesProvider } from "./providers/AppPreferencesProvider";
 
 const queryClient = new QueryClient();
 const HomePage = lazy(() => import("./pages/HomePage"));
@@ -17,6 +18,8 @@ const StorePage = lazy(() => import("./pages/StorePage"));
 const SeasonPage = lazy(() => import("./pages/SeasonPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const FriendsPage = lazy(() => import("./pages/FriendsPage"));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const SupportPage = lazy(() => import("./pages/SupportPage"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
@@ -46,32 +49,36 @@ function RouteFallback() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Sonner />
-        <BrowserRouter>
-          <AuthDialogProvider>
-            <AppShell>
-              <Suspense fallback={<RouteFallback />}>
-                <Routes>
-                  <Route path="/" element={<HomePage />} />
-                  <Route path="/play" element={<PlayPage />} />
-                  <Route path="/play/neon-rival" element={<NeonRivalsGamePage />} />
-                  <Route path="/play/neon-rivals" element={<NeonRivalsGamePage />} />
-                  <Route path="/match" element={<Navigate to="/play/neon-rival" replace />} />
-                  <Route path="/tournaments" element={<TournamentsPage />} />
-                  <Route path="/store" element={<StorePage />} />
-                  <Route path="/season" element={<SeasonPage />} />
-                  <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/friends" element={<FriendsPage />} />
-                  <Route path="/admin" element={<AdminPage />} />
-                  <Route path="/support" element={<SupportPage />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-            </AppShell>
-          </AuthDialogProvider>
-        </BrowserRouter>
-      </TooltipProvider>
+      <AppPreferencesProvider>
+        <TooltipProvider>
+          <Sonner />
+          <BrowserRouter>
+            <AuthDialogProvider>
+              <AppShell>
+                <Suspense fallback={<RouteFallback />}>
+                  <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/play" element={<PlayPage />} />
+                    <Route path="/play/neon-rival" element={<NeonRivalsGamePage />} />
+                    <Route path="/play/neon-rivals" element={<NeonRivalsGamePage />} />
+                    <Route path="/match" element={<Navigate to="/play/neon-rival" replace />} />
+                    <Route path="/tournaments" element={<TournamentsPage />} />
+                    <Route path="/store" element={<StorePage />} />
+                    <Route path="/season" element={<SeasonPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/friends" element={<FriendsPage />} />
+                    <Route path="/notifications" element={<NotificationsPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/admin" element={<AdminPage />} />
+                    <Route path="/support" element={<SupportPage />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </AppShell>
+            </AuthDialogProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AppPreferencesProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

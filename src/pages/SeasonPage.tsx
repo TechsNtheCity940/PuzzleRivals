@@ -8,7 +8,12 @@ import StockAvatar from "@/components/profile/StockAvatar";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { getPassTierProgress } from "@/lib/economy";
-import { loadSeasonContent, type GameContentResolution, type GameContentSource, type SeasonContentSnapshot } from "@/lib/game-content";
+import {
+  loadSeasonContent,
+  type GameContentResolution,
+  type GameContentSource,
+  type SeasonContentSnapshot,
+} from "@/lib/game-content";
 import {
   findSeasonalCosmetic,
   NEON_RIVALS_BOARD_SHOWCASE,
@@ -21,13 +26,17 @@ import {
   NEON_RIVALS_STRATEGIST_CLIP,
 } from "@/lib/season-content";
 import { capturePayPalCheckout, createPayPalCheckout } from "@/lib/storefront";
+import { FALLBACK_APP_RUNTIME_STATUS, loadAppRuntimeStatus } from "@/lib/app-status";
 import { useAuth } from "@/providers/AuthProvider";
 
 const BATTLE_PASS_PRODUCT_ID = "s_6";
 
 type PreviewKind = "theme" | "frame" | "player_card" | "banner" | "emblem";
 
-function clearCheckoutParams(params: URLSearchParams, setParams: ReturnType<typeof useSearchParams>[1]) {
+function clearCheckoutParams(
+  params: URLSearchParams,
+  setParams: ReturnType<typeof useSearchParams>[1],
+) {
   const next = new URLSearchParams(params);
   next.delete("checkout");
   next.delete("purchase");
@@ -36,30 +45,47 @@ function clearCheckoutParams(params: URLSearchParams, setParams: ReturnType<type
 }
 
 function sourceLabel(source: GameContentSource) {
-  return source === "supabase" ? "Live" : "Local Preview";
+  return source === "supabase" ? "Live" : "Offline";
 }
 
 function avatarIdForReward(itemId: string) {
-  if (itemId === "avatar_season1_neon_strategist") return NEON_RIVALS_STRATEGIST_AVATAR_ID;
+  if (itemId === "avatar_season1_neon_strategist")
+    return NEON_RIVALS_STRATEGIST_AVATAR_ID;
   return NEON_RIVALS_SECOND_AVATAR_ID;
 }
 
 function previewKindForCategory(category: string): PreviewKind | null {
   if (category === "puzzle_theme") return "theme";
-  if (category === "frame" || category === "player_card" || category === "banner" || category === "emblem") {
+  if (
+    category === "frame" ||
+    category === "player_card" ||
+    category === "banner" ||
+    category === "emblem"
+  ) {
     return category;
   }
   return null;
 }
 
-function rewardLaneLabel(itemId: string, season: SeasonContentSnapshot["season"] | null) {
+function rewardLaneLabel(
+  itemId: string,
+  season: SeasonContentSnapshot["season"] | null,
+) {
   if (!season) return "Season reward";
-  const premiumTrack = season.tracks.find((track) => track.premiumReward?.itemId === itemId);
+  const premiumTrack = season.tracks.find(
+    (track) => track.premiumReward?.itemId === itemId,
+  );
   if (premiumTrack) return `Premium Tier ${premiumTrack.tier}`;
-  const freeTrack = season.tracks.find((track) => track.freeReward?.itemId === itemId);
+  const freeTrack = season.tracks.find(
+    (track) => track.freeReward?.itemId === itemId,
+  );
   if (freeTrack) return `Free Tier ${freeTrack.tier}`;
   if (itemId === "emblem_voltage") return "Season milestone";
-  if (itemId === "banner_season1_neon_rivals" || itemId === "ranked_card_season1_highrank") return "Ranked reward";
+  if (
+    itemId === "banner_season1_neon_rivals" ||
+    itemId === "ranked_card_season1_highrank"
+  )
+    return "Ranked reward";
   return "Season reward";
 }
 
@@ -69,29 +95,71 @@ function formatFallbackRewardLabel(itemId: string) {
     .replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
-function describeQuestReward(reward: { coins?: number; gems?: number; shards?: number; passXp?: number; itemId?: string }) {
+function describeQuestReward(
+  reward: {
+    coins?: number;
+    gems?: number;
+    shards?: number;
+    passXp?: number;
+    itemId?: string;
+  },
+  season: SeasonContentSnapshot["season"] | null,
+) {
   if (reward.itemId) {
     const cosmetic = findSeasonalCosmetic(reward.itemId);
-    const previewKind = cosmetic ? previewKindForCategory(cosmetic.category) : null;
+    const previewKind = cosmetic
+      ? previewKindForCategory(cosmetic.category)
+      : null;
     return {
       label: cosmetic?.name ?? formatFallbackRewardLabel(reward.itemId),
-      eyebrow: cosmetic ? rewardLaneLabel(cosmetic.id, null) : "Season reward",
+      eyebrow: cosmetic ? rewardLaneLabel(cosmetic.id, season) : "Season reward",
       previewKind,
       previewId: cosmetic?.id ?? null,
     };
   }
 
-  if (reward.gems) return { label: `${reward.gems} Gems`, eyebrow: "Currency reward", previewKind: null, previewId: null };
-  if (reward.shards) return { label: `${reward.shards} Shards`, eyebrow: "Currency reward", previewKind: null, previewId: null };
-  if (reward.passXp) return { label: `${reward.passXp} Pass XP`, eyebrow: "Progress reward", previewKind: null, previewId: null };
-  if (reward.coins) return { label: `${reward.coins} Coins`, eyebrow: "Currency reward", previewKind: null, previewId: null };
+  if (reward.gems)
+    return {
+      label: `${reward.gems} Gems`,
+      eyebrow: "Currency reward",
+      previewKind: null,
+      previewId: null,
+    };
+  if (reward.shards)
+    return {
+      label: `${reward.shards} Shards`,
+      eyebrow: "Currency reward",
+      previewKind: null,
+      previewId: null,
+    };
+  if (reward.passXp)
+    return {
+      label: `${reward.passXp} Pass XP`,
+      eyebrow: "Progress reward",
+      previewKind: null,
+      previewId: null,
+    };
+  if (reward.coins)
+    return {
+      label: `${reward.coins} Coins`,
+      eyebrow: "Currency reward",
+      previewKind: null,
+      previewId: null,
+    };
 
-  return { label: "Season reward", eyebrow: "Reward", previewKind: null, previewId: null };
+  return {
+    label: "Season reward",
+    eyebrow: "Reward",
+    previewKind: null,
+    previewId: null,
+  };
 }
 
-function describeSeasonResolution(resolution: GameContentResolution | undefined) {
+function describeSeasonResolution(
+  resolution: GameContentResolution | undefined,
+) {
   if (resolution === "fallback") {
-    return "Local preview season data is loaded because Supabase is disabled.";
+    return "Season data is unavailable in this environment.";
   }
   if (resolution === "unavailable") {
     return "Live season metadata is currently unavailable.";
@@ -103,9 +171,11 @@ function describeSeasonResolution(resolution: GameContentResolution | undefined)
 }
 
 export default function SeasonPage() {
-  const [seasonContent, setSeasonContent] = useState<SeasonContentSnapshot | null>(null);
+  const [seasonContent, setSeasonContent] =
+    useState<SeasonContentSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [runtimeStatus, setRuntimeStatus] = useState(FALLBACK_APP_RUNTIME_STATUS);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [params, setParams] = useSearchParams();
   const { user, canSave, hasSession, refreshUser, signOut } = useAuth();
@@ -124,8 +194,16 @@ export default function SeasonPage() {
         }
       } catch (error) {
         if (active) {
-          setLoadError(error instanceof Error ? error.message : "Failed to load season pass.");
-          toast.error(error instanceof Error ? error.message : "Failed to load season pass.");
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : "Failed to load season pass.",
+          );
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Failed to load season pass.",
+          );
         }
       } finally {
         if (active) {
@@ -139,6 +217,17 @@ export default function SeasonPage() {
       active = false;
     };
   }, [user]);
+  useEffect(() => {
+    let active = true;
+    void loadAppRuntimeStatus().then((status) => {
+      if (active) {
+        setRuntimeStatus(status);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const checkoutState = params.get("checkout");
@@ -153,6 +242,10 @@ export default function SeasonPage() {
 
     let active = true;
     async function capture() {
+      if (commerceUnavailable) {
+        toast.error("Battle pass checkout is paused until live PayPal credentials are configured.");
+        return;
+      }
       setIsPurchasing(true);
       try {
         await capturePayPalCheckout(purchaseId);
@@ -163,7 +256,11 @@ export default function SeasonPage() {
         }
         toast.success("Battle pass unlocked.");
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to capture battle pass purchase.");
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to capture battle pass purchase.",
+        );
       } finally {
         if (active) {
           setIsPurchasing(false);
@@ -178,6 +275,7 @@ export default function SeasonPage() {
   }, [params, refreshUser, setParams, user]);
 
   const season = seasonContent?.season ?? null;
+  const commerceUnavailable = runtimeStatus.resolution === "live" && !runtimeStatus.commerceReady;
   const seasonResolution = seasonContent?.resolutions.season;
   const questsResolution = seasonContent?.resolutions.quests;
   const { currentTier, nextTierXp, progressWithinTier } = useMemo(
@@ -205,12 +303,21 @@ export default function SeasonPage() {
       toast.error("Sign in before buying the battle pass.");
       return;
     }
+    if (commerceUnavailable) {
+      toast.error("Battle pass checkout is paused until live PayPal credentials are configured.");
+      return;
+    }
     setIsPurchasing(true);
     try {
-      const response = await createPayPalCheckout(BATTLE_PASS_PRODUCT_ID, "/season");
+      const response = await createPayPalCheckout(
+        BATTLE_PASS_PRODUCT_ID,
+        "/season",
+      );
       window.location.assign(response.approvalUrl);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to start checkout.");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to start checkout.",
+      );
       setIsPurchasing(false);
     }
   }
@@ -219,16 +326,23 @@ export default function SeasonPage() {
     ? loadError
     : accountNeedsSync
       ? "You are signed in, but the live season profile payload is unavailable. Sign out and retry before claiming rewards."
-      : isLoading
-        ? "Loading Neon Rivals season lane..."
-        : describeSeasonResolution(seasonResolution) ?? `Electric | Competitive | Puzzle Arena | ${sourceLabel(seasonContent?.sources.season ?? "seed")} rewards`;
+      : commerceUnavailable
+        ? "Live season data is connected, but premium checkout is paused until PayPal credentials are complete."
+        : isLoading
+          ? "Loading Neon Rivals season lane..."
+          : (describeSeasonResolution(seasonResolution) ??
+            `Electric | Competitive | Puzzle Arena | ${sourceLabel(seasonContent?.sources.season ?? "supabase")} rewards`);
 
   return (
     <div className="page-screen">
       <div className="page-stack">
         <PageHeader
           eyebrow="Season 1 Live Event"
-          title={season ? `Season ${season.seasonNumber}: ${season.name}` : "Season 1: Neon Rivals"}
+          title={
+            season
+              ? `Season ${season.seasonNumber}: ${season.name}`
+              : "Season 1: Neon Rivals"
+          }
           subtitle={subtitle}
           right={
             accountNeedsSync ? (
@@ -237,18 +351,28 @@ export default function SeasonPage() {
                   <p className="section-kicker">Season Sync</p>
                   <p className="mt-2 text-lg font-black">Profile unavailable</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    The season lane is live, but your account payload did not load. Sign out to retry.
+                    The season lane is live, but your account payload did not
+                    load. Sign out to retry.
                   </p>
                 </div>
-                <Button onClick={() => void signOut()} variant="outline" size="sm" className="w-full">
+                <Button
+                  onClick={() => void signOut()}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                >
                   Sign Out To Retry
                 </Button>
               </div>
             ) : (
               <div className="spotlight-panel">
                 <p className="section-kicker">Neon Rivals</p>
-                <p className="mt-2 text-3xl font-black">Tier {currentTier}/{season?.maxTier ?? 40}</p>
-                <p className="mt-2 text-sm text-muted-foreground">{progressWithinTier}% toward the next unlock.</p>
+                <p className="mt-2 text-3xl font-black">
+                  Tier {currentTier}/{season?.maxTier ?? 40}
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {progressWithinTier}% toward the next unlock.
+                </p>
               </div>
             )
           }
@@ -265,7 +389,10 @@ export default function SeasonPage() {
                 <Sparkles size={18} className="text-primary" />
               </div>
               <p className="text-sm leading-6 text-muted-foreground">
-                Electric blue, cyan, magenta, and violet pressure the arena, with a neon-gold strategist reward sitting at premium tier {NEON_RIVALS_PREMIUM_AVATAR_TIER}. The whole lane is built around clean sci-fi contrast instead of noisy effects.
+                Electric blue, cyan, magenta, and violet pressure the arena,
+                with a neon-gold strategist reward sitting at premium tier{" "}
+                {NEON_RIVALS_PREMIUM_AVATAR_TIER}. The whole lane is built
+                around clean sci-fi contrast instead of noisy effects.
               </p>
               <div className="mt-5 season-reward-grid">
                 <div className="season-cosmetic-card season-cosmetic-card-animated">
@@ -273,46 +400,80 @@ export default function SeasonPage() {
                     <div>
                       <p className="section-kicker">Featured Avatar</p>
                       <p className="mt-2 text-lg font-black">Neon Strategist</p>
-                      <p className="mt-2 text-xs text-muted-foreground">Premium tier {NEON_RIVALS_PREMIUM_AVATAR_TIER} exclusive</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Premium tier {NEON_RIVALS_PREMIUM_AVATAR_TIER} exclusive
+                      </p>
                     </div>
-                    <StockAvatar avatarId={NEON_RIVALS_STRATEGIST_AVATAR_ID} size="md" />
+                    <StockAvatar
+                      avatarId={NEON_RIVALS_STRATEGIST_AVATAR_ID}
+                      size="md"
+                    />
                   </div>
                 </div>
                 <div className="season-cosmetic-card">
                   <p className="section-kicker">Signature Theme</p>
-                  <CosmeticPreview kind="theme" productId="puzzle_theme_electric" className="mt-4 min-h-[110px]" />
+                  <CosmeticPreview
+                    kind="theme"
+                    productId="puzzle_theme_electric"
+                    className="mt-4 min-h-[110px]"
+                  />
                 </div>
               </div>
             </div>
 
             {!seasonContent?.hasSeasonPass ? (
               <div className="spotlight-panel flex flex-col justify-between gap-4">
+              {commerceUnavailable ? (
+                <div className="rounded-[22px] border border-amber-400/20 bg-amber-500/8 px-4 py-3 text-sm text-muted-foreground">
+                  Battle pass checkout is paused until live PayPal credentials are complete. The season lane, rewards, and previews remain visible.
+                </div>
+              ) : null}
                 <div>
                   <p className="section-kicker">Premium Track</p>
-                  <p className="mt-2 text-3xl font-black">Unlock the full Neon Rivals lane</p>
+                  <p className="mt-2 text-3xl font-black">
+                    Unlock the full Neon Rivals lane
+                  </p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Strategist avatar, pulse frame, Neon Circuit card, and the full premium reward cadence.
+                    Strategist avatar, pulse frame, Neon Circuit card, and the
+                    full premium reward cadence.
                   </p>
                 </div>
                 <Button
                   variant="prestige"
                   size="xl"
                   className="w-full"
-                  disabled={isLoading || isPurchasing || accountNeedsSync}
+                  disabled={isLoading || isPurchasing || accountNeedsSync || commerceUnavailable}
                   onClick={() => void unlockPremiumTrack()}
                 >
                   <Crown size={14} />
-                  {accountNeedsSync ? "Profile Sync Required" : isPurchasing ? "Opening..." : "Unlock Neon Rivals Pass"}
+                  {accountNeedsSync
+                    ? "Profile Sync Required"
+                    : commerceUnavailable
+                      ? "Checkout Paused"
+                      : isPurchasing
+                        ? "Opening..."
+                      : "Unlock Neon Rivals Pass"}
                 </Button>
               </div>
             ) : (
               <div className="spotlight-panel flex flex-col justify-between gap-4 text-center">
                 <div>
                   <p className="section-kicker">Premium Active</p>
-                  <p className="mt-2 text-3xl font-black text-primary">Rewards live</p>
-                  <p className="mt-2 text-sm text-muted-foreground">Strategist unlock status: {currentTier >= NEON_RIVALS_PREMIUM_AVATAR_TIER ? "ready to equip" : `reach tier ${NEON_RIVALS_PREMIUM_AVATAR_TIER}`}</p>
+                  <p className="mt-2 text-3xl font-black text-primary">
+                    Rewards live
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Strategist unlock status:{" "}
+                    {currentTier >= NEON_RIVALS_PREMIUM_AVATAR_TIER
+                      ? "ready to equip"
+                      : `reach tier ${NEON_RIVALS_PREMIUM_AVATAR_TIER}`}
+                  </p>
                 </div>
-                <StockAvatar avatarId={NEON_RIVALS_STRATEGIST_AVATAR_ID} size="lg" className="mx-auto" />
+                <StockAvatar
+                  avatarId={NEON_RIVALS_STRATEGIST_AVATAR_ID}
+                  size="lg"
+                  className="mx-auto"
+                />
               </div>
             )}
           </div>
@@ -340,9 +501,14 @@ export default function SeasonPage() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="section-kicker">Strategist Motion</p>
-                  <h3 className="mt-2 text-lg font-black">Season reward preview</h3>
+                  <h3 className="mt-2 text-lg font-black">
+                    Season reward preview
+                  </h3>
                 </div>
-                <StockAvatar avatarId={NEON_RIVALS_STRATEGIST_AVATAR_ID} size="sm" />
+                <StockAvatar
+                  avatarId={NEON_RIVALS_STRATEGIST_AVATAR_ID}
+                  size="sm"
+                />
               </div>
               <video
                 className="mt-4 aspect-[4/5] w-full rounded-[24px] border border-yellow-300/20 bg-black/80 object-cover shadow-[0_20px_54px_rgba(250,204,21,0.16)]"
@@ -356,7 +522,9 @@ export default function SeasonPage() {
                 preload="metadata"
               />
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                Neon-yellow strategist motion clip used to spotlight the premium tier {NEON_RIVALS_PREMIUM_AVATAR_TIER} reward without adding a heavy new animation system.
+                Neon-yellow strategist motion clip used to spotlight the premium
+                tier {NEON_RIVALS_PREMIUM_AVATAR_TIER} reward without adding a
+                heavy new animation system.
               </p>
             </div>
           </div>
@@ -371,7 +539,10 @@ export default function SeasonPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             {NEON_RIVALS_BOARD_SHOWCASE.map((board) => (
-              <article key={board.id} className="command-panel-soft overflow-hidden border border-white/10 bg-slate-950/65 p-3">
+              <article
+                key={board.id}
+                className="command-panel-soft overflow-hidden border border-white/10 bg-slate-950/65 p-3"
+              >
                 <img
                   src={board.assetRef}
                   alt={board.label}
@@ -380,7 +551,9 @@ export default function SeasonPage() {
                 />
                 <div className="mt-3">
                   <p className="text-sm font-black text-white">{board.label}</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{board.summary}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {board.summary}
+                  </p>
                 </div>
               </article>
             ))}
@@ -406,11 +579,15 @@ export default function SeasonPage() {
               </div>
               <div className="rich-stat">
                 <p className="hud-label">Track State</p>
-                <p className="stat-value">{seasonContent?.hasSeasonPass ? "Premium" : "Free"}</p>
+                <p className="stat-value">
+                  {seasonContent?.hasSeasonPass ? "Premium" : "Free"}
+                </p>
               </div>
               <div className="rich-stat">
                 <p className="hud-label">Rank Points</p>
-                <p className="stat-value text-gradient-prestige">{user?.rankPoints ?? 0}</p>
+                <p className="stat-value text-gradient-prestige">
+                  {user?.rankPoints ?? 0}
+                </p>
               </div>
             </div>
           </section>
@@ -423,25 +600,34 @@ export default function SeasonPage() {
               </div>
             </div>
             <div className="section-stack">
-              {focusedTracks.length > 0 ? focusedTracks.map((track) => (
-                <PuzzleTileButton
-                  key={track.tier}
-                  icon={track.isUnlocked ? Gift : Lock}
-                  title={`Tier ${track.tier}`}
-                  description={track.freeReward?.label ?? "No free reward"}
-                  active={track.tier === currentTier}
-                  right={
-                    <div>
-                      <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Premium</p>
-                      <p className={`mt-1 text-xs font-black ${seasonContent?.hasSeasonPass ? "text-primary" : "text-muted-foreground"}`}>
-                        {track.premiumReward?.label ?? "-"}
-                      </p>
-                    </div>
-                  }
-                />
-              )) : (
+              {focusedTracks.length > 0 ? (
+                focusedTracks.map((track) => (
+                  <PuzzleTileButton
+                    key={track.tier}
+                    icon={track.isUnlocked ? Gift : Lock}
+                    title={`Tier ${track.tier}`}
+                    description={track.freeReward?.label ?? "No free reward"}
+                    active={track.tier === currentTier}
+                    right={
+                      <div>
+                        <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                          Premium
+                        </p>
+                        <p
+                          className={`mt-1 text-xs font-black ${seasonContent?.hasSeasonPass ? "text-primary" : "text-muted-foreground"}`}
+                        >
+                          {track.premiumReward?.label ?? "-"}
+                        </p>
+                      </div>
+                    }
+                  />
+                ))
+              ) : (
                 <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-                  {isLoading ? "Loading season rewards..." : describeSeasonResolution(seasonResolution) ?? "No reward lane is available yet."}
+                  {isLoading
+                    ? "Loading season rewards..."
+                    : (describeSeasonResolution(seasonResolution) ??
+                      "No reward lane is available yet.")}
                 </div>
               )}
             </div>
@@ -459,19 +645,33 @@ export default function SeasonPage() {
             {NEON_RIVALS_COSMETICS.map((reward) => {
               const previewKind = previewKindForCategory(reward.category);
               return (
-                <div key={reward.id} className={`season-cosmetic-card ${reward.isAnimated ? "season-cosmetic-card-animated" : ""}`}>
+                <div
+                  key={reward.id}
+                  className={`season-cosmetic-card ${reward.isAnimated ? "season-cosmetic-card-animated" : ""}`}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="section-kicker">{rewardLaneLabel(reward.id, season)}</p>
+                      <p className="section-kicker">
+                        {rewardLaneLabel(reward.id, season)}
+                      </p>
                       <h3 className="mt-2 text-lg font-black">{reward.name}</h3>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">{reward.themeTags.join(" | ")}</p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        {reward.themeTags.join(" | ")}
+                      </p>
                     </div>
                     {reward.category === "avatar" ? (
-                      <StockAvatar avatarId={avatarIdForReward(reward.id)} size="sm" />
+                      <StockAvatar
+                        avatarId={avatarIdForReward(reward.id)}
+                        size="sm"
+                      />
                     ) : null}
                   </div>
                   {previewKind ? (
-                    <CosmeticPreview kind={previewKind} productId={reward.id} className="mt-4 min-h-[112px]" />
+                    <CosmeticPreview
+                      kind={previewKind}
+                      productId={reward.id}
+                      className="mt-4 min-h-[112px]"
+                    />
                   ) : null}
                 </div>
               );
@@ -483,7 +683,9 @@ export default function SeasonPage() {
           <div className="section-header">
             <div>
               <p className="section-kicker">Ranked Rewards</p>
-              <h2 className="section-title">Neon badge tiers and elite finishers</h2>
+              <h2 className="section-title">
+                Neon badge tiers and elite finishers
+              </h2>
             </div>
             <Trophy size={18} className="text-primary" />
           </div>
@@ -493,7 +695,9 @@ export default function SeasonPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="section-kicker">{reward.tier}</p>
-                    <h3 className="mt-2 text-lg font-black">{reward.badgeLabel}</h3>
+                    <h3 className="mt-2 text-lg font-black">
+                      {reward.badgeLabel}
+                    </h3>
                   </div>
                   {reward.badgeAssetRef ? (
                     <div className="flex flex-col items-end gap-2">
@@ -503,17 +707,45 @@ export default function SeasonPage() {
                         className="h-16 w-16 rounded-2xl object-contain drop-shadow-[0_0_20px_rgba(106,222,255,0.28)]"
                         loading="lazy"
                       />
-                      <span className={`season-rank-badge ${reward.accentClassName ?? ""}`}>{reward.tier}</span>
+                      <span
+                        className={`season-rank-badge ${reward.accentClassName ?? ""}`}
+                      >
+                        {reward.tier}
+                      </span>
                     </div>
                   ) : (
-                    <span className={`season-rank-badge ${reward.accentClassName ?? ""}`}>{reward.tier}</span>
+                    <span
+                      className={`season-rank-badge ${reward.accentClassName ?? ""}`}
+                    >
+                      {reward.tier}
+                    </span>
                   )}
                 </div>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">{reward.summary}</p>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                  {reward.summary}
+                </p>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {reward.frameId ? <CosmeticPreview kind="frame" productId={reward.frameId} className="min-h-[92px]" /> : null}
-                  {reward.bannerId ? <CosmeticPreview kind="banner" productId={reward.bannerId} className="min-h-[92px]" /> : null}
-                  {reward.playerCardId ? <CosmeticPreview kind="player_card" productId={reward.playerCardId} className="min-h-[92px] sm:col-span-2" /> : null}
+                  {reward.frameId ? (
+                    <CosmeticPreview
+                      kind="frame"
+                      productId={reward.frameId}
+                      className="min-h-[92px]"
+                    />
+                  ) : null}
+                  {reward.bannerId ? (
+                    <CosmeticPreview
+                      kind="banner"
+                      productId={reward.bannerId}
+                      className="min-h-[92px]"
+                    />
+                  ) : null}
+                  {reward.playerCardId ? (
+                    <CosmeticPreview
+                      kind="player_card"
+                      productId={reward.playerCardId}
+                      className="min-h-[92px] sm:col-span-2"
+                    />
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -545,26 +777,44 @@ export default function SeasonPage() {
               </div>
             </div>
             <div className="section-stack">
-              {(seasonContent ? [...seasonContent.quests.daily, ...seasonContent.quests.weekly].slice(0, 4) : []).length > 0 ? (
-                [...(seasonContent?.quests.daily ?? []), ...(seasonContent?.quests.weekly ?? [])].slice(0, 4).map((quest) => (
-                  <PuzzleTileButton
-                    key={quest.id}
-                    icon={Gift}
-                    title={quest.title}
-                    description={`${quest.description} ${quest.progress}/${quest.target}`}
-                    right={
-                      <div className="text-right">
-                        <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{quest.track}</p>
-                        <p className="mt-1 text-xs font-black text-primary">
-                          +{quest.reward.passXp ?? 0} PX / +{quest.reward.coins ?? 0}C
-                        </p>
-                      </div>
-                    }
-                  />
-                ))
+              {(seasonContent
+                ? [
+                    ...seasonContent.quests.daily,
+                    ...seasonContent.quests.weekly,
+                  ].slice(0, 4)
+                : []
+              ).length > 0 ? (
+                [
+                  ...(seasonContent?.quests.daily ?? []),
+                  ...(seasonContent?.quests.weekly ?? []),
+                ]
+                  .slice(0, 4)
+                  .map((quest) => (
+                    <PuzzleTileButton
+                      key={quest.id}
+                      icon={Gift}
+                      title={quest.title}
+                      description={`${quest.description} ${quest.progress}/${quest.target}`}
+                      right={
+                        <div className="text-right">
+                          <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                            {quest.track}
+                          </p>
+                          <p className="mt-1 text-xs font-black text-primary">
+                            +{quest.reward.passXp ?? 0} PX / +
+                            {quest.reward.coins ?? 0}C
+                          </p>
+                        </div>
+                      }
+                    />
+                  ))
               ) : (
                 <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-                  {isLoading ? "Loading mission cadence..." : questsResolution === "unavailable" ? "Live mission data is currently unavailable." : "No daily or weekly quests are available right now."}
+                  {isLoading
+                    ? "Loading mission cadence..."
+                    : questsResolution === "unavailable"
+                      ? "Live mission data is currently unavailable."
+                      : "No daily or weekly quests are available right now."}
                 </div>
               )}
             </div>
@@ -580,7 +830,7 @@ export default function SeasonPage() {
             <div className="section-stack">
               {(seasonContent?.quests.seasonal ?? []).length > 0 ? (
                 seasonContent?.quests.seasonal.map((quest) => {
-                  const rewardDisplay = describeQuestReward(quest.reward);
+                  const rewardDisplay = describeQuestReward(quest.reward, season);
                   return (
                     <PuzzleTileButton
                       key={quest.id}
@@ -598,8 +848,12 @@ export default function SeasonPage() {
                       description={`${quest.description} ${quest.progress}/${quest.target}`}
                       right={
                         <div className="text-right">
-                          <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{rewardDisplay.eyebrow}</p>
-                          <p className="mt-1 text-xs font-black text-primary">{rewardDisplay.label}</p>
+                          <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                            {rewardDisplay.eyebrow}
+                          </p>
+                          <p className="mt-1 text-xs font-black text-primary">
+                            {rewardDisplay.label}
+                          </p>
                         </div>
                       }
                     />
@@ -607,7 +861,11 @@ export default function SeasonPage() {
                 })
               ) : (
                 <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-                  {isLoading ? "Loading prestige objectives..." : questsResolution === "unavailable" ? "Live seasonal objectives are currently unavailable." : "No seasonal objectives are available right now."}
+                  {isLoading
+                    ? "Loading prestige objectives..."
+                    : questsResolution === "unavailable"
+                      ? "Live seasonal objectives are currently unavailable."
+                      : "No seasonal objectives are available right now."}
                 </div>
               )}
             </div>
@@ -617,3 +875,8 @@ export default function SeasonPage() {
     </div>
   );
 }
+
+
+
+
+

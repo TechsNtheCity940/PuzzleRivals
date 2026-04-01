@@ -1,6 +1,9 @@
 import type { ItemCategory, MatchReward, QuestDefinition } from "@/lib/types";
 import type { UserProfile } from "@/lib/types";
-import { NEON_RIVALS_SEASONAL_CHALLENGES, NEON_RIVALS_SEASON_KEY } from "@/lib/season-content";
+import {
+  NEON_RIVALS_SEASONAL_CHALLENGES,
+  NEON_RIVALS_SEASON_KEY,
+} from "@/lib/season-content";
 import {
   isSupabaseSchemaSetupIssue,
   supabase,
@@ -92,10 +95,11 @@ export const WEEKLY_QUESTS: QuestDefinition[] = [
   },
 ];
 
-export const SEASONAL_CHALLENGES: QuestDefinition[] = NEON_RIVALS_SEASONAL_CHALLENGES.map((quest) => ({
-  ...quest,
-  reward: { ...quest.reward },
-}));
+export const SEASONAL_CHALLENGES: QuestDefinition[] =
+  NEON_RIVALS_SEASONAL_CHALLENGES.map((quest) => ({
+    ...quest,
+    reward: { ...quest.reward },
+  }));
 
 type QuestDefinitionRow = {
   id: string;
@@ -127,16 +131,24 @@ function getUtcDateKey(date: Date) {
 }
 
 function getIsoWeekKey(date: Date) {
-  const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const utcDate = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
   const day = utcDate.getUTCDay() || 7;
   utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
   const year = utcDate.getUTCFullYear();
   const yearStart = new Date(Date.UTC(year, 0, 1));
-  const week = Math.ceil((((utcDate.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
+  const week = Math.ceil(
+    ((utcDate.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7,
+  );
   return `${year}-W${String(week).padStart(2, "0")}`;
 }
 
-function getQuestPeriodKey(track: QuestDefinition["track"], metadata: Record<string, unknown> | null, now = new Date()) {
+function getQuestPeriodKey(
+  track: QuestDefinition["track"],
+  metadata: Record<string, unknown> | null,
+  now = new Date(),
+) {
   if (track === "daily") return getUtcDateKey(now);
   if (track === "weekly") return getIsoWeekKey(now);
   return asString(metadata?.seasonKey) ?? NEON_RIVALS_SEASON_KEY;
@@ -152,33 +164,47 @@ function parseQuestReward(value: Record<string, unknown> | null) {
   };
 }
 
-function withAbsoluteFallbackProgress(quest: QuestDefinition, user: UserProfile | null) {
+function withAbsoluteFallbackProgress(
+  quest: QuestDefinition,
+  user: UserProfile | null,
+) {
   if (!user) return quest;
   if (quest.id === "sq_gold") {
-    return { ...quest, progress: Math.min(quest.target, user.rankPoints ?? 0), isCompleted: (user.rankPoints ?? 0) >= quest.target };
+    return {
+      ...quest,
+      progress: Math.min(quest.target, user.rankPoints ?? 0),
+      isCompleted: (user.rankPoints ?? 0) >= quest.target,
+    };
   }
   if (quest.id === "sq_pass_xp") {
-    return { ...quest, progress: Math.min(quest.target, user.passXp ?? 0), isCompleted: (user.passXp ?? 0) >= quest.target };
+    return {
+      ...quest,
+      progress: Math.min(quest.target, user.passXp ?? 0),
+      isCompleted: (user.passXp ?? 0) >= quest.target,
+    };
   }
   return quest;
 }
 
 export async function loadQuestSnapshot(user: UserProfile | null) {
-  const fallback = {
-    daily: DAILY_QUESTS.map((quest) => withAbsoluteFallbackProgress(quest, user)),
-    weekly: WEEKLY_QUESTS.map((quest) => withAbsoluteFallbackProgress(quest, user)),
-    seasonal: SEASONAL_CHALLENGES.map((quest) => withAbsoluteFallbackProgress(quest, user)),
-  };
-
   if (!supabase) {
-    return fallback;
+    return {
+      daily: [],
+      weekly: [],
+      seasonal: [],
+    };
   }
 
   const now = new Date();
-  const [{ data: definitions, error: definitionsError }, { data: progressRows, error: progressError }] = await Promise.all([
+  const [
+    { data: definitions, error: definitionsError },
+    { data: progressRows, error: progressError },
+  ] = await Promise.all([
     supabase
       .from("quest_definitions")
-      .select("id, track, title, description, target_value, reward_json, metadata")
+      .select(
+        "id, track, title, description, target_value, reward_json, metadata",
+      )
       .eq("active", true),
     user && !user.isGuest
       ? supabase
@@ -190,38 +216,58 @@ export async function loadQuestSnapshot(user: UserProfile | null) {
 
   if (definitionsError) {
     if (isSupabaseSchemaSetupIssue(definitionsError)) {
-      throw toSupabaseSchemaSetupError(definitionsError, "public.quest_definitions");
+      throw toSupabaseSchemaSetupError(
+        definitionsError,
+        "public.quest_definitions",
+      );
     }
     throw definitionsError;
   }
 
   if (progressError) {
     if (isSupabaseSchemaSetupIssue(progressError)) {
-      throw toSupabaseSchemaSetupError(progressError, "public.player_quest_progress");
+      throw toSupabaseSchemaSetupError(
+        progressError,
+        "public.player_quest_progress",
+      );
     }
     throw progressError;
   }
 
   const progressByKey = new Map(
-    ((progressRows ?? []) as QuestProgressRow[]).map((row) => [`${row.quest_id}:${row.period_key}`, row]),
+    ((progressRows ?? []) as QuestProgressRow[]).map((row) => [
+      `${row.quest_id}:${row.period_key}`,
+      row,
+    ]),
   );
 
-  const mapped = ((definitions ?? []) as QuestDefinitionRow[]).map((definition) => {
-    const periodKey = getQuestPeriodKey(definition.track, definition.metadata, now);
-    const progress = progressByKey.get(`${definition.id}:${periodKey}`);
-    const quest: QuestDefinition = {
-      id: definition.id,
-      title: definition.title,
-      description: definition.description,
-      track: definition.track,
-      target: definition.target_value,
-      progress: Math.min(definition.target_value, Number(progress?.progress ?? 0)),
-      reward: parseQuestReward(definition.reward_json),
-      isCompleted: Boolean(progress?.completed_at) || Number(progress?.progress ?? 0) >= definition.target_value,
-    };
+  const mapped = ((definitions ?? []) as QuestDefinitionRow[]).map(
+    (definition) => {
+      const periodKey = getQuestPeriodKey(
+        definition.track,
+        definition.metadata,
+        now,
+      );
+      const progress = progressByKey.get(`${definition.id}:${periodKey}`);
+      const quest: QuestDefinition = {
+        id: definition.id,
+        title: definition.title,
+        description: definition.description,
+        track: definition.track,
+        target: definition.target_value,
+        progress: Math.min(
+          definition.target_value,
+          Number(progress?.progress ?? 0),
+        ),
+        reward: parseQuestReward(definition.reward_json),
+        isCompleted:
+          Boolean(progress?.completed_at) ||
+          Number(progress?.progress ?? 0) >= definition.target_value,
+      };
 
-    return withAbsoluteFallbackProgress(quest, user);
-  });
+      return withAbsoluteFallbackProgress(quest, user);
+    },
+  );
 
   if (mapped.length === 0) {
     return {
@@ -237,10 +283,14 @@ export async function loadQuestSnapshot(user: UserProfile | null) {
     seasonal: mapped.filter((quest) => quest.track === "seasonal"),
   };
 }
-
 export function getPassTierProgress(passXp: number, maxTier: number) {
-  const currentTier = Math.max(1, Math.min(maxTier, Math.floor(passXp / PASS_XP_PER_TIER) + 1));
-  const progressWithinTier = Math.round(((passXp % PASS_XP_PER_TIER) / PASS_XP_PER_TIER) * 100);
+  const currentTier = Math.max(
+    1,
+    Math.min(maxTier, Math.floor(passXp / PASS_XP_PER_TIER) + 1),
+  );
+  const progressWithinTier = Math.round(
+    ((passXp % PASS_XP_PER_TIER) / PASS_XP_PER_TIER) * 100,
+  );
   return {
     currentTier,
     progressWithinTier,

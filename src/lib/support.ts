@@ -5,6 +5,19 @@ import {
 } from "@/lib/supabase-client";
 import type { SupportTicketCategory, SupportTicketPriority, SupportTicketStatus } from "@/lib/types";
 
+export interface SupportClientContext {
+  route: string;
+  referrer: string | null;
+  userAgent: string;
+  viewport: {
+    width: number;
+    height: number;
+    pixelRatio: number;
+  };
+  locale: string | null;
+  online: boolean;
+}
+
 export interface SupportTicketRecord {
   id: string;
   category: SupportTicketCategory;
@@ -16,6 +29,7 @@ export interface SupportTicketRecord {
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
+  clientContext: SupportClientContext | null;
 }
 
 type SupportTicketRow = {
@@ -29,6 +43,7 @@ type SupportTicketRow = {
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
+  client_context: SupportClientContext | null;
 };
 
 function assertSupabase() {
@@ -49,6 +64,26 @@ function mapTicket(row: SupportTicketRow): SupportTicketRecord {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     resolvedAt: row.resolved_at,
+    clientContext: row.client_context,
+  };
+}
+
+export function buildSupportClientContext(): SupportClientContext | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return {
+    route: `${window.location.pathname}${window.location.search}`,
+    referrer: document.referrer || null,
+    userAgent: window.navigator.userAgent,
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      pixelRatio: window.devicePixelRatio || 1,
+    },
+    locale: window.navigator.language || null,
+    online: window.navigator.onLine,
   };
 }
 
@@ -56,7 +91,7 @@ export async function loadOwnSupportTickets(currentUserId: string) {
   assertSupabase();
   const { data, error } = await supabase!
     .from("support_tickets")
-    .select("id, category, subject, body, status, priority, admin_notes, created_at, updated_at, resolved_at")
+    .select("id, category, subject, body, status, priority, admin_notes, created_at, updated_at, resolved_at, client_context")
     .eq("reporter_user_id", currentUserId)
     .order("created_at", { ascending: false });
 
@@ -72,6 +107,7 @@ export async function submitSupportTicket(input: {
   category: SupportTicketCategory;
   subject: string;
   body: string;
+  clientContext?: SupportClientContext | null;
 }) {
   assertSupabase();
 
@@ -91,8 +127,9 @@ export async function submitSupportTicket(input: {
       category: input.category,
       subject,
       body,
+      client_context: input.clientContext ?? buildSupportClientContext(),
     })
-    .select("id, category, subject, body, status, priority, admin_notes, created_at, updated_at, resolved_at")
+    .select("id, category, subject, body, status, priority, admin_notes, created_at, updated_at, resolved_at, client_context")
     .single();
 
   if (error) {

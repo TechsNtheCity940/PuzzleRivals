@@ -8,6 +8,7 @@ import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { isRenderableCosmeticCategory } from "@/lib/cosmetics";
+import { FALLBACK_APP_RUNTIME_STATUS, loadAppRuntimeStatus } from "@/lib/app-status";
 import { STORE_TABS } from "@/lib/economy";
 import {
   loadStoreContent,
@@ -27,11 +28,31 @@ import { useAuth } from "@/providers/AuthProvider";
 
 type Tab = "all" | ItemCategory;
 
-function formatPrice(item: StorefrontItem, wallet?: StorefrontSnapshot["wallet"]) {
-  if (item.isComplimentary) return wallet?.vipAccess ? "VIP Complimentary" : "Complimentary Access";
+function formatPrice(
+  item: StorefrontItem,
+  wallet?: StorefrontSnapshot["wallet"],
+) {
+  if (item.isComplimentary)
+    return wallet?.vipAccess ? "VIP Complimentary" : "Complimentary Access";
   if (item.priceUsd) return `$${item.priceUsd.toFixed(2)}`;
   if (item.priceGems) return `${item.priceGems} Gems`;
   if (item.priceCoins) return `${item.priceCoins.toLocaleString()} Coins`;
+  return "Unavailable";
+}
+
+function acquisitionLabel(
+  item: StorefrontItem,
+  commerceUnavailable: boolean,
+  wallet?: StorefrontSnapshot["wallet"],
+) {
+  if (item.isComplimentary) {
+    return wallet?.vipAccess ? "VIP access" : "Complimentary";
+  }
+  if (item.priceUsd) {
+    return commerceUnavailable ? "Checkout paused" : "PayPal checkout";
+  }
+  if (item.priceGems) return "Gem unlock";
+  if (item.priceCoins) return "Coin unlock";
   return "Unavailable";
 }
 
@@ -46,7 +67,10 @@ function isEquipable(item: StorefrontItem) {
   );
 }
 
-function clearCheckoutParams(params: URLSearchParams, setParams: ReturnType<typeof useSearchParams>[1]) {
+function clearCheckoutParams(
+  params: URLSearchParams,
+  setParams: ReturnType<typeof useSearchParams>[1],
+) {
   const next = new URLSearchParams(params);
   next.delete("checkout");
   next.delete("purchase");
@@ -59,7 +83,7 @@ function romanNumeral(n: number): string {
 }
 
 function sourceLabel(source: GameContentSource) {
-  return source === "supabase" ? "Live" : "Local Preview";
+  return source === "supabase" ? "Live" : "Offline";
 }
 
 function describeStoreResolution(resolution: GameContentResolution) {
@@ -69,17 +93,29 @@ function describeStoreResolution(resolution: GameContentResolution) {
   if (resolution === "unavailable") {
     return "Live commerce data is currently unavailable.";
   }
-  return "Local preview store data is loaded because Supabase commerce is disabled.";
+  return "Commerce data is unavailable in this environment.";
 }
 
 export default function StorePage() {
   const [tab, setTab] = useState<Tab>("all");
   const [page, setPage] = useState(0);
-  const [snapshot, setSnapshot] = useState<StorefrontSnapshot>({ items: [], vipProduct: null, vipMembership: null, wallet: null, source: "seed" });
-  const [vipMembership, setVipMembership] = useState<VipMembership | null>(null);
-  const [storefrontSource, setStorefrontSource] = useState<GameContentSource>("seed");
-  const [storefrontResolution, setStorefrontResolution] = useState<GameContentResolution>("fallback");
-  const [vipResolution, setVipResolution] = useState<GameContentResolution>("fallback");
+  const [snapshot, setSnapshot] = useState<StorefrontSnapshot>({
+    items: [],
+    vipProduct: null,
+    vipMembership: null,
+    wallet: null,
+    source: "supabase",
+  });
+  const [vipMembership, setVipMembership] = useState<VipMembership | null>(
+    null,
+  );
+  const [storefrontSource, setStorefrontSource] =
+    useState<GameContentSource>("supabase");
+  const [storefrontResolution, setStorefrontResolution] =
+    useState<GameContentResolution>("unavailable");
+  const [vipResolution, setVipResolution] =
+    useState<GameContentResolution>("unavailable");
+  const [runtimeStatus, setRuntimeStatus] = useState(FALLBACK_APP_RUNTIME_STATUS);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busyProductId, setBusyProductId] = useState<string | null>(null);
@@ -104,7 +140,8 @@ export default function StorePage() {
         }
       } catch (error) {
         if (active) {
-          const message = error instanceof Error ? error.message : "Failed to load store.";
+          const message =
+            error instanceof Error ? error.message : "Failed to load store.";
           setLoadError(message);
           toast.error(message);
         }
@@ -120,6 +157,17 @@ export default function StorePage() {
       active = false;
     };
   }, [user]);
+  useEffect(() => {
+    let active = true;
+    void loadAppRuntimeStatus().then((status) => {
+      if (active) {
+        setRuntimeStatus(status);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     setPage(0);
@@ -155,7 +203,11 @@ export default function StorePage() {
         }
         toast.success("Purchase completed.");
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to capture PayPal order.");
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to capture PayPal order.",
+        );
       } finally {
         if (active) {
           setBusyProductId(null);
@@ -171,12 +223,17 @@ export default function StorePage() {
   }, [params, refreshUser, setParams, user]);
 
   const items = useMemo(
-    () => (tab === "all" ? snapshot.items : snapshot.items.filter((item) => item.category === tab)),
+    () =>
+      tab === "all"
+        ? snapshot.items
+        : snapshot.items.filter((item) => item.category === tab),
     [snapshot.items, tab],
   );
   const pageCount = Math.max(1, Math.ceil(items.length / 6));
   const visibleItems = items.slice(page * 6, page * 6 + 6);
   const vip = snapshot.vipProduct;
+  const commerceUnavailable =
+    runtimeStatus.resolution === "live" && !runtimeStatus.commerceReady;
   const vipButtonLabel = snapshot.wallet?.isPrivileged
     ? snapshot.wallet?.vipAccess
       ? "VIP Access"
@@ -221,6 +278,10 @@ export default function StorePage() {
       }
 
       if (item.priceUsd) {
+        if (commerceUnavailable) {
+          toast.error("USD checkout is paused until live PayPal credentials are configured.");
+          return;
+        }
         const response = await createPayPalCheckout(item.id, "/store");
         window.location.assign(response.approvalUrl);
         return;
@@ -239,12 +300,12 @@ export default function StorePage() {
 
   const subtitle = accountNeedsSync
     ? "You are signed in, but the live wallet/profile payload is unavailable. Sign out and back in before using commerce."
-    : canSave
-      ? storefrontResolution === "live"
-        ? `${sourceLabel(storefrontSource)} purchases and account-bound items.`
-        : describeStoreResolution(storefrontResolution)
-      : storefrontResolution === "fallback"
-        ? "Browsing the local preview store as guest. Purchases require sign-in."
+    : commerceUnavailable
+      ? "Live commerce is connected, but USD checkout is paused until PayPal credentials are complete."
+      : canSave
+        ? storefrontResolution === "live"
+          ? `${sourceLabel(storefrontSource)} purchases and account-bound items.`
+          : describeStoreResolution(storefrontResolution)
         : "Browse as guest. Purchases require sign-in.";
 
   return (
@@ -259,12 +320,20 @@ export default function StorePage() {
               <div className="spotlight-panel flex min-w-[260px] flex-col gap-3">
                 <div>
                   <p className="section-kicker">Commerce Status</p>
-                  <p className="mt-2 text-lg font-black">Profile sync required</p>
+                  <p className="mt-2 text-lg font-black">
+                    Profile sync required
+                  </p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    The session is active, but the account wallet is unavailable. Sign out to retry cleanly.
+                    The session is active, but the account wallet is
+                    unavailable. Sign out to retry cleanly.
                   </p>
                 </div>
-                <Button onClick={() => void signOut()} variant="outline" size="sm" className="w-full">
+                <Button
+                  onClick={() => void signOut()}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                >
                   Sign Out To Retry
                 </Button>
               </div>
@@ -273,19 +342,27 @@ export default function StorePage() {
                 <div className="grid grid-cols-2 gap-3 text-center">
                   <div>
                     <p className="hud-label">Coins</p>
-                    <p className="mt-2 text-2xl font-black text-coin">{snapshot.wallet?.coins?.toLocaleString() ?? 0}</p>
+                    <p className="mt-2 text-2xl font-black text-coin">
+                      {snapshot.wallet?.coins?.toLocaleString() ?? 0}
+                    </p>
                   </div>
                   <div>
                     <p className="hud-label">Gems</p>
-                    <p className="mt-2 text-2xl font-black text-primary">{snapshot.wallet?.gems ?? 0}</p>
+                    <p className="mt-2 text-2xl font-black text-primary">
+                      {snapshot.wallet?.gems ?? 0}
+                    </p>
                   </div>
                   <div>
                     <p className="hud-label">Shards</p>
-                    <p className="mt-2 text-2xl font-black text-gradient-prestige">{snapshot.wallet?.puzzleShards ?? 0}</p>
+                    <p className="mt-2 text-2xl font-black text-gradient-prestige">
+                      {snapshot.wallet?.puzzleShards ?? 0}
+                    </p>
                   </div>
                   <div>
                     <p className="hud-label">Pass XP</p>
-                    <p className="mt-2 text-2xl font-black text-xp">{snapshot.wallet?.passXp ?? 0}</p>
+                    <p className="mt-2 text-2xl font-black text-xp">
+                      {snapshot.wallet?.passXp ?? 0}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -295,11 +372,20 @@ export default function StorePage() {
 
         <section className="hero-panel">
           <div className="hero-grid">
+            {commerceUnavailable ? (
+              <div className="command-panel-soft border border-amber-400/20 bg-amber-500/8 p-5 lg:col-span-2">
+                <p className="section-kicker text-amber-300">Commerce Status</p>
+                <p className="mt-2 text-lg font-black text-white">USD checkout is paused</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">Live catalog data is present, but PayPal credentials are not fully configured yet. Coin, gem, complimentary, owner, and VIP access flows still render normally.</p>
+              </div>
+            ) : null}
             <div className="command-panel-soft store-hero p-5">
               <div className="section-header">
                 <div>
                   <p className="section-kicker">VIP Membership</p>
-                  <h2 className="section-title">{vip?.name ?? "VIP Membership"}</h2>
+                  <h2 className="section-title">
+                    {vip?.name ?? "VIP Membership"}
+                  </h2>
                 </div>
                 <Crown size={18} className="text-primary" />
               </div>
@@ -312,20 +398,32 @@ export default function StorePage() {
                       ? "VIP offer not published yet"
                       : vipResolution === "unavailable"
                         ? "Live VIP offer is currently unavailable"
-                        : "Unavailable"} - {snapshot.wallet?.hintBalance ?? 0} hints banked
+                        : "Unavailable"}{" "}
+                - {snapshot.wallet?.hintBalance ?? 0} hints banked
               </p>
+              {commerceUnavailable ? (
+                <div className="mt-4 rounded-[20px] border border-amber-400/20 bg-amber-400/8 px-4 py-3 text-sm text-amber-100">
+                  Live PayPal checkout is paused until the production credentials are configured in Supabase.
+                </div>
+              ) : null}
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <div className="rich-stat">
                   <p className="hud-label">Status</p>
-                  <p className="text-lg font-black text-primary">{snapshot.wallet?.isVip ? "VIP Live" : "Free Track"}</p>
+                  <p className="text-lg font-black text-primary">
+                    {snapshot.wallet?.isVip ? "VIP Live" : "Free Track"}
+                  </p>
                 </div>
                 <div className="rich-stat">
                   <p className="hud-label">Owned</p>
-                  <p className="stat-value">{snapshot.items.filter((item) => item.isOwned).length}</p>
+                  <p className="stat-value">
+                    {snapshot.items.filter((item) => item.isOwned).length}
+                  </p>
                 </div>
                 <div className="rich-stat">
                   <p className="hud-label">Premium</p>
-                  <p className="text-lg font-black text-gradient-prestige">Unlock cosmetics</p>
+                  <p className="text-lg font-black text-gradient-prestige">
+                    Unlock cosmetics
+                  </p>
                 </div>
               </div>
             </div>
@@ -333,28 +431,52 @@ export default function StorePage() {
               <div className="section-stack">
                 <div>
                   <p className="section-kicker">Featured Drop</p>
-                  <h2 className="section-title">Season 1: Neon Rivals cosmetics are live</h2>
+                  <h2 className="section-title">
+                    Season 1: Neon Rivals cosmetics are live
+                  </h2>
                 </div>
                 <div className="store-preview-strip">
                   <CosmeticPreview
                     kind="theme"
-                    productId={snapshot.wallet?.themeId ?? snapshot.items.find((item) => item.category === "theme")?.id ?? null}
+                    productId={
+                      snapshot.wallet?.themeId ??
+                      snapshot.items.find((item) => item.category === "theme")
+                        ?.id ??
+                      null
+                    }
                   />
                   <CosmeticPreview
                     kind="frame"
-                    productId={snapshot.wallet?.frameId ?? snapshot.items.find((item) => item.category === "frame")?.id ?? null}
+                    productId={
+                      snapshot.wallet?.frameId ??
+                      snapshot.items.find((item) => item.category === "frame")
+                        ?.id ??
+                      null
+                    }
                   />
                   <CosmeticPreview
                     kind="player_card"
-                    productId={snapshot.wallet?.playerCardId ?? snapshot.items.find((item) => item.category === "player_card")?.id ?? null}
+                    productId={
+                      snapshot.wallet?.playerCardId ??
+                      snapshot.items.find(
+                        (item) => item.category === "player_card",
+                      )?.id ??
+                      null
+                    }
                   />
                 </div>
                 <IdentityLoadoutCard
                   username={user?.username ?? "Guest Player"}
-                  subtitle={snapshot.wallet?.isVip ? "VIP identity live" : "Preview the Neon Rivals loadout"}
+                  subtitle={
+                    snapshot.wallet?.isVip
+                      ? "VIP identity live"
+                      : "Preview the Neon Rivals loadout"
+                  }
                   avatarId={user?.avatarId}
                   frameId={snapshot.wallet?.frameId ?? user?.frameId}
-                  playerCardId={snapshot.wallet?.playerCardId ?? user?.playerCardId}
+                  playerCardId={
+                    snapshot.wallet?.playerCardId ?? user?.playerCardId
+                  }
                   bannerId={snapshot.wallet?.bannerId ?? user?.bannerId}
                   emblemId={snapshot.wallet?.emblemId ?? user?.emblemId}
                   titleId={snapshot.wallet?.titleId ?? user?.titleId}
@@ -365,11 +487,17 @@ export default function StorePage() {
                 variant="prestige"
                 size="xl"
                 className="w-full"
-                disabled={!vip || busyProductId === vip?.id || Boolean(snapshot.wallet?.isPrivileged) || accountNeedsSync}
+                disabled={
+                  !vip ||
+                  busyProductId === vip?.id ||
+                  Boolean(snapshot.wallet?.isPrivileged) ||
+                  accountNeedsSync ||
+                  commerceUnavailable
+                }
                 onClick={() => vip && handleItemAction(vip)}
               >
                 <Crown size={14} />
-                {busyProductId === vip?.id ? "Working..." : vipButtonLabel}
+                {commerceUnavailable ? "Checkout Paused" : busyProductId === vip?.id ? "Working..." : vipButtonLabel}
               </Button>
             </div>
           </div>
@@ -421,7 +549,12 @@ export default function StorePage() {
                     description={item.description}
                     media={
                       isRenderableCosmeticCategory(item.kind) ? (
-                        <CosmeticPreview kind={item.kind} productId={item.id} label={item.name} className="store-item-preview" />
+                        <CosmeticPreview
+                          kind={item.kind}
+                          productId={item.id}
+                          label={item.name}
+                          className="store-item-preview"
+                        />
                       ) : undefined
                     }
                     icon={ShoppingBag}
@@ -432,21 +565,33 @@ export default function StorePage() {
                             {item.isEquipped ? "Loadout" : "Owned"}
                           </p>
                           <p className="mt-1 text-xs font-black text-primary">
-                            {item.isEquipped ? "Equipped" : isEquipable(item) ? "Tap to equip" : "Collected"}
+                            {item.isEquipped
+                              ? "Equipped"
+                              : isEquipable(item)
+                                ? "Tap to equip"
+                                : "Collected"}
                           </p>
                         </div>
                       ) : (
                         <div>
                           <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                            {item.collection ? `${item.collection} - ` : ""}Tier {romanNumeral(item.rarity)}
+                            {item.collection ? `${item.collection} - ` : ""}Tier{" "}
+                            {romanNumeral(item.rarity)}
                           </p>
-                          <p className="mt-1 text-xs font-black text-primary">{formatPrice(item, snapshot.wallet)}</p>
+                          <p className="mt-1 text-xs font-black text-primary">
+                            {formatPrice(item, snapshot.wallet)}
+                          </p>
                         </div>
                       )
                     }
                     className="h-full"
                     onClick={() => void handleItemAction(item)}
-                    disabled={isLoading || busyProductId === item.id || accountNeedsSync || (item.isOwned && !isEquipable(item))}
+                    disabled={
+                      isLoading ||
+                      busyProductId === item.id ||
+                      accountNeedsSync ||
+                      (item.isOwned && !isEquipable(item))
+                    }
                   />
                 ))
               ) : (
@@ -458,10 +603,16 @@ export default function StorePage() {
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-white/10 bg-white/5 px-4 py-3">
               <p className="text-sm text-muted-foreground">
-                Showing {visibleItems.length ? page * 6 + 1 : 0}-{Math.min((page + 1) * 6, items.length)} of {items.length}
+                Showing {visibleItems.length ? page * 6 + 1 : 0}-
+                {Math.min((page + 1) * 6, items.length)} of {items.length}
               </p>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 0}
+                  onClick={() => setPage((current) => Math.max(0, current - 1))}
+                >
                   <ChevronLeft size={14} />
                 </Button>
                 <span className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">
@@ -471,7 +622,9 @@ export default function StorePage() {
                   variant="outline"
                   size="sm"
                   disabled={page >= pageCount - 1}
-                  onClick={() => setPage((current) => Math.min(pageCount - 1, current + 1))}
+                  onClick={() =>
+                    setPage((current) => Math.min(pageCount - 1, current + 1))
+                  }
                 >
                   <ChevronRight size={14} />
                 </Button>
@@ -483,3 +636,15 @@ export default function StorePage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+

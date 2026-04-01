@@ -1,11 +1,22 @@
-import { Activity, ArrowLeft, RefreshCcw, Sparkles, Trophy, Zap } from "lucide-react";
+import {
+  Activity,
+  ArrowLeft,
+  BadgeHelp,
+  RefreshCcw,
+  Sparkles,
+  Trophy,
+  Zap,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "@/components/ui/sonner";
 import NeonRivalsGame from "@/components/game/NeonRivalsGame";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import { Button } from "@/components/ui/button";
-import { createInitialGameState, NEON_RIVALS_RUN_MODE_OPTIONS } from "@/game/config/runModes";
+import {
+  createInitialGameState,
+  NEON_RIVALS_RUN_MODE_OPTIONS,
+} from "@/game/config/runModes";
 import type {
   NeonRivalsBoardFamily,
   NeonRivalsGameState,
@@ -16,8 +27,50 @@ import type {
 import { supabaseApi } from "@/lib/api-client";
 import { getThemeVisual } from "@/lib/cosmetics";
 import { useAuth } from "@/providers/AuthProvider";
+import { useAppPreferences } from "@/providers/AppPreferencesProvider";
 
 const DEFAULT_MODE: NeonRivalsRunMode = "score_attack";
+const RUN_MODE_IDS = new Set(
+  NEON_RIVALS_RUN_MODE_OPTIONS.map((option) => option.id),
+);
+
+const BOARD_CONTROL_HINTS: Record<NeonRivalsBoardFamily, string[]> = {
+  match3: [
+    "Swap adjacent tiles only. Clean matches and cascades do the real damage.",
+    "The board state matters more than one flashy move. Preserve space for follow-up clears.",
+    "Focus the active objective instead of chasing raw score every turn.",
+  ],
+  maze: [
+    "Move one legal step at a time. Dead turns spark red and waste the route budget.",
+    "Read the exit lane before you commit. The shortest route is usually the highest-value path.",
+    "When the start and goal nodes pulse harder, you are close to the solve line.",
+  ],
+  pipe: [
+    "Select one conduit tile at a time. Every click rotates that tile clockwise by one step.",
+    "Switching to a different tile leaves the previous conduit exactly where you left it.",
+    "Revisit any tile until the network lights cleanly from source to finish.",
+  ],
+  tile: [
+    "Select the tile you want to move, then tap the adjacent blank slot.",
+    "Slides happen one space at a time. The current tile and valid destination stay highlighted.",
+    "Lock rows early so the last few moves do not turn into a scramble.",
+  ],
+  number: [
+    "Pick an empty cell first, then fire the digit into place with intention.",
+    "Solved rows and columns light up, so use the rail feedback to confirm structure quickly.",
+    "The move budget is tight. Do not brute-force fills without reading the pattern.",
+  ],
+  spatial: [
+    "Read the transform rule before you commit. Mirror and rotation rounds punish rushed taps.",
+    "One correct silhouette locks instantly and pushes the next round live.",
+    "Treat the ghost preview as the truth source, not the color noise around it.",
+  ],
+  strategy: [
+    "Tap the active piece, then the winning target square. The board itself is the answer surface.",
+    "Move hints follow real piece movement, so read checks, captures, and promotion threats normally.",
+    "Wrong hits flash fast. Reset, reread the tactic, and execute the clean line.",
+  ],
+};
 
 type RunSyncState =
   | { status: "idle"; message: string; result: null }
@@ -26,6 +79,16 @@ type RunSyncState =
   | { status: "submitting"; message: string; result: null }
   | { status: "synced"; message: string; result: NeonRivalsRunSyncResult }
   | { status: "error"; message: string; result: null };
+
+function resolveRequestedMode(
+  rawMode: string | null,
+  fallbackMode: NeonRivalsRunMode,
+) {
+  if (rawMode && RUN_MODE_IDS.has(rawMode as NeonRivalsRunMode)) {
+    return rawMode as NeonRivalsRunMode;
+  }
+  return fallbackMode;
+}
 
 function statusLabel(status: NeonRivalsGameState["status"]) {
   if (status === "complete") return "Objective complete";
@@ -41,7 +104,9 @@ function formatRewardLines(reward: NeonRivalsRewardSummary) {
     reward.passXp ? `+${reward.passXp} Pass XP` : null,
     reward.shards ? `+${reward.shards} Shards` : null,
     reward.gems ? `+${reward.gems} Gems` : null,
-    reward.itemIds.length > 0 ? `${reward.itemIds.length} item unlock${reward.itemIds.length === 1 ? "" : "s"}` : null,
+    reward.itemIds.length > 0
+      ? `${reward.itemIds.length} item unlock${reward.itemIds.length === 1 ? "" : "s"}`
+      : null,
   ].filter((entry): entry is string => Boolean(entry));
 }
 
@@ -49,7 +114,8 @@ function getIdleSyncState(hasSession: boolean, hasUser: boolean): RunSyncState {
   if (!hasSession) {
     return {
       status: "guest",
-      message: "Play freely, then sign up to bank Neon Rivals rewards and quest progress.",
+      message:
+        "Play freely, then sign up to bank Neon Rivals rewards and quest progress.",
       result: null,
     };
   }
@@ -57,14 +123,16 @@ function getIdleSyncState(hasSession: boolean, hasUser: boolean): RunSyncState {
   if (!hasUser) {
     return {
       status: "account-error",
-      message: "Auth is live, but your profile did not sync. Fix that before banking rewards.",
+      message:
+        "Auth is live, but your profile did not sync. Fix that before banking rewards.",
       result: null,
     };
   }
 
   return {
     status: "idle",
-    message: "Finish a run to bank live XP, coins, pass XP, shards, and season quest progress.",
+    message:
+      "Finish a run to bank live XP, coins, pass XP, shards, and season quest progress.",
     result: null,
   };
 }
@@ -146,20 +214,55 @@ function getProgressDetail(state: NeonRivalsGameState) {
 
 export default function NeonRivalsGamePage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { openSignUp } = useAuthDialog();
   const { user, hasSession, refreshUser } = useAuth();
-  const [selectedMode, setSelectedMode] = useState<NeonRivalsRunMode>(DEFAULT_MODE);
+  const {
+    compactArenaLayout,
+    dismissedArenaHints,
+    dismissArenaHint,
+    lastArenaMode,
+    setLastArenaMode,
+  } = useAppPreferences();
+  const requestedMode = resolveRequestedMode(searchParams.get("mode"), lastArenaMode);
+  const [selectedMode, setSelectedMode] =
+    useState<NeonRivalsRunMode>(requestedMode);
   const [sessionSeed, setSessionSeed] = useState(() => Date.now());
-  const [gameState, setGameState] = useState<NeonRivalsGameState>(() => createInitialGameState(DEFAULT_MODE, 0));
-  const [syncState, setSyncState] = useState<RunSyncState>(() => getIdleSyncState(hasSession, Boolean(user)));
+  const [gameState, setGameState] = useState<NeonRivalsGameState>(() =>
+    createInitialGameState(requestedMode, 0),
+  );
+  const [syncState, setSyncState] = useState<RunSyncState>(() =>
+    getIdleSyncState(hasSession, Boolean(user)),
+  );
   const submittedKeyRef = useRef<string | null>(null);
   const theme = getThemeVisual(user?.themeId);
   const activeMode = useMemo(
-    () => NEON_RIVALS_RUN_MODE_OPTIONS.find((option) => option.id === selectedMode) ?? NEON_RIVALS_RUN_MODE_OPTIONS[0],
+    () =>
+      NEON_RIVALS_RUN_MODE_OPTIONS.find((option) => option.id === selectedMode) ??
+      NEON_RIVALS_RUN_MODE_OPTIONS[0],
     [selectedMode],
   );
   const accountNeedsSync = hasSession && !user;
   const boardMetric = getBoardMetricCard(gameState);
+  const controlHints = BOARD_CONTROL_HINTS[gameState.boardFamily];
+  const showArenaGuide = !dismissedArenaHints[gameState.boardFamily];
+
+  useEffect(() => {
+    if (requestedMode !== selectedMode) {
+      setSelectedMode(requestedMode);
+      setSessionSeed(Date.now());
+    }
+  }, [requestedMode, selectedMode]);
+
+  useEffect(() => {
+    setLastArenaMode(selectedMode);
+    if (searchParams.get("mode") === selectedMode) {
+      return;
+    }
+    const next = new URLSearchParams(searchParams);
+    next.set("mode", selectedMode);
+    setSearchParams(next, { replace: true });
+  }, [searchParams, selectedMode, setLastArenaMode, setSearchParams]);
 
   useEffect(() => {
     setGameState(createInitialGameState(selectedMode, sessionSeed));
@@ -196,47 +299,63 @@ export default function NeonRivalsGamePage() {
       result: null,
     });
 
-    void supabaseApi.submitNeonRivalsRun({
-      sessionSeed,
-      mode: selectedMode,
-      status: gameState.status,
-      score: gameState.score,
-      combo: gameState.combo,
-      maxCombo: gameState.maxCombo,
-      matchedTiles: gameState.matchedTiles,
-      movesLeft: gameState.movesLeft,
-      targetScore: gameState.targetScore,
-      objectiveTitle: gameState.objectiveTitle,
-      objectiveLabel: gameState.objectiveLabel,
-      objectiveValue: gameState.objectiveValue,
-      objectiveTarget: gameState.objectiveTarget,
-      targetColor: gameState.targetColor,
-      targetColorLabel: gameState.targetColorLabel,
-      durationMs: gameState.durationMs,
-    }).then(async (result) => {
-      await refreshUser();
-      setSyncState({
-        status: "synced",
-        message: result.alreadySubmitted ? "This run was already banked. Showing the existing reward summary." : "Run synced. Rewards and season progress are live.",
-        result,
+    void supabaseApi
+      .submitNeonRivalsRun({
+        sessionSeed,
+        mode: selectedMode,
+        status: gameState.status,
+        score: gameState.score,
+        combo: gameState.combo,
+        maxCombo: gameState.maxCombo,
+        matchedTiles: gameState.matchedTiles,
+        movesLeft: gameState.movesLeft,
+        targetScore: gameState.targetScore,
+        objectiveTitle: gameState.objectiveTitle,
+        objectiveLabel: gameState.objectiveLabel,
+        objectiveValue: gameState.objectiveValue,
+        objectiveTarget: gameState.objectiveTarget,
+        targetColor: gameState.targetColor,
+        targetColorLabel: gameState.targetColorLabel,
+        durationMs: gameState.durationMs,
+      })
+      .then(async (result) => {
+        await refreshUser();
+        setSyncState({
+          status: "synced",
+          message: result.alreadySubmitted
+            ? "This run was already banked. Showing the existing reward summary."
+            : "Run synced. Rewards and season progress are live.",
+          result,
+        });
+        toast.success(
+          result.alreadySubmitted ? "Run already banked" : "Rewards banked",
+          {
+            description:
+              formatRewardLines(result.totalReward).join(" | ") ||
+              "Season progress updated.",
+          },
+        );
+      })
+      .catch((error) => {
+        submittedKeyRef.current = null;
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to bank Neon Rivals rewards.";
+        setSyncState({
+          status: "error",
+          message,
+          result: null,
+        });
+        toast.error("Reward sync failed", { description: message });
       });
-      toast.success(result.alreadySubmitted ? "Run already banked" : "Rewards banked", {
-        description: formatRewardLines(result.totalReward).join(" | ") || "Season progress updated.",
-      });
-    }).catch((error) => {
-      submittedKeyRef.current = null;
-      const message = error instanceof Error ? error.message : "Failed to bank Neon Rivals rewards.";
-      setSyncState({
-        status: "error",
-        message,
-        result: null,
-      });
-      toast.error("Reward sync failed", { description: message });
-    });
   }, [gameState, hasSession, refreshUser, selectedMode, sessionSeed, user]);
 
   const progress = gameState.objectiveProgressPercent;
-  const rewardLines = syncState.status === "synced" ? formatRewardLines(syncState.result.totalReward) : [];
+  const rewardLines =
+    syncState.status === "synced"
+      ? formatRewardLines(syncState.result.totalReward)
+      : [];
 
   function remixBoard(nextMode = selectedMode) {
     submittedKeyRef.current = null;
@@ -246,113 +365,194 @@ export default function NeonRivalsGamePage() {
 
   return (
     <div className="neon-rivals-route-screen">
-      <div className="neon-rivals-route-shell">
-        <header className="neon-rivals-route-top">
-          <div className="neon-rivals-route-copy">
-            <p className="font-hud text-[11px] uppercase tracking-[0.28em] text-primary">Season 1 board route</p>
-            <h1 className="neon-rivals-route-title">Neon Rivals Arena</h1>
-            <p className="neon-rivals-route-subtitle">
-              The Arena owns the live board families, move effects, and objective logic here. React keeps the route shell,
-              account context, and reward sync around it.
+      <div
+        className={`neon-rivals-route-shell ${compactArenaLayout ? "neon-rivals-route-shell--compact" : "neon-rivals-route-shell--expanded"}`}
+      >
+        <header className="neon-rivals-route-top neon-rivals-route-top--dense">
+          <div className="neon-rivals-route-copy neon-rivals-route-copy--dense">
+            <p className="font-hud text-[11px] uppercase tracking-[0.28em] text-primary">
+              Season 1 board route
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <h1 className="neon-rivals-route-title">Arena</h1>
+              <span className="neon-rivals-route-pill">{activeMode.label}</span>
+              <span className="neon-rivals-route-pill">
+                {statusLabel(gameState.status)}
+              </span>
+              <span className="neon-rivals-route-pill">
+                {gameState.resourceLabel} left {gameState.movesLeft}
+              </span>
+            </div>
+            <p className="neon-rivals-route-subtitle neon-rivals-route-subtitle--compact">
+              {activeMode.description}
             </p>
           </div>
-          <div className="neon-rivals-route-actions">
-            <Button onClick={() => navigate("/play")} variant="outline" size="lg" className="w-full sm:w-auto">
+          <div className="neon-rivals-route-actions neon-rivals-route-actions--dense">
+            <Button
+              onClick={() => navigate("/play")}
+              variant="outline"
+              size="lg"
+              className="w-full sm:w-auto"
+            >
               <ArrowLeft size={16} />
               Back to Play
             </Button>
-            <Button onClick={() => remixBoard()} variant="play" size="lg" className="w-full sm:w-auto">
+            <Button
+              onClick={() => remixBoard()}
+              variant="play"
+              size="lg"
+              className="w-full sm:w-auto"
+            >
               <RefreshCcw size={16} />
               Remix Board
             </Button>
           </div>
         </header>
 
-        <div className="neon-rivals-route-grid">
-          <section className="neon-rivals-stage-panel">
-            <div className="neon-rivals-stage-frame">
-              <NeonRivalsGame
-                mode={selectedMode}
-                sessionSeed={sessionSeed}
-                playerName={user?.username ?? "Guest Rival"}
-                themeLabel="Neon Rivals"
-                onStateChange={setGameState}
-              />
+        <div className="neon-rivals-route-grid neon-rivals-route-grid--arena">
+          <section className="neon-rivals-stage-column">
+            <div className="neon-rivals-hud-row">
+              <div className="neon-rivals-stat-card neon-rivals-stat-card--compact">
+                <p className="section-kicker">Run State</p>
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="neon-rivals-stat-icon">
+                    <Activity size={18} />
+                  </div>
+                  <div>
+                    <p className="text-lg font-black text-white">
+                      {statusLabel(gameState.status)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {gameState.objectiveTitle}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="neon-rivals-stat-card neon-rivals-stat-card--compact">
+                <p className="section-kicker">Score</p>
+                <p className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">
+                  {gameState.score.toLocaleString()}
+                </p>
+                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-primary">
+                  Goal {gameState.targetScore.toLocaleString()}
+                </p>
+              </div>
+
+              <div className="neon-rivals-stat-card neon-rivals-stat-card--compact">
+                <p className="section-kicker">{boardMetric.title}</p>
+                <p className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">
+                  {boardMetric.value}
+                </p>
+                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-primary">
+                  {boardMetric.detail}
+                </p>
+              </div>
+
+              <div className="neon-rivals-stat-card neon-rivals-stat-card--compact">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="section-kicker">Objective Progress</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {gameState.objectiveValue}/{gameState.objectiveTarget}
+                    </p>
+                  </div>
+                  <Trophy size={18} className="text-primary" />
+                </div>
+                <div className="neon-rivals-progress-track mt-4">
+                  <div
+                    className="neon-rivals-progress-fill"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <p className="mt-3 text-xs uppercase tracking-[0.16em] text-primary">
+                  {progress}% | {getProgressDetail(gameState)}
+                </p>
+              </div>
             </div>
+
+            <section className="neon-rivals-stage-panel neon-rivals-stage-panel--arena">
+              <div className="neon-rivals-stage-frame neon-rivals-stage-frame--arena">
+                <NeonRivalsGame
+                  mode={selectedMode}
+                  sessionSeed={sessionSeed}
+                  playerName={user?.username ?? "Guest Rival"}
+                  themeLabel="Neon Rivals"
+                  onStateChange={setGameState}
+                />
+              </div>
+            </section>
           </section>
 
-          <aside className="neon-rivals-side-panel">
+          <aside className="neon-rivals-side-panel neon-rivals-side-panel--arena">
+            {showArenaGuide ? (
+              <div className="neon-rivals-stat-card neon-rivals-guide-card">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="section-kicker">Board Controls</p>
+                    <p className="mt-2 text-lg font-black text-white">
+                      {activeMode.label}
+                    </p>
+                  </div>
+                  <div className="neon-rivals-stat-icon">
+                    <BadgeHelp size={18} />
+                  </div>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {controlHints.map((hint) => (
+                    <div
+                      key={hint}
+                      className="command-panel-soft px-4 py-3 text-sm leading-6 text-white/85"
+                    >
+                      {hint}
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  onClick={() => dismissArenaHint(gameState.boardFamily)}
+                  variant="outline"
+                  size="sm"
+                  className="mt-4 w-full"
+                >
+                  Dismiss For This Board Family
+                </Button>
+              </div>
+            ) : null}
+
             <div className="neon-rivals-stat-card">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="section-kicker">Run Modes</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Switch the live objective without leaving the route.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Switch objectives without leaving the board route.
+                  </p>
                 </div>
                 <Zap size={18} className="text-primary" />
               </div>
-              <div className="mt-4 grid gap-3">
+              <div className="neon-rivals-mode-grid mt-4">
                 {NEON_RIVALS_RUN_MODE_OPTIONS.map((option) => (
                   <button
                     key={option.id}
                     type="button"
                     onClick={() => remixBoard(option.id)}
-                    className={`command-panel-soft w-full rounded-[22px] border px-4 py-4 text-left transition ${
+                    className={`command-panel-soft neon-rivals-mode-button ${
                       selectedMode === option.id
-                        ? "border-primary/40 bg-primary/10 shadow-[0_16px_36px_rgba(95,226,255,0.14)]"
-                        : "border-white/8 hover:border-primary/20"
+                        ? "neon-rivals-mode-button--active"
+                        : ""
                     }`}
                   >
-                    <p className="font-hud text-[10px] uppercase tracking-[0.18em] text-primary">{option.kicker}</p>
-                    <p className="mt-2 text-lg font-black text-white">{option.label}</p>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{option.description}</p>
+                    <p className="font-hud text-[10px] uppercase tracking-[0.18em] text-primary">
+                      {option.kicker}
+                    </p>
+                    <p className="mt-2 text-lg font-black text-white">
+                      {option.label}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      {option.description}
+                    </p>
                   </button>
                 ))}
               </div>
-            </div>
-
-            <div className="neon-rivals-stat-card">
-              <p className="section-kicker">Run State</p>
-              <div className="mt-3 flex items-center gap-3">
-                <div className="neon-rivals-stat-icon">
-                  <Activity size={18} />
-                </div>
-                <div>
-                  <p className="text-lg font-black text-white">{statusLabel(gameState.status)}</p>
-                  <p className="text-sm text-muted-foreground">{gameState.objectiveTitle}</p>
-                </div>
-              </div>
-              <p className="mt-4 text-sm leading-6 text-muted-foreground">{gameState.objectiveDescription}</p>
-              <p className="mt-3 font-hud text-[11px] uppercase tracking-[0.18em] text-primary">{gameState.objectiveLabel}</p>
-              {gameState.targetColorLabel ? (
-                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-[#ffe45d]">Target color: {gameState.targetColorLabel}</p>
-              ) : null}
-            </div>
-
-            <div className="neon-rivals-score-grid">
-              <div className="neon-rivals-stat-card">
-                <p className="section-kicker">Score</p>
-                <p className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">{gameState.score.toLocaleString()}</p>
-                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-primary">Score line {gameState.targetScore.toLocaleString()}</p>
-              </div>
-              <div className="neon-rivals-stat-card">
-                <p className="section-kicker">{boardMetric.title}</p>
-                <p className="mt-3 text-3xl font-black tracking-[-0.04em] text-white">{boardMetric.value}</p>
-                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-primary">{boardMetric.detail}</p>
-              </div>
-            </div>
-
-            <div className="neon-rivals-stat-card">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="section-kicker">Objective Progress</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{gameState.objectiveValue}/{gameState.objectiveTarget} target value</p>
-                </div>
-                <Trophy size={18} className="text-primary" />
-              </div>
-              <div className="neon-rivals-progress-track mt-4">
-                <div className="neon-rivals-progress-fill" style={{ width: `${progress}%` }} />
-              </div>
-              <p className="mt-3 text-xs uppercase tracking-[0.16em] text-primary">{progress}% to goal | {getProgressDetail(gameState)}</p>
             </div>
 
             <div className="neon-rivals-stat-card">
@@ -362,28 +562,42 @@ export default function NeonRivalsGamePage() {
                 </div>
                 <div>
                   <p className="text-base font-black text-white">Reward Sync</p>
-                  <p className="text-sm text-muted-foreground">{syncState.message}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {syncState.message}
+                  </p>
                 </div>
               </div>
               {syncState.status === "guest" ? (
-                <Button onClick={openSignUp} variant="play" size="sm" className="mt-4 w-full">
+                <Button
+                  onClick={openSignUp}
+                  variant="play"
+                  size="sm"
+                  className="mt-4 w-full"
+                >
                   Sign Up To Bank Rewards
                 </Button>
               ) : null}
               {syncState.status === "synced" && rewardLines.length > 0 ? (
                 <div className="mt-4 grid gap-2">
                   {rewardLines.map((line) => (
-                    <div key={line} className="command-panel-soft px-3 py-2 text-sm text-white/90">
+                    <div
+                      key={line}
+                      className="command-panel-soft px-3 py-2 text-sm text-white/90"
+                    >
                       {line}
                     </div>
                   ))}
                 </div>
               ) : null}
               {syncState.status === "submitting" ? (
-                <p className="mt-4 font-hud text-[11px] uppercase tracking-[0.16em] text-primary">Sync in progress...</p>
+                <p className="mt-4 font-hud text-[11px] uppercase tracking-[0.16em] text-primary">
+                  Sync in progress...
+                </p>
               ) : null}
               {syncState.status === "account-error" ? (
-                <p className="mt-4 font-hud text-[11px] uppercase tracking-[0.16em] text-destructive">Account profile needs repair before rewards can land.</p>
+                <p className="mt-4 font-hud text-[11px] uppercase tracking-[0.16em] text-destructive">
+                  Account profile needs repair before rewards can land.
+                </p>
               ) : null}
             </div>
 
@@ -393,11 +607,25 @@ export default function NeonRivalsGamePage() {
                   <Sparkles size={18} />
                 </div>
                 <div>
-                  <p className="text-base font-black text-white">Theme Sync</p>
-                  <p className="text-sm text-muted-foreground">{theme.name} shell art stays outside Phaser while the Arena board families and rewards run live inside the route.</p>
+                  <p className="text-base font-black text-white">Route Shell</p>
+                  <p className="text-sm text-muted-foreground">
+                    {theme.name} shell art frames the Phaser board while live objectives, solve logic, and reward sync stay inside the Arena.
+                  </p>
                 </div>
               </div>
-              <p className="mt-4 text-xs uppercase tracking-[0.16em] text-primary">{activeMode.label} | {Math.round(gameState.durationMs / 1000)}s runtime</p>
+              <p className="mt-4 text-xs uppercase tracking-[0.16em] text-primary">
+                {activeMode.kicker} | {Math.round(gameState.durationMs / 1000)}s runtime
+              </p>
+              {gameState.targetColorLabel ? (
+                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-[#ffe45d]">
+                  Target color: {gameState.targetColorLabel}
+                </p>
+              ) : null}
+              {accountNeedsSync ? (
+                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-destructive">
+                  Profile sync is required before reward banking can complete.
+                </p>
+              ) : null}
             </div>
           </aside>
         </div>
@@ -405,5 +633,3 @@ export default function NeonRivalsGamePage() {
     </div>
   );
 }
-
-

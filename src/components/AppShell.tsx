@@ -1,15 +1,27 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import { Bell, RefreshCw, Settings2, Sparkles, WifiOff } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bell, Sparkles } from "lucide-react";
 import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
 import StockAvatar from "@/components/profile/StockAvatar";
 import { Button } from "@/components/ui/button";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import { getThemeVisual } from "@/lib/cosmetics";
 import { loadNotificationSummary } from "@/lib/game-content";
+import { loadSocialAlertSummary } from "@/lib/friends";
+import { FALLBACK_APP_RUNTIME_STATUS, loadAppRuntimeStatus } from "@/lib/app-status";
 import { useAuth } from "@/providers/AuthProvider";
+import { useAppPreferences } from "@/providers/AppPreferencesProvider";
 import BottomNav from "./BottomNav";
-import { resolveCanonicalBrowserUrl, shouldRedirectToCanonical } from "@/lib/app-origin";
+import {
+  resolveCanonicalBrowserUrl,
+  shouldRedirectToCanonical,
+} from "@/lib/app-origin";
 
 function unreadBadgeLabel(unreadCount: number) {
   if (unreadCount <= 0) return "Account";
@@ -33,9 +45,16 @@ function UnreadBell({ unreadCount }: { unreadCount: number }) {
 export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isGuest, isReady, backendWarning, hasSession, signOut } = useAuth();
+  const { user, isGuest, isReady, backendWarning, hasSession, signOut } =
+    useAuth();
   const { openSignIn, openSignUp } = useAuthDialog();
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { notificationsEnabled } = useAppPreferences();
+  const [activityUnreadCount, setActivityUnreadCount] = useState(0);
+  const [friendUnreadCount, setFriendUnreadCount] = useState(0);
+  const [runtimeStatus, setRuntimeStatus] = useState(FALLBACK_APP_RUNTIME_STATUS);
+  const [isOffline, setIsOffline] = useState(
+    typeof navigator !== "undefined" ? !navigator.onLine : false,
+  );
   const isMatchRoute = location.pathname.startsWith("/match");
   const isNeonRivalsRoute = location.pathname.startsWith("/play/neon-rival");
   const hideHeader = isMatchRoute || isNeonRivalsRoute;
@@ -56,23 +75,63 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    void loadAppRuntimeStatus()
+      .then((status) => {
+        if (active) {
+          setRuntimeStatus(status);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setRuntimeStatus(FALLBACK_APP_RUNTIME_STATUS);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
 
     async function load() {
       if (!isReady || isGuest) {
         if (active) {
-          setUnreadCount(0);
+          setActivityUnreadCount(0);
+          setFriendUnreadCount(0);
         }
         return;
       }
 
       try {
-        const summary = await loadNotificationSummary(user?.id);
+        const [activitySummary, socialSummary] = await Promise.all([
+          notificationsEnabled
+            ? loadNotificationSummary(user?.id)
+            : Promise.resolve(null),
+          loadSocialAlertSummary(user),
+        ]);
         if (active) {
-          setUnreadCount(summary.unreadCount);
+          setActivityUnreadCount(activitySummary?.unreadCount ?? 0);
+          setFriendUnreadCount(
+            (socialSummary.incomingRequests ?? 0) +
+              (socialSummary.unreadMessages ?? 0),
+          );
         }
       } catch {
         if (active) {
-          setUnreadCount(0);
+          setActivityUnreadCount(0);
+          setFriendUnreadCount(0);
         }
       }
     }
@@ -81,7 +140,44 @@ export default function AppShell({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [isGuest, isReady, location.pathname, user?.id]);
+  }, [isGuest, isReady, location.pathname, notificationsEnabled, user]);
+
+  const totalUnreadCount = activityUnreadCount + friendUnreadCount;
+  const serviceSignals = useMemo(() => {
+    const signals: Array<{ title: string; body: string; tone: "warning" | "info" }> = [];
+
+    if (isOffline) {
+      signals.push({
+        title: "Offline",
+        body: "The shell is offline. Live friends, purchases, and season sync will stall until the connection returns.",
+        tone: "warning",
+      });
+    }
+
+    if (accountNeedsSync) {
+      signals.push({
+        title: "Profile sync required",
+        body: "Auth is active but the live profile payload is missing. Sign out and retry before using live systems.",
+        tone: "warning",
+      });
+    } else if (backendWarning) {
+      signals.push({
+        title: "Backend degraded",
+        body: backendWarning,
+        tone: "warning",
+      });
+    }
+
+    if (runtimeStatus.resolution === "live" && !runtimeStatus.commerceReady) {
+      signals.push({
+        title: "Commerce paused",
+        body: "Live checkout is not fully configured yet. USD purchases stay disabled until PayPal credentials are complete.",
+        tone: "info",
+      });
+    }
+
+    return signals;
+  }, [accountNeedsSync, backendWarning, isOffline, runtimeStatus]);
 
   return (
     <div className={`app-shell bg-background ${theme.shellClass}`} style={themeVars}>
@@ -93,7 +189,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <div className="absolute left-[-12%] top-1/3 h-96 w-96 rounded-full app-theme-orb-accent blur-3xl" />
         <div className="absolute bottom-[-10%] right-[10%] h-80 w-80 rounded-full app-theme-orb-tertiary blur-3xl" />
       </div>
-      {!hideHeader && (
+      {!hideHeader ? (
         <header className="app-header safe-top">
           <div className="shell-frame">
             <button
@@ -108,18 +204,32 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 draggable={false}
               />
               <div className="min-w-0">
-                <p className="font-hud text-[11px] font-semibold uppercase tracking-[0.28em] text-primary">Puzzle Rivals</p>
-                <p className="text-xl font-black tracking-tight text-white">Big Brain Moves</p>
+                <p className="font-hud text-[11px] font-semibold uppercase tracking-[0.28em] text-primary">
+                  Puzzle Rivals
+                </p>
+                <p className="text-xl font-black tracking-tight text-white">
+                  Big Brain Moves
+                </p>
               </div>
             </button>
 
             <div className="ml-auto flex shrink-0 items-center gap-3">
               {isReady && isGuest ? (
                 <>
-                  <Button onClick={openSignIn} variant="outline" size="sm" className="rounded-full px-4">
+                  <Button
+                    onClick={openSignIn}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full px-4"
+                  >
                     Sign In
                   </Button>
-                  <Button onClick={openSignUp} variant="play" size="sm" className="rounded-full px-4">
+                  <Button
+                    onClick={openSignUp}
+                    variant="play"
+                    size="sm"
+                    className="rounded-full px-4"
+                  >
                     Sign Up
                   </Button>
                 </>
@@ -127,67 +237,134 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 <div className="spotlight-panel flex max-w-[320px] items-center gap-3 px-4 py-3 text-left">
                   <div className="min-w-0 flex-1">
                     <p className="section-kicker">Account Sync</p>
-                    <p className="truncate text-base font-black text-white">Profile unavailable</p>
+                    <p className="truncate text-base font-black text-white">
+                      Profile unavailable
+                    </p>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
                       Auth is live, but profile data did not load from Supabase.
                     </p>
                   </div>
-                  <Button onClick={() => void signOut()} variant="outline" size="sm" className="shrink-0 rounded-full px-4">
+                  <Button
+                    onClick={() => void signOut()}
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 rounded-full px-4"
+                  >
                     Sign Out
                   </Button>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => navigate("/profile")}
-                  className="profile-badge interactive-halo"
-                >
-                  <div className="hidden sm:block">
-                    <IdentityLoadoutCard
-                      username={user?.username ?? "Profile"}
-                      subtitle={unreadBadgeLabel(unreadCount)}
-                      avatarId={user?.avatarId}
-                      frameId={user?.frameId}
-                      playerCardId={user?.playerCardId}
-                      bannerId={user?.bannerId}
-                      emblemId={user?.emblemId}
-                      titleId={user?.titleId}
-                      compact
-                      right={<UnreadBell unreadCount={unreadCount} />}
-                      className="min-w-[280px]"
-                    />
-                  </div>
-                  <div className="sm:hidden relative">
-                    <StockAvatar avatarId={user?.avatarId} frameId={user?.frameId} size="sm" />
-                    {unreadCount > 0 ? (
+                <>
+                  <Button
+                    type="button"
+                    onClick={() => navigate("/notifications")}
+                    variant="outline"
+                    size="icon"
+                    className="relative h-12 w-12 rounded-full"
+                    aria-label="Open notifications"
+                  >
+                    <Bell size={18} />
+                    {totalUnreadCount > 0 ? (
                       <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-black leading-none text-primary-foreground shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
-                        {unreadCount > 9 ? "9+" : unreadCount}
+                        {totalUnreadCount > 9 ? "9+" : totalUnreadCount}
                       </span>
                     ) : null}
-                  </div>
-                </button>
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => navigate("/settings")}
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12 rounded-full"
+                    aria-label="Open settings"
+                  >
+                    <Settings2 size={18} />
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/profile")}
+                    className="profile-badge interactive-halo"
+                  >
+                    <div className="hidden sm:block">
+                      <IdentityLoadoutCard
+                        username={user?.username ?? "Profile"}
+                        subtitle={unreadBadgeLabel(totalUnreadCount)}
+                        avatarId={user?.avatarId}
+                        frameId={user?.frameId}
+                        playerCardId={user?.playerCardId}
+                        bannerId={user?.bannerId}
+                        emblemId={user?.emblemId}
+                        titleId={user?.titleId}
+                        compact
+                        right={<UnreadBell unreadCount={totalUnreadCount} />}
+                        className="min-w-[280px]"
+                      />
+                    </div>
+                    <div className="sm:hidden relative">
+                      <StockAvatar avatarId={user?.avatarId} frameId={user?.frameId} size="sm" />
+                      {totalUnreadCount > 0 ? (
+                        <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-black leading-none text-primary-foreground shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
+                          {totalUnreadCount > 9 ? "9+" : totalUnreadCount}
+                        </span>
+                      ) : null}
+                    </div>
+                  </button>
+                </>
               )}
             </div>
           </div>
         </header>
-      )}
+      ) : null}
 
       <main
         className={`relative mx-auto flex ${hideHeader ? "min-h-screen" : "min-h-[calc(100vh-88px)]"} w-full flex-col ${
           hideHeader ? "pb-0" : "pb-32"
         } ${hideHeader ? "" : "pt-4"}`}
       >
-        {backendWarning && !hideHeader ? (
+        {!hideHeader && serviceSignals.length > 0 ? (
           <div className="mx-auto w-full max-w-6xl px-4 pb-2 md:px-6">
-            <div className="flex items-start gap-3 rounded-[24px] border border-amber-300/30 bg-amber-500/10 px-4 py-4 text-sm text-amber-50 shadow-[0_12px_30px_rgba(0,0,0,0.2)]">
-              <Sparkles size={18} className="mt-0.5 shrink-0" />
-              <p>{backendWarning}</p>
+            <div className="service-status-strip flex flex-col gap-3 rounded-[24px] border border-white/10 bg-white/5 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.2)] md:flex-row md:items-center md:justify-between">
+              <div className="min-w-0 space-y-2">
+                {serviceSignals.map((signal) => (
+                  <div key={signal.title} className="flex items-start gap-3">
+                    <span
+                      className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${signal.tone === "warning" ? "bg-amber-500/12 text-amber-200" : "bg-primary/12 text-primary"}`}
+                    >
+                      {signal.tone === "warning" ? (
+                        <WifiOff size={16} />
+                      ) : (
+                        <Sparkles size={16} />
+                      )}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-white">{signal.title}</p>
+                      <p className="text-sm leading-6 text-muted-foreground">{signal.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-3">
+                {accountNeedsSync ? (
+                  <Button onClick={() => void signOut()} variant="outline" size="sm">
+                    Sign Out To Retry
+                  </Button>
+                ) : null}
+                <Button onClick={() => window.location.reload()} variant="outline" size="sm">
+                  <RefreshCw size={14} />
+                  Reload
+                </Button>
+              </div>
             </div>
           </div>
         ) : null}
         {children}
       </main>
-      {!hideBottomNav ? <BottomNav /> : null}
+      {!hideBottomNav ? (
+        <BottomNav
+          friendsBadge={friendUnreadCount}
+          notificationsBadge={totalUnreadCount}
+        />
+      ) : null}
     </div>
   );
 }

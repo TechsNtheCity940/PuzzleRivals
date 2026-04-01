@@ -1,17 +1,36 @@
 import { useEffect, useMemo, useState } from "react";
-import { Crown, Flame, Sparkles, Swords, Target, Users, Zap } from "lucide-react";
+import {
+  Crown,
+  Flame,
+  Sparkles,
+  Swords,
+  Target,
+  Users,
+  Zap,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { primeNeonRivalsExperience } from "@/components/game/NeonRivalsGame";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import { Button } from "@/components/ui/button";
-import { loadDiscoveryContent, type GameContentResolution, type GameContentSource } from "@/lib/game-content";
+import {
+  loadDiscoveryContent,
+  type GameContentResolution,
+  type GameContentSource,
+} from "@/lib/game-content";
 import { useAuth } from "@/providers/AuthProvider";
+import { useAppPreferences } from "@/providers/AppPreferencesProvider";
 import { getRankBand, getRankColor } from "@/lib/seed-data";
 import type { DailyChallenge } from "@/lib/types";
 
-type PlayMode = "ranked" | "casual" | "royale" | "revenge" | "challenge" | "daily";
+type PlayMode =
+  | "ranked"
+  | "casual"
+  | "royale"
+  | "revenge"
+  | "challenge"
+  | "daily";
 
 type NetworkInformationLike = {
   saveData?: boolean;
@@ -19,22 +38,60 @@ type NetworkInformationLike = {
 };
 
 const MODES = [
-  { id: "ranked" as PlayMode, label: "Ranked", icon: Swords, desc: "4-player ladder lobby", status: "Armed" },
-  { id: "casual" as PlayMode, label: "Casual", icon: Zap, desc: "No-rank generated runs", status: "Queue" },
-  { id: "royale" as PlayMode, label: "Royale", icon: Crown, desc: "High stakes elimination", status: "Queue" },
-  { id: "revenge" as PlayMode, label: "Revenge", icon: Flame, desc: "2-player rivalry duel", status: "Queue" },
-  { id: "challenge" as PlayMode, label: "Challenge", icon: Target, desc: "Train your weak spots", status: "Queue" },
-  { id: "daily" as PlayMode, label: "Daily", icon: Users, desc: "Elite daily variant", status: "Queue" },
+  {
+    id: "ranked" as PlayMode,
+    label: "Ranked",
+    icon: Swords,
+    desc: "4-player ladder lobby",
+    status: "Armed",
+  },
+  {
+    id: "casual" as PlayMode,
+    label: "Casual",
+    icon: Zap,
+    desc: "No-rank generated runs",
+    status: "Queue",
+  },
+  {
+    id: "royale" as PlayMode,
+    label: "Royale",
+    icon: Crown,
+    desc: "High stakes elimination",
+    status: "Queue",
+  },
+  {
+    id: "revenge" as PlayMode,
+    label: "Revenge",
+    icon: Flame,
+    desc: "2-player rivalry duel",
+    status: "Queue",
+  },
+  {
+    id: "challenge" as PlayMode,
+    label: "Challenge",
+    icon: Target,
+    desc: "Train your weak spots",
+    status: "Queue",
+  },
+  {
+    id: "daily" as PlayMode,
+    label: "Daily",
+    icon: Users,
+    desc: "Elite daily variant",
+    status: "Queue",
+  },
 ];
 
 function sourceLabel(source: GameContentSource) {
-  return source === "supabase" ? "Live" : "Local Preview";
+  return source === "supabase" ? "Live" : "Offline";
 }
 
 function describeChallengeResolution(resolution: GameContentResolution) {
-  if (resolution === "empty") return "The live daily challenge queue is empty right now.";
-  if (resolution === "unavailable") return "Live daily challenge data is currently unavailable.";
-  return "Local preview challenge data is loaded because Supabase is disabled.";
+  if (resolution === "empty")
+    return "The live daily challenge queue is empty right now.";
+  if (resolution === "unavailable")
+    return "Live daily challenge data is currently unavailable.";
+  return "Daily challenge data is unavailable in this environment.";
 }
 
 function canPrewarmNeonRivals() {
@@ -42,24 +99,36 @@ function canPrewarmNeonRivals() {
     return false;
   }
 
-  const connection = (navigator as Navigator & { connection?: NetworkInformationLike }).connection;
-  return !connection?.saveData && connection?.effectiveType !== "slow-2g" && connection?.effectiveType !== "2g";
+  const connection = (
+    navigator as Navigator & { connection?: NetworkInformationLike }
+  ).connection;
+  return (
+    !connection?.saveData &&
+    connection?.effectiveType !== "slow-2g" &&
+    connection?.effectiveType !== "2g"
+  );
 }
 
-function primeNeonRivalsRoute() {
+function primeNeonRivalsRoute(assets = true) {
   void import("./NeonRivalsGamePage");
-  void primeNeonRivalsExperience();
+  if (assets) {
+    void primeNeonRivalsExperience();
+  }
 }
 
 export default function PlayPage() {
   const navigate = useNavigate();
   const { openSignUp } = useAuthDialog();
   const { user, canSave, hasSession, isReady, signOut } = useAuth();
+  const { lastArenaMode, lowBandwidthMode } = useAppPreferences();
   const accountNeedsSync = hasSession && !user;
   const [selectedMode, setSelectedMode] = useState<PlayMode>("ranked");
-  const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
-  const [dailySource, setDailySource] = useState<GameContentSource>("seed");
-  const [dailyResolution, setDailyResolution] = useState<GameContentResolution>("fallback");
+  const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(
+    null,
+  );
+  const [dailySource, setDailySource] = useState<GameContentSource>("supabase");
+  const [dailyResolution, setDailyResolution] =
+    useState<GameContentResolution>("unavailable");
   const [isContentLoading, setIsContentLoading] = useState(true);
   const [contentError, setContentError] = useState<string | null>(null);
   const rankBand = getRankBand(user?.elo ?? 0);
@@ -80,7 +149,11 @@ export default function PlayPage() {
         setDailyResolution(discovery.resolutions.dailyChallenges);
       } catch (error) {
         if (cancelled) return;
-        setContentError(error instanceof Error ? error.message : "Failed to load today's challenge.");
+        setContentError(
+          error instanceof Error
+            ? error.message
+            : "Failed to load today's challenge.",
+        );
       } finally {
         if (!cancelled) {
           setIsContentLoading(false);
@@ -95,14 +168,14 @@ export default function PlayPage() {
   }, []);
 
   useEffect(() => {
-    if (!canPrewarmNeonRivals()) {
+    if (lowBandwidthMode || !canPrewarmNeonRivals()) {
       return;
     }
 
     let cancelled = false;
     const prime = () => {
       if (!cancelled) {
-        primeNeonRivalsRoute();
+        primeNeonRivalsRoute(false);
       }
     };
 
@@ -119,7 +192,7 @@ export default function PlayPage() {
       cancelled = true;
       window.clearTimeout(timeout);
     };
-  }, []);
+  }, [lowBandwidthMode]);
 
   const selectedConfig = useMemo(() => {
     const revenge = selectedMode === "revenge";
@@ -136,6 +209,7 @@ export default function PlayPage() {
   }, [selectedMode]);
 
   const selectedModeMeta = MODES.find((mode) => mode.id === selectedMode);
+  const arenaHref = `/play/neon-rival?mode=${lastArenaMode}`;
 
   return (
     <div className="page-screen">
@@ -143,12 +217,18 @@ export default function PlayPage() {
         <PageHeader
           eyebrow="Queue Select"
           title="Play Now"
-          subtitle={accountNeedsSync ? "Signed in, but profile sync is unavailable. Sign out and retry before queuing." : `${rankBand.label} - ELO ${user?.elo ?? 0}`}
+          subtitle={
+            accountNeedsSync
+              ? "Signed in, but profile sync is unavailable. Sign out and retry before queuing."
+              : `${rankBand.label} - ELO ${user?.elo ?? 0}`
+          }
           right={
             <div className="spotlight-panel">
               <p className="section-kicker">Lobby Rule</p>
               <p className="mt-2 text-3xl font-black">{selectedConfig.lobby}</p>
-              <p className="mt-2 text-sm text-muted-foreground">Built for quick access, fast queue reads, and zero hidden tiles.</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Built for quick access, fast queue reads, and zero hidden tiles.
+              </p>
             </div>
           }
         />
@@ -162,7 +242,9 @@ export default function PlayPage() {
                   {selectedModeMeta?.label} mode locked in
                 </h2>
                 <p className="hero-subtitle mt-3">
-                  Clean, readable match cards with one dominant action. Choose a mode, scan the rule set, then launch without hunting through stacked panels.
+                  Clean, readable match cards with one dominant action. Choose a
+                  mode, scan the rule set, then launch without hunting through
+                  stacked panels.
                 </p>
               </div>
               <Button
@@ -172,7 +254,7 @@ export default function PlayPage() {
                     return;
                   }
                   if (canSave) {
-                    navigate("/play/neon-rival");
+                    navigate(arenaHref);
                     return;
                   }
                   openSignUp();
@@ -183,26 +265,44 @@ export default function PlayPage() {
                 disabled={!isReady || (!user && !accountNeedsSync)}
               >
                 <Swords size={18} />
-                {!isReady ? "Syncing Account..." : accountNeedsSync ? "Sign Out To Retry" : canSave ? "Launch Animated Board" : "Sign Up To Compete"}
+                {!isReady
+                  ? "Syncing Account..."
+                  : accountNeedsSync
+                    ? "Sign Out To Retry"
+                    : canSave
+                      ? "Launch Arena"
+                      : "Sign Up To Compete"}
               </Button>
             </div>
 
             <div className="spotlight-panel">
               <div className="section-header">
                 <div>
-                  <p className="section-kicker">Mode Snapshot</p>
-                  <h3 className="section-title">{selectedModeMeta?.label}</h3>
+                  <p className="section-kicker">Arena Snapshot</p>
+                  <h3 className="section-title">Resume {lastArenaMode.replaceAll("_", " ")}</h3>
                 </div>
-                <span className={`font-hud text-[10px] uppercase tracking-[0.18em] ${getRankColor(user?.rank ?? "bronze")}`}>
+                <span
+                  className={`font-hud text-[10px] uppercase tracking-[0.18em] ${getRankColor(
+                    user?.rank ?? "bronze",
+                  )}`}
+                >
                   {rankBand.label}
                 </span>
               </div>
               <div className="section-stack">
                 {selectedConfig.steps.map((step) => (
-                  <div key={step} className="command-panel-soft px-4 py-3 text-sm text-muted-foreground">
+                  <div
+                    key={step}
+                    className="command-panel-soft px-4 py-3 text-sm text-muted-foreground"
+                  >
                     {step}
                   </div>
                 ))}
+                <div className="command-panel-soft px-4 py-3 text-sm leading-6 text-muted-foreground">
+                  {lowBandwidthMode
+                    ? "Low-bandwidth mode is active. The Arena route will only pull the heavier Phaser bundle when you explicitly open it."
+                    : "Arena route priming stays enabled so the Phaser bundle and board shell are warm before launch."}
+                </div>
               </div>
             </div>
           </div>
@@ -228,7 +328,9 @@ export default function PlayPage() {
                   right={
                     <span
                       className={`font-hud text-[10px] uppercase tracking-[0.16em] ${
-                        selectedMode === mode.id ? "text-primary" : "text-muted-foreground"
+                        selectedMode === mode.id
+                          ? "text-primary"
+                          : "text-muted-foreground"
                       }`}
                     >
                       {selectedMode === mode.id ? mode.status : "Queue"}
@@ -244,19 +346,20 @@ export default function PlayPage() {
               <div className="section-header">
                 <div>
                   <p className="section-kicker">Dedicated Game Route</p>
-                  <h2 className="section-title">Launch the Neon Rivals Arena</h2>
+                  <h2 className="section-title">Open the Arena</h2>
                 </div>
                 <Sparkles size={18} className="text-primary" />
               </div>
               <p className="text-sm leading-6 text-muted-foreground">
-                Open the route-based Neon Rivals Arena for the live animated board with layered Season 1 art, live run objectives,
-                and a clean gameplay shell outside the canvas.
+                Open the Phaser-powered Arena for the live animated board with
+                layered Season 1 art, live objectives, and a tighter route shell
+                that keeps the playfield above the fold.
               </p>
               <Button
-                onClick={() => navigate("/play/neon-rival")}
-                onMouseEnter={primeNeonRivalsRoute}
-                onFocus={primeNeonRivalsRoute}
-                onTouchStart={primeNeonRivalsRoute}
+                onClick={() => navigate(arenaHref)}
+                onMouseEnter={() => primeNeonRivalsRoute(true)}
+                onFocus={() => primeNeonRivalsRoute(true)}
+                onTouchStart={() => primeNeonRivalsRoute(true)}
                 variant="play"
                 size="lg"
                 className="mt-4 w-full sm:w-auto"
@@ -270,7 +373,9 @@ export default function PlayPage() {
               <div className="section-header">
                 <div>
                   <p className="section-kicker">Procedural Match AI</p>
-                  <h2 className="section-title">Deterministic variety, live fairness</h2>
+                  <h2 className="section-title">
+                    Deterministic variety, live fairness
+                  </h2>
                 </div>
                 <Sparkles size={18} className="text-primary" />
               </div>
@@ -285,8 +390,12 @@ export default function PlayPage() {
                       "Difficulty tracks lobby skill bands.",
                       "Puzzle type selection is weighted, not random spam.",
                       "Practice and live always share category, never exact layout.",
-                    ]).map((item) => (
-                  <div key={item} className="command-panel-soft px-4 py-3 text-sm leading-6 text-muted-foreground">
+                    ]
+                ).map((item) => (
+                  <div
+                    key={item}
+                    className="command-panel-soft px-4 py-3 text-sm leading-6 text-muted-foreground"
+                  >
                     {item}
                   </div>
                 ))}
@@ -298,7 +407,9 @@ export default function PlayPage() {
                 <div>
                   <p className="section-kicker">Today's Variant</p>
                   <h2 className="section-title">
-                    {isContentLoading ? "Loading challenge..." : dailyChallenge?.title ?? "Daily 1%"}
+                    {isContentLoading
+                      ? "Loading challenge..."
+                      : dailyChallenge?.title ?? "Daily 1%"}
                   </h2>
                 </div>
                 <span className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">
@@ -309,7 +420,8 @@ export default function PlayPage() {
                 {contentError ??
                   (isContentLoading
                     ? "Pulling the latest challenge feed for this queue screen."
-                    : dailyChallenge?.description ?? describeChallengeResolution(dailyResolution))}
+                    : dailyChallenge?.description ??
+                      describeChallengeResolution(dailyResolution))}
               </p>
             </section>
           </div>
@@ -318,4 +430,3 @@ export default function PlayPage() {
     </div>
   );
 }
-

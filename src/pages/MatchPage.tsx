@@ -1,4 +1,12 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Clock3,
@@ -16,16 +24,30 @@ import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
 import PageHeader from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { subscribeToLobby, supabaseApi } from "@/lib/api-client";
-import type { BackendLobby, BackendLobbyPlayer, MatchMode, PuzzleSubmission } from "@/lib/backend";
-import { getPuzzleHelpText, getPuzzleHintText, isRapidFirePuzzleType } from "@/lib/match-rules";
+import type {
+  BackendLobby,
+  BackendLobbyPlayer,
+  MatchMode,
+  PuzzleSubmission,
+} from "@/lib/backend";
+import {
+  getPuzzleHelpText,
+  getPuzzleHintText,
+  isRapidFirePuzzleType,
+} from "@/lib/match-rules";
 import { getNeonPuzzleThemeCategory } from "@/lib/match-board-theme";
 import { DEFAULT_AVATAR_ID } from "@/lib/profile-customization";
 import { getRankColor } from "@/lib/seed-data";
-import { isSupabaseConfigured, supabaseConfigErrorMessage } from "@/lib/supabase-client";
+import {
+  isSupabaseConfigured,
+  supabaseConfigErrorMessage,
+} from "@/lib/supabase-client";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/AuthProvider";
 
-const MatchPuzzleBoard = lazy(() => import("@/components/match/MatchPuzzleBoard"));
+const MatchPuzzleBoard = lazy(
+  () => import("@/components/match/MatchPuzzleBoard"),
+);
 
 function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -51,8 +73,10 @@ function formatPlacement(rank: number) {
 
 function rankPlayers(players: BackendLobbyPlayer[], rapidFire: boolean) {
   return [...players].sort((left, right) => {
-    if (rapidFire && right.score !== left.score) return right.score - left.score;
-    if (rapidFire && right.completions !== left.completions) return right.completions - left.completions;
+    if (rapidFire && right.score !== left.score)
+      return right.score - left.score;
+    if (rapidFire && right.completions !== left.completions)
+      return right.completions - left.completions;
     if (right.progress !== left.progress) return right.progress - left.progress;
     if (left.solvedAtMs === null && right.solvedAtMs === null) return 0;
     if (left.solvedAtMs === null) return 1;
@@ -70,9 +94,12 @@ function LobbySeat({
   seatLabel: string;
   isSelf: boolean;
 }) {
-  const title = player?.titleName ?? (player?.isBot ? "Easy Bot" : `${player?.rank} rival`);
-  const bannerName = player?.bannerName ?? (player?.isBot ? "Training Banner" : "Arena Banner");
-  const emblemName = player?.emblemName ?? (player?.isBot ? "Practice Emblem" : "Rank Emblem");
+  const title =
+    player?.titleName ?? (player?.isBot ? "Easy Bot" : `${player?.rank} rival`);
+  const bannerName =
+    player?.bannerName ?? (player?.isBot ? "Training Banner" : "Arena Banner");
+  const emblemName =
+    player?.emblemName ?? (player?.isBot ? "Practice Emblem" : "Rank Emblem");
 
   return (
     <div
@@ -83,7 +110,9 @@ function LobbySeat({
       )}
     >
       <div className="match-seat-banner">
-        <span className="match-seat-banner-label">{player ? bannerName : "Queue Search"}</span>
+        <span className="match-seat-banner-label">
+          {player ? bannerName : "Queue Search"}
+        </span>
         <span className="match-seat-banner-status">
           {player ? (player.ready ? "Ready" : "Locking") : "Scanning"}
         </span>
@@ -112,7 +141,9 @@ function LobbySeat({
             </div>
             <div>
               <p className="match-seat-name">Searching...</p>
-              <p className="match-seat-subtitle">{seatLabel} - waiting for challenger</p>
+              <p className="match-seat-subtitle">
+                {seatLabel} - waiting for challenger
+              </p>
               <div className="match-seat-meta">
                 <span className="match-seat-chip">Player card pending</span>
                 <span className="match-seat-chip">Emblem pending</span>
@@ -122,7 +153,12 @@ function LobbySeat({
         )}
 
         <div className="match-seat-rank">
-          <p className={cn("text-sm font-black", player ? getRankColor(player.rank) : "text-muted-foreground")}>
+          <p
+            className={cn(
+              "text-sm font-black",
+              player ? getRankColor(player.rank) : "text-muted-foreground",
+            )}
+          >
             {player ? `${player.isBot ? "Easy bot" : player.rank}` : "Open"}
           </p>
           <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -131,10 +167,16 @@ function LobbySeat({
           <div
             className={cn(
               "match-seat-presence",
-              player ? "match-seat-presence-ready" : "match-seat-presence-searching",
+              player
+                ? "match-seat-presence-ready"
+                : "match-seat-presence-searching",
             )}
           >
-            {player ? <Users size={14} /> : <LoaderCircle size={14} className="animate-spin" />}
+            {player ? (
+              <Users size={14} />
+            ) : (
+              <LoaderCircle size={14} className="animate-spin" />
+            )}
           </div>
         </div>
       </div>
@@ -154,11 +196,27 @@ function CountdownCard({
   category?: string;
 }) {
   return (
-    <div className={cn("match-countdown-card", category && `match-countdown-card--${category}`, urgent && "match-countdown-card-urgent")}>
-      <p className="font-hud text-[10px] uppercase tracking-[0.18em] text-white/55">{label}</p>
+    <div
+      className={cn(
+        "match-countdown-card",
+        category && `match-countdown-card--${category}`,
+        urgent && "match-countdown-card-urgent",
+      )}
+    >
+      <p className="font-hud text-[10px] uppercase tracking-[0.18em] text-white/55">
+        {label}
+      </p>
       <div className="mt-2 flex items-center justify-center gap-2">
-        <Clock3 size={16} className={urgent ? "text-destructive" : "text-primary"} />
-        <span className={cn("text-3xl font-black tracking-[-0.04em]", urgent ? "text-destructive" : "text-white")}>
+        <Clock3
+          size={16}
+          className={urgent ? "text-destructive" : "text-primary"}
+        />
+        <span
+          className={cn(
+            "text-3xl font-black tracking-[-0.04em]",
+            urgent ? "text-destructive" : "text-white",
+          )}
+        >
           {value}
         </span>
       </div>
@@ -171,7 +229,15 @@ export default function MatchPage() {
   const navigate = useNavigate();
   const { openSignIn, openSignUp } = useAuthDialog();
   const mode = (params.get("mode") || "ranked") as MatchMode;
-  const { isReady, user, refreshUser, canSave, hasSession, signOut, saveProfile } = useAuth();
+  const {
+    isReady,
+    user,
+    refreshUser,
+    canSave,
+    hasSession,
+    signOut,
+    saveProfile,
+  } = useAuth();
   const accountNeedsSync = hasSession && !user;
 
   const [lobby, setLobby] = useState<BackendLobby | null>(null);
@@ -184,7 +250,9 @@ export default function MatchPage() {
   const [hintSaving, setHintSaving] = useState(false);
   const [solvePending, setSolvePending] = useState(false);
   const [exitPending, setExitPending] = useState(false);
-  const [resultsSnapshot, setResultsSnapshot] = useState<BackendLobby | null>(null);
+  const [resultsSnapshot, setResultsSnapshot] = useState<BackendLobby | null>(
+    null,
+  );
 
   const readyTimeoutRef = useRef<number | null>(null);
   const progressTimeoutRef = useRef<number | null>(null);
@@ -233,7 +301,11 @@ export default function MatchPage() {
       .catch((error) => {
         console.error("Failed to join lobby", error);
         if (!cancelled) {
-          setLobbyError(error instanceof Error ? error.message : "Could not join matchmaking.");
+          setLobbyError(
+            error instanceof Error
+              ? error.message
+              : "Could not join matchmaking.",
+          );
         }
       });
 
@@ -265,10 +337,16 @@ export default function MatchPage() {
         })
         .catch((error) => {
           syncFailureCountRef.current += 1;
-          const backoffMs = Math.min(intervalMs * 2 ** Math.min(syncFailureCountRef.current, 3), 8000);
+          const backoffMs = Math.min(
+            intervalMs * 2 ** Math.min(syncFailureCountRef.current, 3),
+            8000,
+          );
           syncPausedUntilRef.current = Date.now() + backoffMs;
 
-          if (syncFailureCountRef.current <= 2 || syncFailureCountRef.current % 5 === 0) {
+          if (
+            syncFailureCountRef.current <= 2 ||
+            syncFailureCountRef.current % 5 === 0
+          ) {
             console.error("Failed to sync lobby", error);
           }
         })
@@ -303,7 +381,12 @@ export default function MatchPage() {
   }, [lobby]);
 
   useEffect(() => {
-    if (lobby?.status !== "practice" && lobby?.status !== "live" && lobby?.status !== "intermission") return;
+    if (
+      lobby?.status !== "practice" &&
+      lobby?.status !== "live" &&
+      lobby?.status !== "intermission"
+    )
+      return;
 
     const interval = window.setInterval(() => {
       setClockNow(Date.now());
@@ -334,7 +417,10 @@ export default function MatchPage() {
 
   useEffect(() => {
     if (!lobby) return;
-    if ((lobby.status === "intermission" || lobby.status === "complete") && lobby.results?.standings?.length) {
+    if (
+      (lobby.status === "intermission" || lobby.status === "complete") &&
+      lobby.results?.standings?.length
+    ) {
       setResultsSnapshot(lobby);
     }
   }, [lobby]);
@@ -365,7 +451,10 @@ export default function MatchPage() {
   }, [lobby, navigate, user]);
 
   const activeResultsLobby = useMemo(() => {
-    if (lobby && (lobby.status === "intermission" || lobby.status === "complete")) {
+    if (
+      lobby &&
+      (lobby.status === "intermission" || lobby.status === "complete")
+    ) {
       return lobby;
     }
 
@@ -378,45 +467,76 @@ export default function MatchPage() {
   }, [clockNow, lobby, resultsSnapshot]);
 
   const resultsSourceLobby = activeResultsLobby ?? lobby;
-  const selfPlayer = lobby?.players.find((player) => player.playerId === user?.id) ?? null;
+  const selfPlayer =
+    lobby?.players.find((player) => player.playerId === user?.id) ?? null;
   const selectionMeta = lobby?.selection?.meta ?? null;
-  const rapidFire = lobby?.selection ? isRapidFirePuzzleType(lobby.selection.puzzleType) : false;
+  const rapidFire = lobby?.selection
+    ? isRapidFirePuzzleType(lobby.selection.puzzleType)
+    : false;
   const practiceTimeLeft = Math.max(
     0,
-    Math.ceil(((lobby?.practiceEndsAt ? new Date(lobby.practiceEndsAt).getTime() : 0) - clockNow) / 1000),
+    Math.ceil(
+      ((lobby?.practiceEndsAt ? new Date(lobby.practiceEndsAt).getTime() : 0) -
+        clockNow) /
+        1000,
+    ),
   );
   const liveTimeLeft = Math.max(
     0,
-    Math.ceil(((lobby?.liveEndsAt ? new Date(lobby.liveEndsAt).getTime() : 0) - clockNow) / 1000),
+    Math.ceil(
+      ((lobby?.liveEndsAt ? new Date(lobby.liveEndsAt).getTime() : 0) -
+        clockNow) /
+        1000,
+    ),
   );
   const intermissionTimeLeft = Math.max(
     0,
-    Math.ceil(((resultsSourceLobby?.intermissionEndsAt ? new Date(resultsSourceLobby.intermissionEndsAt).getTime() : 0) - clockNow) / 1000),
+    Math.ceil(
+      ((resultsSourceLobby?.intermissionEndsAt
+        ? new Date(resultsSourceLobby.intermissionEndsAt).getTime()
+        : 0) -
+        clockNow) /
+        1000,
+    ),
   );
-  const standings = useMemo(() => rankPlayers(lobby?.players ?? [], rapidFire), [lobby?.players, rapidFire]);
-  const resultsRapidFire = resultsSourceLobby?.selection ? isRapidFirePuzzleType(resultsSourceLobby.selection.puzzleType) : rapidFire;
+  const standings = useMemo(
+    () => rankPlayers(lobby?.players ?? [], rapidFire),
+    [lobby?.players, rapidFire],
+  );
+  const resultsRapidFire = resultsSourceLobby?.selection
+    ? isRapidFirePuzzleType(resultsSourceLobby.selection.puzzleType)
+    : rapidFire;
   const resultsStandings = useMemo(
     () => rankPlayers(resultsSourceLobby?.players ?? [], resultsRapidFire),
     [resultsRapidFire, resultsSourceLobby?.players],
   );
-  const leaderboard = resultsSourceLobby?.results?.standings ?? resultsStandings.map((player, index) => ({
-    playerId: player.playerId,
-    username: player.username,
-    progress: player.progress,
-    solvedAtMs: player.solvedAtMs,
-    rank: index + 1,
-    completions: player.completions,
-    score: player.score,
-    reward: player.reward ?? { xp: 0, coins: 0, elo: 0 },
-    isBot: player.isBot,
-  }));
-  const selfStanding = leaderboard.find((entry) => entry.playerId === user?.id) ?? null;
-  const resultsSelectionMeta = resultsSourceLobby?.selection?.meta ?? selectionMeta;
-  const activeSeed = lobby?.status === "live"
-    ? Number(selfPlayer?.currentSeed ?? lobby?.selection?.liveSeed ?? 0)
-    : Number(lobby?.selection?.practiceSeed ?? 0);
-  const helpText = lobby?.selection ? getPuzzleHelpText(lobby.selection.puzzleType) : "";
-  const hintText = lobby?.selection ? getPuzzleHintText(lobby.selection.puzzleType) : "";
+  const leaderboard =
+    resultsSourceLobby?.results?.standings ??
+    resultsStandings.map((player, index) => ({
+      playerId: player.playerId,
+      username: player.username,
+      progress: player.progress,
+      solvedAtMs: player.solvedAtMs,
+      rank: index + 1,
+      completions: player.completions,
+      score: player.score,
+      reward: player.reward ?? { xp: 0, coins: 0, elo: 0 },
+      isBot: player.isBot,
+    }));
+  const selfStanding =
+    leaderboard.find((entry) => entry.playerId === user?.id) ?? null;
+  const resultsSelectionMeta =
+    resultsSourceLobby?.selection?.meta ?? selectionMeta;
+  const activeSeed =
+    lobby?.status === "live"
+      ? Number(selfPlayer?.currentSeed ?? lobby?.selection?.liveSeed ?? 0)
+      : Number(lobby?.selection?.practiceSeed ?? 0);
+  const helpText = lobby?.selection
+    ? getPuzzleHelpText(lobby.selection.puzzleType)
+    : "";
+  const hintText = lobby?.selection
+    ? getPuzzleHintText(lobby.selection.puzzleType)
+    : "";
 
   useEffect(() => {
     lobbyRef.current = lobby;
@@ -439,56 +559,81 @@ export default function MatchPage() {
     // Progress is synced through explicit submission events only.
   }, []);
 
-  const queueProgressSubmission = useCallback((stage: "practice" | "live", submission: PuzzleSubmission, progress: number) => {
-    const currentLobby = lobbyRef.current;
-    if (!currentLobby) return;
+  const queueProgressSubmission = useCallback(
+    (
+      stage: "practice" | "live",
+      submission: PuzzleSubmission,
+      progress: number,
+    ) => {
+      const currentLobby = lobbyRef.current;
+      if (!currentLobby) return;
 
-    const stageTimeLeft = stage === "practice" ? practiceTimeLeftRef.current : liveTimeLeftRef.current;
-    if (currentLobby.status !== stage || stageTimeLeft <= 0 || rejectedStageRef.current === stage) {
-      return;
-    }
+      const stageTimeLeft =
+        stage === "practice"
+          ? practiceTimeLeftRef.current
+          : liveTimeLeftRef.current;
+      if (
+        currentLobby.status !== stage ||
+        stageTimeLeft <= 0 ||
+        rejectedStageRef.current === stage
+      ) {
+        return;
+      }
 
-    const submissionKey = `${currentLobby.id}:${stage}:${progress}:${JSON.stringify(submission)}`;
-    if (progressSubmissionKeyRef.current === submissionKey) {
-      return;
-    }
+      const submissionKey = `${currentLobby.id}:${stage}:${progress}:${JSON.stringify(submission)}`;
+      if (progressSubmissionKeyRef.current === submissionKey) {
+        return;
+      }
 
-    progressSubmissionKeyRef.current = submissionKey;
-    lastSubmissionRef.current = submission;
+      progressSubmissionKeyRef.current = submissionKey;
+      lastSubmissionRef.current = submission;
 
-    if (progressTimeoutRef.current !== null) {
-      window.clearTimeout(progressTimeoutRef.current);
-    }
+      if (progressTimeoutRef.current !== null) {
+        window.clearTimeout(progressTimeoutRef.current);
+      }
 
-    progressTimeoutRef.current = window.setTimeout(() => {
-      const latestLobby = lobbyRef.current;
-      const latestTimeLeft = stage === "practice" ? practiceTimeLeftRef.current : liveTimeLeftRef.current;
-      if (!latestLobby || latestLobby.id !== currentLobby.id) return;
-      if (latestLobby.status !== stage || latestTimeLeft <= 0 || rejectedStageRef.current === stage) return;
+      progressTimeoutRef.current = window.setTimeout(() => {
+        const latestLobby = lobbyRef.current;
+        const latestTimeLeft =
+          stage === "practice"
+            ? practiceTimeLeftRef.current
+            : liveTimeLeftRef.current;
+        if (!latestLobby || latestLobby.id !== currentLobby.id) return;
+        if (
+          latestLobby.status !== stage ||
+          latestTimeLeft <= 0 ||
+          rejectedStageRef.current === stage
+        )
+          return;
 
-      void supabaseApi
-        .submitProgress(latestLobby.id, stage, submission)
-        .then((response) => {
-          syncFailureCountRef.current = 0;
-          syncPausedUntilRef.current = 0;
-          setLobby(response.lobby);
-        })
-        .catch((error) => {
-          const message = error instanceof Error ? error.message : "Failed to submit progress.";
+        void supabaseApi
+          .submitProgress(latestLobby.id, stage, submission)
+          .then((response) => {
+            syncFailureCountRef.current = 0;
+            syncPausedUntilRef.current = 0;
+            setLobby(response.lobby);
+          })
+          .catch((error) => {
+            const message =
+              error instanceof Error
+                ? error.message
+                : "Failed to submit progress.";
 
-          if (message.includes("not accepted right now")) {
-            rejectedStageRef.current = stage;
-            return;
-          }
+            if (message.includes("not accepted right now")) {
+              rejectedStageRef.current = stage;
+              return;
+            }
 
-          if (message.includes("not having enough compute resources")) {
-            syncPausedUntilRef.current = Date.now() + 4000;
-          }
+            if (message.includes("not having enough compute resources")) {
+              syncPausedUntilRef.current = Date.now() + 4000;
+            }
 
-          console.error("Failed to submit progress", error);
-        });
-    }, 220);
-  }, []);
+            console.error("Failed to submit progress", error);
+          });
+      }, 220);
+    },
+    [],
+  );
 
   const handleLiveSolve = useCallback(() => {
     const currentLobby = lobbyRef.current;
@@ -503,7 +648,8 @@ export default function MatchPage() {
       .submitSolve(currentLobby.id, "live", currentSubmission)
       .then((response) => setLobby(response.lobby))
       .catch((error) => {
-        const message = error instanceof Error ? error.message : "Failed to submit solve.";
+        const message =
+          error instanceof Error ? error.message : "Failed to submit solve.";
         if (!message.includes("not accepted right now")) {
           console.error("Failed to submit solve", error);
         }
@@ -552,8 +698,13 @@ export default function MatchPage() {
     const isPractice = stage === "practice";
     const timeLeft = isPractice ? practiceTimeLeft : liveTimeLeft;
     const lowTime = isPractice ? timeLeft <= 3 : timeLeft <= 10;
-    const boardCategory = getNeonPuzzleThemeCategory(lobby.selection.puzzleType);
-    const disabled = timeLeft <= 0 || (!isPractice && (solvePending || (!rapidFire && selfPlayer.solvedAtMs !== null)));
+    const boardCategory = getNeonPuzzleThemeCategory(
+      lobby.selection.puzzleType,
+    );
+    const disabled =
+      timeLeft <= 0 ||
+      (!isPractice &&
+        (solvePending || (!rapidFire && selfPlayer.solvedAtMs !== null)));
     const liveScoreLine = rapidFire
       ? `Score ${selfPlayer.score} | Clears ${selfPlayer.completions} | New personal boards stop rolling at 0:05.`
       : selfPlayer.solvedAtMs !== null
@@ -562,11 +713,21 @@ export default function MatchPage() {
 
     return (
       <div className="match-immersive-screen">
-        <div className={cn("match-immersive-shell", `match-immersive-shell--${boardCategory}`, lowTime && "match-immersive-shell--low-time")}>
+        <div
+          className={cn(
+            "match-immersive-shell",
+            `match-immersive-shell--${boardCategory}`,
+            lowTime && "match-immersive-shell--low-time",
+          )}
+        >
           <div className="match-immersive-top">
             <div className="match-immersive-copy">
               <p className="font-hud text-[11px] uppercase tracking-[0.24em] text-primary">
-                {isPractice ? "Practice Arena" : rapidFire ? "Live Arena - Rapid Fire" : "Live Arena"}
+                {isPractice
+                  ? "Practice Arena"
+                  : rapidFire
+                    ? "Live Arena - Rapid Fire"
+                    : "Live Arena"}
               </p>
               <h1 className="match-immersive-title">{selectionMeta?.label}</h1>
               <p className="match-immersive-help">{helpText}</p>
@@ -592,28 +753,42 @@ export default function MatchPage() {
                 type="button"
                 onClick={() => void handleHintUnlock()}
                 disabled={hintUnlocked || hintSaving}
-                className={cn("match-hint-button", hintUnlocked && "match-hint-button-active")}
+                className={cn(
+                  "match-hint-button",
+                  hintUnlocked && "match-hint-button-active",
+                )}
               >
                 <Lightbulb size={18} />
                 <span>
-                  {hintUnlocked ? "Hint Unlocked" : `Use Hint (${localHintBalance})`}
+                  {hintUnlocked
+                    ? "Hint Unlocked"
+                    : `Use Hint (${localHintBalance})`}
                 </span>
               </button>
             ) : null}
-            {hintUnlocked ? <div className="match-hint-panel">{hintText}</div> : null}
+            {hintUnlocked ? (
+              <div className="match-hint-panel">{hintText}</div>
+            ) : null}
           </div>
 
           <div className="match-immersive-board">
             <Suspense
-              fallback={(
+              fallback={
                 <div className="match-board-loading-shell">
-                  <LoaderCircle size={22} className="animate-spin text-primary" />
+                  <LoaderCircle
+                    size={22}
+                    className="animate-spin text-primary"
+                  />
                   <div>
-                    <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-primary/80">Board uplink</p>
-                    <p className="mt-1 text-sm text-muted-foreground">Streaming the active puzzle shell.</p>
+                    <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-primary/80">
+                      Board uplink
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Streaming the active puzzle shell.
+                    </p>
                   </div>
                 </div>
-              )}
+              }
             >
               <MatchPuzzleBoard
                 key={`${stage}-${activeSeed}`}
@@ -641,7 +816,7 @@ export default function MatchPage() {
           <PageHeader
             eyebrow="Arena Uplink"
             title="Backend Required"
-            subtitle="Local mock mode cannot host matchmaking sessions."
+            subtitle="This matchmaking route requires a live backend connection."
           />
           <section className="command-panel flex flex-col gap-4 p-5">
             <div className="command-panel-soft flex items-start gap-3 p-4">
@@ -650,10 +825,17 @@ export default function MatchPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-black">Match service unavailable</p>
-                <p className="mt-1 text-sm text-muted-foreground">{supabaseConfigErrorMessage}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {supabaseConfigErrorMessage}
+                </p>
               </div>
             </div>
-            <Button onClick={() => navigate("/play")} variant="outline" size="lg" className="w-full">
+            <Button
+              onClick={() => navigate("/play")}
+              variant="outline"
+              size="lg"
+              className="w-full"
+            >
               <Home size={16} />
               Back to Play
             </Button>
@@ -674,10 +856,20 @@ export default function MatchPage() {
               subtitle="Your auth session is live, but the profile payload is unavailable. Sign out and retry before entering matchmaking."
             />
             <section className="command-panel grid gap-3 p-5 sm:grid-cols-2">
-              <Button onClick={() => void signOut()} variant="play" size="lg" className="w-full">
+              <Button
+                onClick={() => void signOut()}
+                variant="play"
+                size="lg"
+                className="w-full"
+              >
                 Sign Out To Retry
               </Button>
-              <Button onClick={() => navigate("/play")} variant="outline" size="lg" className="w-full">
+              <Button
+                onClick={() => navigate("/play")}
+                variant="outline"
+                size="lg"
+                className="w-full"
+              >
                 <UserRoundPlus size={16} />
                 Back
               </Button>
@@ -696,13 +888,28 @@ export default function MatchPage() {
             subtitle="Guest sessions can browse the arena, but ranked results only persist to a saved account."
           />
           <section className="command-panel grid gap-3 p-5 sm:grid-cols-3">
-            <Button onClick={openSignUp} variant="play" size="lg" className="w-full">
+            <Button
+              onClick={openSignUp}
+              variant="play"
+              size="lg"
+              className="w-full"
+            >
               Create Account
             </Button>
-            <Button onClick={openSignIn} variant="outline" size="lg" className="w-full">
+            <Button
+              onClick={openSignIn}
+              variant="outline"
+              size="lg"
+              className="w-full"
+            >
               Sign In
             </Button>
-            <Button onClick={() => navigate("/play")} variant="outline" size="lg" className="w-full">
+            <Button
+              onClick={() => navigate("/play")}
+              variant="outline"
+              size="lg"
+              className="w-full"
+            >
               <UserRoundPlus size={16} />
               Back
             </Button>
@@ -729,13 +936,25 @@ export default function MatchPage() {
                 </div>
                 <div>
                   <p className="text-lg font-black">Arena sync failed</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{lobbyError}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {lobbyError}
+                  </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Button onClick={() => setRematchKey((current) => current + 1)} variant="play" size="lg" className="w-full">
+                  <Button
+                    onClick={() => setRematchKey((current) => current + 1)}
+                    variant="play"
+                    size="lg"
+                    className="w-full"
+                  >
                     Retry Matchmaking
                   </Button>
-                  <Button onClick={() => navigate("/play")} variant="outline" size="lg" className="w-full">
+                  <Button
+                    onClick={() => navigate("/play")}
+                    variant="outline"
+                    size="lg"
+                    className="w-full"
+                  >
                     <Home size={16} />
                     Back to Play
                   </Button>
@@ -766,13 +985,22 @@ export default function MatchPage() {
         <div className="match-results-shell">
           <div className="match-results-top">
             <div>
-              <p className="font-hud text-[11px] uppercase tracking-[0.24em] text-primary">Match Leaderboard</p>
-              <h1 className="match-results-title">{resultsSelectionMeta?.label ?? "Round Complete"}</h1>
+              <p className="font-hud text-[11px] uppercase tracking-[0.24em] text-primary">
+                Match Leaderboard
+              </p>
+              <h1 className="match-results-title">
+                {resultsSelectionMeta?.label ?? "Round Complete"}
+              </h1>
               <p className="match-results-subtitle">
-                Next match loads in {intermissionTimeLeft}s. Exit returns you to the dashboard.
+                Next match loads in {intermissionTimeLeft}s. Exit returns you to
+                the dashboard.
               </p>
             </div>
-            <CountdownCard label="Next Match" value={`${intermissionTimeLeft}s`} urgent={intermissionTimeLeft <= 3} />
+            <CountdownCard
+              label="Next Match"
+              value={`${intermissionTimeLeft}s`}
+              urgent={intermissionTimeLeft <= 3}
+            />
           </div>
 
           <div className="match-results-table">
@@ -786,23 +1014,40 @@ export default function MatchPage() {
             {leaderboard.slice(0, 4).map((entry) => (
               <div
                 key={entry.playerId}
-                className={cn("match-results-row", entry.playerId === user.id && "match-results-row-self")}
+                className={cn(
+                  "match-results-row",
+                  entry.playerId === user.id && "match-results-row-self",
+                )}
               >
-                <span className="font-black text-primary">{formatPlacement(entry.rank)}</span>
+                <span className="font-black text-primary">
+                  {formatPlacement(entry.rank)}
+                </span>
                 <span className="truncate">
                   {entry.username}
-                  {entry.playerId === user.id ? " (You)" : entry.isBot ? " [Bot]" : ""}
+                  {entry.playerId === user.id
+                    ? " (You)"
+                    : entry.isBot
+                      ? " [Bot]"
+                      : ""}
                 </span>
                 <span>{formatSolveTime(entry.solvedAtMs)}</span>
                 <span>{resultsRapidFire ? entry.score : entry.progress}</span>
-                <span>{resultsRapidFire ? entry.completions : entry.solvedAtMs !== null ? 1 : 0}</span>
+                <span>
+                  {resultsRapidFire
+                    ? entry.completions
+                    : entry.solvedAtMs !== null
+                      ? 1
+                      : 0}
+                </span>
               </div>
             ))}
           </div>
 
           <div className="match-results-summary">
             <div className="command-panel-soft p-4">
-              <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">Your Finish</p>
+              <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">
+                Your Finish
+              </p>
               <p className="mt-2 text-3xl font-black tracking-[-0.04em] text-white">
                 {selfStanding ? formatPlacement(selfStanding.rank) : "Complete"}
               </p>
@@ -812,7 +1057,13 @@ export default function MatchPage() {
                   : `Solve time ${formatSolveTime(selfStanding?.solvedAtMs ?? null)}.`}
               </p>
             </div>
-            <Button onClick={() => void exitLobby()} variant="outline" size="lg" className="w-full" disabled={exitPending}>
+            <Button
+              onClick={() => void exitLobby()}
+              variant="outline"
+              size="lg"
+              className="w-full"
+              disabled={exitPending}
+            >
               <DoorOpen size={16} />
               Exit to Dashboard
             </Button>
@@ -831,7 +1082,10 @@ export default function MatchPage() {
   }
 
   if (lobby.status === "filling") {
-    const slotCards = Array.from({ length: lobby.maxPlayers }, (_, index) => lobby.players[index] ?? null);
+    const slotCards = Array.from(
+      { length: lobby.maxPlayers },
+      (_, index) => lobby.players[index] ?? null,
+    );
 
     return (
       <div className="page-screen">
@@ -878,5 +1132,3 @@ export default function MatchPage() {
     </div>
   );
 }
-
-

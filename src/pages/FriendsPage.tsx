@@ -1,5 +1,15 @@
 import { useEffect, useState } from "react";
-import { LoaderCircle, MessageSquare, Search, Send, ShieldCheck, UserCheck, UserMinus, UserPlus, Users } from "lucide-react";
+import {
+  LoaderCircle,
+  MessageSquare,
+  Search,
+  Send,
+  ShieldCheck,
+  UserCheck,
+  UserMinus,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
 import PageHeader from "@/components/layout/PageHeader";
@@ -35,7 +45,10 @@ function formatPresence(entry: SocialProfileCard) {
   const timestamp = Date.parse(entry.lastSeenAt);
   if (Number.isNaN(timestamp)) return "Offline";
 
-  const diffMinutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
+  const diffMinutes = Math.max(
+    0,
+    Math.floor((Date.now() - timestamp) / 60_000),
+  );
   if (diffMinutes < 1) return "Seen just now";
   if (diffMinutes < 60) return `Seen ${diffMinutes}m ago`;
   const diffHours = Math.floor(diffMinutes / 60);
@@ -46,7 +59,10 @@ function formatPresence(entry: SocialProfileCard) {
 function formatRequestTime(value: string) {
   const timestamp = Date.parse(value);
   if (Number.isNaN(timestamp)) return "Recent";
-  return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return new Date(timestamp).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function profileDescription(profile: SocialProfileCard) {
@@ -62,16 +78,33 @@ function RelationshipAction({
   onAdd: () => void;
 }) {
   if (profile.friendshipState === "friend") {
-    return <span className="font-hud text-[10px] uppercase tracking-[0.18em] text-primary">Connected</span>;
+    return (
+      <span className="font-hud text-[10px] uppercase tracking-[0.18em] text-primary">
+        Connected
+      </span>
+    );
   }
   if (profile.friendshipState === "incoming_request") {
-    return <span className="font-hud text-[10px] uppercase tracking-[0.18em] text-amber-300">Incoming</span>;
+    return (
+      <span className="font-hud text-[10px] uppercase tracking-[0.18em] text-amber-300">
+        Incoming
+      </span>
+    );
   }
   if (profile.friendshipState === "outgoing_request") {
-    return <span className="font-hud text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Pending</span>;
+    return (
+      <span className="font-hud text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        Pending
+      </span>
+    );
   }
   return (
-    <Button onClick={onAdd} variant="outline" size="sm" className="rounded-full px-4">
+    <Button
+      onClick={onAdd}
+      variant="outline"
+      size="sm"
+      className="rounded-full px-4"
+    >
       <UserPlus size={14} />
       Add
     </Button>
@@ -93,21 +126,39 @@ function FriendCard({
         <StockAvatar avatarId={entry.profile.avatarId} size="sm" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate text-base font-black">{entry.profile.username}</p>
-            <span className={`font-hud text-[10px] uppercase tracking-[0.18em] ${getRankColor(entry.profile.rank)}`}>
+            <p className="truncate text-base font-black">
+              {entry.profile.username}
+            </p>
+            <span
+              className={`font-hud text-[10px] uppercase tracking-[0.18em] ${getRankColor(entry.profile.rank)}`}
+            >
               {entry.profile.rank}
             </span>
           </div>
-          <p className="text-sm text-muted-foreground">{profileDescription(entry.profile)}</p>
+          <p className="text-sm text-muted-foreground">
+            {profileDescription(entry.profile)}
+          </p>
         </div>
-        <span className={`h-2.5 w-2.5 rounded-full ${entry.profile.isOnline ? "bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]" : "bg-white/15"}`} />
+        <span
+          className={`h-2.5 w-2.5 rounded-full ${entry.profile.isOnline ? "bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]" : "bg-white/15"}`}
+        />
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button onClick={onMessage} variant="play" size="sm" className="rounded-full px-4">
+        <Button
+          onClick={onMessage}
+          variant="play"
+          size="sm"
+          className="rounded-full px-4"
+        >
           <MessageSquare size={14} />
           Message
         </Button>
-        <Button onClick={onRemove} variant="outline" size="sm" className="rounded-full px-4">
+        <Button
+          onClick={onRemove}
+          variant="outline"
+          size="sm"
+          className="rounded-full px-4"
+        >
           <UserMinus size={14} />
           Remove
         </Button>
@@ -122,8 +173,11 @@ export default function FriendsPage() {
   const { openSignIn, openSignUp } = useAuthDialog();
   const { user, hasSession, signOut } = useAuth();
   const accountNeedsSync = hasSession && !user;
-  const [dashboard, setDashboard] = useState<FriendsDashboardSnapshot | null>(null);
-  const [conversation, setConversation] = useState<DirectConversationSnapshot | null>(null);
+  const [dashboard, setDashboard] = useState<FriendsDashboardSnapshot | null>(
+    null,
+  );
+  const [conversation, setConversation] =
+    useState<DirectConversationSnapshot | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SocialProfileCard[]>([]);
   const [requestMessage, setRequestMessage] = useState("");
@@ -141,20 +195,34 @@ export default function FriendsPage() {
       const snapshot = await loadFriendsDashboard(user);
       setDashboard(snapshot);
       if (!selectedPartnerId && snapshot.friends[0]) {
-        setSearchParams({ chat: snapshot.friends[0].profile.id }, { replace: true });
+        setSearchParams(
+          { chat: snapshot.friends[0].profile.id },
+          { replace: true },
+        );
       }
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Could not load your friends console.");
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "Could not load your friends console.",
+      );
     } finally {
       setIsLoading(false);
     }
   }
 
   useEffect(() => {
+    if (!user || user.isGuest || accountNeedsSync) {
+      setDashboard(null);
+      setConversation(null);
+      setIsLoading(false);
+      return;
+    }
+
     let active = true;
     async function boot() {
       try {
-        await touchOwnPresence(user?.id);
+        await touchOwnPresence(user.id);
       } catch {
         // Presence should never block the page.
       }
@@ -165,7 +233,7 @@ export default function FriendsPage() {
     void boot();
 
     const heartbeat = window.setInterval(() => {
-      void touchOwnPresence(user?.id);
+      void touchOwnPresence(user.id);
     }, 45_000);
     const refresher = window.setInterval(() => {
       if (active) {
@@ -178,9 +246,15 @@ export default function FriendsPage() {
       window.clearInterval(heartbeat);
       window.clearInterval(refresher);
     };
-  }, [user?.id]);
+  }, [accountNeedsSync, user]);
 
   useEffect(() => {
+    if (!user || user.isGuest || accountNeedsSync) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
     let active = true;
     async function loadSearch() {
       setIsSearching(true);
@@ -191,7 +265,11 @@ export default function FriendsPage() {
         }
       } catch (error) {
         if (active) {
-          toast.error(error instanceof Error ? error.message : "Could not search players.");
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Could not search players.",
+          );
         }
       } finally {
         if (active) {
@@ -200,17 +278,25 @@ export default function FriendsPage() {
       }
     }
 
-    const timeout = window.setTimeout(() => {
-      void loadSearch();
-    }, searchQuery.trim() ? 180 : 0);
+    const timeout = window.setTimeout(
+      () => {
+        void loadSearch();
+      },
+      searchQuery.trim() ? 180 : 0,
+    );
 
     return () => {
       active = false;
       window.clearTimeout(timeout);
     };
-  }, [searchQuery, user?.id]);
+  }, [accountNeedsSync, searchQuery, user]);
 
   useEffect(() => {
+    if (!user || user.isGuest || accountNeedsSync) {
+      setConversation(null);
+      return;
+    }
+
     let active = true;
     async function loadConversation() {
       if (!selectedPartnerId) {
@@ -218,13 +304,18 @@ export default function FriendsPage() {
         return;
       }
       try {
-        const nextConversation = await loadDirectConversation(user, selectedPartnerId);
+        const nextConversation = await loadDirectConversation(
+          user,
+          selectedPartnerId,
+        );
         if (active) {
           setConversation(nextConversation);
         }
       } catch (error) {
         if (active) {
-          toast.error(error instanceof Error ? error.message : "Could not load messages.");
+          toast.error(
+            error instanceof Error ? error.message : "Could not load messages.",
+          );
         }
       }
     }
@@ -233,12 +324,17 @@ export default function FriendsPage() {
     return () => {
       active = false;
     };
-  }, [selectedPartnerId, user?.id, dashboard?.friends.length]);
+  }, [accountNeedsSync, dashboard?.friends.length, selectedPartnerId, user]);
 
   const rankBand = getRankBand(user?.elo ?? 0);
-  const searchCollection = searchQuery.trim() ? searchResults : dashboard?.suggestions ?? [];
+  const searchCollection = searchQuery.trim()
+    ? searchResults
+    : (dashboard?.suggestions ?? []);
 
-  async function handleMutation(work: () => Promise<void>, successMessage?: string) {
+  async function handleMutation(
+    work: () => Promise<void>,
+    successMessage?: string,
+  ) {
     setIsMutating(true);
     try {
       await work();
@@ -248,7 +344,11 @@ export default function FriendsPage() {
         toast.success(successMessage);
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "That social action did not complete.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "That social action did not complete.",
+      );
     } finally {
       setIsMutating(false);
     }
@@ -267,12 +367,17 @@ export default function FriendsPage() {
     setIsMutating(true);
     try {
       await sendDirectMessage(user.id, conversation.partner.id, body);
-      const nextConversation = await loadDirectConversation(user, conversation.partner.id);
+      const nextConversation = await loadDirectConversation(
+        user,
+        conversation.partner.id,
+      );
       setConversation(nextConversation);
       setMessageBody("");
       await refreshDashboard();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not send message.");
+      toast.error(
+        error instanceof Error ? error.message : "Could not send message.",
+      );
     } finally {
       setIsMutating(false);
     }
@@ -289,8 +394,16 @@ export default function FriendsPage() {
           />
           <section className="section-panel">
             <div className="command-panel-soft flex flex-col gap-4 p-5">
-              <p className="text-base text-muted-foreground">Sign out and sign back in once the backend row is available again.</p>
-              <Button onClick={() => void signOut()} variant="outline" size="lg" className="w-full sm:w-auto">
+              <p className="text-base text-muted-foreground">
+                Sign out and sign back in once the backend row is available
+                again.
+              </p>
+              <Button
+                onClick={() => void signOut()}
+                variant="outline"
+                size="lg"
+                className="w-full sm:w-auto"
+              >
                 Sign Out To Retry
               </Button>
             </div>
@@ -311,10 +424,17 @@ export default function FriendsPage() {
           />
           <section className="section-panel">
             <div className="command-panel-soft flex flex-col gap-4 p-5">
-              <p className="text-base text-muted-foreground">Guest mode can preview the social layout, but live friends, presence, and messaging need an account.</p>
+              <p className="text-base text-muted-foreground">
+                Guest accounts cannot use friends, presence, or messaging. Sign
+                in to access the live social network.
+              </p>
               <div className="flex flex-wrap gap-3">
-                <Button onClick={openSignIn} variant="outline" size="lg">Sign In</Button>
-                <Button onClick={openSignUp} variant="play" size="lg">Create Account</Button>
+                <Button onClick={openSignIn} variant="outline" size="lg">
+                  Sign In
+                </Button>
+                <Button onClick={openSignUp} variant="play" size="lg">
+                  Create Account
+                </Button>
               </div>
             </div>
           </section>
@@ -333,7 +453,13 @@ export default function FriendsPage() {
           right={
             <IdentityLoadoutCard
               username={user.username}
-              subtitle={dashboard?.source === "supabase" ? "Live social link active" : "Local preview social console"}
+              subtitle={
+                dashboard?.resolution === "live"
+                  ? "Live social link active"
+                  : dashboard?.resolution === "unavailable"
+                    ? "Social services unavailable"
+                    : "Friends network ready"
+              }
               avatarId={user.avatarId}
               frameId={user.frameId}
               playerCardId={user.playerCardId}
@@ -355,7 +481,9 @@ export default function FriendsPage() {
                     <h2 className="section-title">Search the platform</h2>
                   </div>
                   <span className="font-hud text-[10px] uppercase tracking-[0.18em] text-primary">
-                    {dashboard?.source === "supabase" ? "Live" : "Preview"}
+                    {dashboard?.resolution === "unavailable"
+                      ? "Offline"
+                      : "Live"}
                   </span>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row">
@@ -365,7 +493,12 @@ export default function FriendsPage() {
                     placeholder="Search by username"
                     className="h-12 rounded-full border-white/10 bg-background/60 px-4"
                   />
-                  <Button onClick={() => void refreshDashboard()} variant="outline" size="lg" className="rounded-full px-5">
+                  <Button
+                    onClick={() => void refreshDashboard()}
+                    variant="outline"
+                    size="lg"
+                    className="rounded-full px-5"
+                  >
                     <Search size={16} />
                     Refresh
                   </Button>
@@ -379,28 +512,50 @@ export default function FriendsPage() {
                 <div className="section-stack mt-4">
                   {isSearching ? (
                     <div className="command-panel-soft flex min-h-[140px] items-center justify-center text-sm text-muted-foreground">
-                      <LoaderCircle size={18} className="mr-2 animate-spin" /> Searching players...
+                      <LoaderCircle size={18} className="mr-2 animate-spin" />{" "}
+                      Searching players...
                     </div>
-                  ) : searchCollection.length > 0 ? searchCollection.map((profile) => (
-                    <PuzzleTileButton
-                      key={profile.id}
-                      media={<StockAvatar avatarId={profile.avatarId} size="sm" />}
-                      title={profile.username}
-                      description={profileDescription(profile)}
-                      right={<RelationshipAction profile={profile} onAdd={() => void handleMutation(() => sendFriendRequest(user.id, profile.id, requestMessage), `Friend request sent to ${profile.username}.`)} />}
-                      onClick={() => {
-                        if (profile.friendshipState === "friend") {
-                          setSearchParams({ chat: profile.id });
+                  ) : searchCollection.length > 0 ? (
+                    searchCollection.map((profile) => (
+                      <PuzzleTileButton
+                        key={profile.id}
+                        media={
+                          <StockAvatar avatarId={profile.avatarId} size="sm" />
                         }
-                      }}
-                    />
-                  )) : (
+                        title={profile.username}
+                        description={profileDescription(profile)}
+                        right={
+                          <RelationshipAction
+                            profile={profile}
+                            onAdd={() =>
+                              void handleMutation(
+                                () =>
+                                  sendFriendRequest(
+                                    user.id,
+                                    profile.id,
+                                    requestMessage,
+                                  ),
+                                `Friend request sent to ${profile.username}.`,
+                              )
+                            }
+                          />
+                        }
+                        onClick={() => {
+                          if (profile.friendshipState === "friend") {
+                            setSearchParams({ chat: profile.id });
+                          }
+                        }}
+                      />
+                    ))
+                  ) : (
                     <div className="command-panel-soft px-4 py-5 text-sm text-muted-foreground">
                       {searchQuery.trim()
                         ? "No players matched that search yet."
-                        : dashboard?.resolution === "empty"
-                          ? "No live suggestions yet. As players join the platform, they will appear here."
-                          : "Type a username to search for players across Puzzle Rivals."}
+                        : dashboard?.resolution === "unavailable"
+                          ? "Player search is currently unavailable."
+                          : dashboard?.resolution === "empty"
+                            ? "No live suggestions yet. As players join the platform, they will appear here."
+                            : "Type a username to search for players across Puzzle Rivals."}
                     </div>
                   )}
                 </div>
@@ -416,49 +571,116 @@ export default function FriendsPage() {
                   </div>
                 </div>
                 <div className="section-stack">
-                  {dashboard?.incomingRequests.length ? dashboard.incomingRequests.map((request) => (
-                    <div key={request.id} className="command-panel-soft p-4">
-                      <div className="flex items-center gap-3">
-                        <StockAvatar avatarId={request.profile.avatarId} size="sm" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-base font-black">{request.profile.username}</p>
-                          <p className="text-sm text-muted-foreground">{profileDescription(request.profile)}</p>
+                  {dashboard?.incomingRequests.length
+                    ? dashboard.incomingRequests.map((request) => (
+                        <div
+                          key={request.id}
+                          className="command-panel-soft p-4"
+                        >
+                          <div className="flex items-center gap-3">
+                            <StockAvatar
+                              avatarId={request.profile.avatarId}
+                              size="sm"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-base font-black">
+                                {request.profile.username}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {profileDescription(request.profile)}
+                              </p>
+                            </div>
+                            <span className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">
+                              {formatRequestTime(request.createdAt)}
+                            </span>
+                          </div>
+                          {request.message ? (
+                            <p className="mt-3 text-sm text-muted-foreground">
+                              "{request.message}"
+                            </p>
+                          ) : null}
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button
+                              onClick={() =>
+                                void handleMutation(
+                                  () => acceptFriendRequest(request.id),
+                                  `${request.profile.username} added to your friends.`,
+                                )
+                              }
+                              variant="play"
+                              size="sm"
+                              className="rounded-full px-4"
+                            >
+                              <UserCheck size={14} /> Accept
+                            </Button>
+                            <Button
+                              onClick={() =>
+                                void handleMutation(
+                                  () => declineFriendRequest(request.id),
+                                  `Declined ${request.profile.username}.`,
+                                )
+                              }
+                              variant="outline"
+                              size="sm"
+                              className="rounded-full px-4"
+                            >
+                              Decline
+                            </Button>
+                          </div>
                         </div>
-                        <span className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">{formatRequestTime(request.createdAt)}</span>
-                      </div>
-                      {request.message ? <p className="mt-3 text-sm text-muted-foreground">"{request.message}"</p> : null}
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Button onClick={() => void handleMutation(() => acceptFriendRequest(request.id), `${request.profile.username} added to your friends.`)} variant="play" size="sm" className="rounded-full px-4">
-                          <UserCheck size={14} /> Accept
-                        </Button>
-                        <Button onClick={() => void handleMutation(() => declineFriendRequest(request.id), `Declined ${request.profile.username}.`)} variant="outline" size="sm" className="rounded-full px-4">
-                          Decline
-                        </Button>
-                      </div>
-                    </div>
-                  )) : null}
+                      ))
+                    : null}
 
-                  {dashboard?.outgoingRequests.length ? dashboard.outgoingRequests.map((request) => (
-                    <div key={request.id} className="command-panel-soft p-4">
-                      <div className="flex items-center gap-3">
-                        <StockAvatar avatarId={request.profile.avatarId} size="sm" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-base font-black">{request.profile.username}</p>
-                          <p className="text-sm text-muted-foreground">Waiting on response | {formatPresence(request.profile)}</p>
+                  {dashboard?.outgoingRequests.length
+                    ? dashboard.outgoingRequests.map((request) => (
+                        <div
+                          key={request.id}
+                          className="command-panel-soft p-4"
+                        >
+                          <div className="flex items-center gap-3">
+                            <StockAvatar
+                              avatarId={request.profile.avatarId}
+                              size="sm"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-base font-black">
+                                {request.profile.username}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Waiting on response |{" "}
+                                {formatPresence(request.profile)}
+                              </p>
+                            </div>
+                            <span className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                              Pending
+                            </span>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button
+                              onClick={() =>
+                                void handleMutation(
+                                  () => cancelFriendRequest(request.id),
+                                  `Cancelled the request to ${request.profile.username}.`,
+                                )
+                              }
+                              variant="outline"
+                              size="sm"
+                              className="rounded-full px-4"
+                            >
+                              Cancel Request
+                            </Button>
+                          </div>
                         </div>
-                        <span className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Pending</span>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Button onClick={() => void handleMutation(() => cancelFriendRequest(request.id), `Cancelled the request to ${request.profile.username}.`)} variant="outline" size="sm" className="rounded-full px-4">
-                          Cancel Request
-                        </Button>
-                      </div>
-                    </div>
-                  )) : null}
+                      ))
+                    : null}
 
-                  {!dashboard?.incomingRequests.length && !dashboard?.outgoingRequests.length ? (
+                  {!dashboard?.incomingRequests.length &&
+                  !dashboard?.outgoingRequests.length ? (
                     <div className="command-panel-soft px-4 py-5 text-sm text-muted-foreground">
-                      {loadError ?? "No live friend requests are waiting right now."}
+                      {loadError ??
+                        (dashboard?.resolution === "unavailable"
+                          ? "Friends data is currently unavailable."
+                          : "No live friend requests are waiting right now.")}
                     </div>
                   ) : null}
                 </div>
@@ -474,28 +696,46 @@ export default function FriendsPage() {
                 <p className="section-kicker">Friend Roster</p>
                 <h2 className="section-title">Who is online</h2>
               </div>
-              <Button onClick={() => navigate("/profile") } variant="ghost" size="sm">
+              <Button
+                onClick={() => navigate("/profile")}
+                variant="ghost"
+                size="sm"
+              >
                 <ShieldCheck size={14} /> Profile Deck
               </Button>
             </div>
             <div className="section-stack">
               {isLoading ? (
                 <div className="command-panel-soft flex min-h-[180px] items-center justify-center text-sm text-muted-foreground">
-                  <LoaderCircle size={18} className="mr-2 animate-spin" /> Loading friends...
+                  <LoaderCircle size={18} className="mr-2 animate-spin" />{" "}
+                  Loading friends...
                 </div>
-              ) : dashboard?.friends.length ? dashboard.friends.map((entry) => (
-                <FriendCard
-                  key={entry.profile.id}
-                  entry={entry}
-                  onMessage={() => setSearchParams({ chat: entry.profile.id })}
-                  onRemove={() => void handleMutation(() => removeFriend(entry.profile.id), `${entry.profile.username} removed from your roster.`)}
-                />
-              )) : (
+              ) : dashboard?.friends.length ? (
+                dashboard.friends.map((entry) => (
+                  <FriendCard
+                    key={entry.profile.id}
+                    entry={entry}
+                    onMessage={() =>
+                      setSearchParams({ chat: entry.profile.id })
+                    }
+                    onRemove={() =>
+                      void handleMutation(
+                        () => removeFriend(entry.profile.id),
+                        `${entry.profile.username} removed from your roster.`,
+                      )
+                    }
+                  />
+                ))
+              ) : (
                 <div className="command-panel-soft flex min-h-[220px] flex-col items-center justify-center gap-3 p-6 text-center">
                   <Users size={22} className="text-primary" />
                   <div>
                     <p className="text-lg font-black">Build your squad</p>
-                    <p className="mt-2 text-sm text-muted-foreground">Search players above, send requests, and accepted rivals will land here with live online status.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {dashboard?.resolution === "unavailable"
+                        ? "Live friends data is currently unavailable."
+                        : "Search players above, send requests, and accepted rivals will land here with live online status."}
+                    </p>
                   </div>
                 </div>
               )}
@@ -513,25 +753,38 @@ export default function FriendsPage() {
               {conversation ? (
                 <>
                   <div className="command-panel-soft flex items-center gap-3 p-4">
-                    <StockAvatar avatarId={conversation.partner.avatarId} size="sm" />
+                    <StockAvatar
+                      avatarId={conversation.partner.avatarId}
+                      size="sm"
+                    />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-base font-black">{conversation.partner.username}</p>
-                      <p className="text-sm text-muted-foreground">{profileDescription(conversation.partner)}</p>
+                      <p className="truncate text-base font-black">
+                        {conversation.partner.username}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {profileDescription(conversation.partner)}
+                      </p>
                     </div>
-                    <span className={`h-2.5 w-2.5 rounded-full ${conversation.partner.isOnline ? "bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]" : "bg-white/15"}`} />
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${conversation.partner.isOnline ? "bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]" : "bg-white/15"}`}
+                    />
                   </div>
 
                   <div className="command-panel-soft flex min-h-[320px] flex-col gap-3 p-4">
                     <div className="flex-1 space-y-3 overflow-y-auto pr-1">
-                      {conversation.messages.length > 0 ? conversation.messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`max-w-[85%] rounded-[24px] px-4 py-3 text-sm leading-6 ${message.isOwn ? "ml-auto bg-primary/16 text-white" : "bg-background/55 text-muted-foreground"}`}
-                        >
-                          <p>{message.body}</p>
-                          <p className="mt-2 font-hud text-[10px] uppercase tracking-[0.14em] text-white/45">{formatRequestTime(message.createdAt)}</p>
-                        </div>
-                      )) : (
+                      {conversation.messages.length > 0 ? (
+                        conversation.messages.map((message) => (
+                          <div
+                            key={message.id}
+                            className={`max-w-[85%] rounded-[24px] px-4 py-3 text-sm leading-6 ${message.isOwn ? "ml-auto bg-primary/16 text-white" : "bg-background/55 text-muted-foreground"}`}
+                          >
+                            <p>{message.body}</p>
+                            <p className="mt-2 font-hud text-[10px] uppercase tracking-[0.14em] text-white/45">
+                              {formatRequestTime(message.createdAt)}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
                         <div className="flex min-h-[180px] items-center justify-center text-sm text-muted-foreground">
                           No messages yet. Break the ice and start the thread.
                         </div>
@@ -541,19 +794,28 @@ export default function FriendsPage() {
                       <div className="flex flex-col gap-3 border-t border-white/10 pt-3">
                         <textarea
                           value={messageBody}
-                          onChange={(event) => setMessageBody(event.target.value)}
+                          onChange={(event) =>
+                            setMessageBody(event.target.value)
+                          }
                           placeholder={`Message ${conversation.partner.username}`}
                           className="min-h-[110px] w-full rounded-[24px] border border-white/10 bg-background/60 px-4 py-3 text-sm text-white outline-none transition focus:border-primary/40"
                         />
                         <div className="flex justify-end">
-                          <Button onClick={() => void handleSendMessage()} disabled={isMutating || !messageBody.trim()} variant="play" size="lg" className="rounded-full px-5">
+                          <Button
+                            onClick={() => void handleSendMessage()}
+                            disabled={isMutating || !messageBody.trim()}
+                            variant="play"
+                            size="lg"
+                            className="rounded-full px-5"
+                          >
                             <Send size={16} /> Send Message
                           </Button>
                         </div>
                       </div>
                     ) : (
                       <div className="rounded-[22px] border border-white/10 bg-background/40 px-4 py-4 text-sm text-muted-foreground">
-                        Become friends first to unlock direct messaging with this player.
+                        Become friends first to unlock direct messaging with
+                        this player.
                       </div>
                     )}
                   </div>
@@ -563,7 +825,10 @@ export default function FriendsPage() {
                   <MessageSquare size={22} className="text-primary" />
                   <div>
                     <p className="text-lg font-black">Open a friend thread</p>
-                    <p className="mt-2 text-sm text-muted-foreground">Select a friend from your roster to see live messages, or add someone new from the search console.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Select a friend from your roster to see live messages, or
+                      add someone new from the search console.
+                    </p>
                   </div>
                 </div>
               )}

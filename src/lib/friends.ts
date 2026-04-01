@@ -1,14 +1,22 @@
-import { CURRENT_USER, PLAYERS } from "@/lib/seed-data";
 import {
   isSupabaseSchemaSetupIssue,
   supabase,
   supabaseConfigErrorMessage,
 } from "@/lib/supabase-client";
-import type { RankTier, StockAvatarId, UserAppRole, UserProfile } from "@/lib/types";
+import type {
+  RankTier,
+  StockAvatarId,
+  UserAppRole,
+  UserProfile,
+} from "@/lib/types";
 
-export type SocialContentSource = "supabase" | "seed";
-export type SocialContentResolution = "live" | "fallback" | "empty" | "unavailable";
-export type FriendshipState = "none" | "friend" | "incoming_request" | "outgoing_request";
+export type SocialContentSource = "supabase";
+export type SocialContentResolution = "live" | "empty" | "unavailable";
+export type FriendshipState =
+  | "none"
+  | "friend"
+  | "incoming_request"
+  | "outgoing_request";
 
 export interface SocialProfileCard {
   id: string;
@@ -65,6 +73,15 @@ export interface FriendsDashboardSnapshot {
   resolution: SocialContentResolution;
 }
 
+export interface SocialAlertSummary {
+  incomingRequests: number;
+  unreadMessages: number;
+  connectedFriends: number;
+  onlineFriends: number;
+  source: SocialContentSource;
+  resolution: SocialContentResolution;
+}
+
 type ProfileSearchRow = {
   id: string;
   username: string;
@@ -104,35 +121,12 @@ type DirectMessageRow = {
   created_at: string;
 };
 
-const PRESENCE_TIMEOUT_MS = 2 * 60 * 1000;
-const SEED_LAST_SEEN = new Date(Date.now() - 45_000).toISOString();
-const FALLBACK_REQUESTS = [
-  {
-    id: "seed-incoming-gridwitch",
-    senderId: "u_4",
-    receiverId: "u_self",
-    direction: "incoming" as const,
-    message: "Let us squad up for Neon Rivals this week.",
-    createdAt: "2026-03-28T18:30:00Z",
-  },
-  {
-    id: "seed-outgoing-mastervex",
-    senderId: "u_self",
-    receiverId: "u_6",
-    direction: "outgoing" as const,
-    message: "Want to run strategy boards later?",
-    createdAt: "2026-03-29T09:10:00Z",
-  },
-];
-const FALLBACK_MESSAGES: Record<string, Array<{ id: string; senderId: string; body: string; createdAt: string }>> = {
-  u_3: [
-    { id: "seed-msg-1", senderId: "u_3", body: "You down for a maze run after the daily?", createdAt: "2026-03-29T12:02:00Z" },
-    { id: "seed-msg-2", senderId: "u_self", body: "Yep. Queue me in once you are online.", createdAt: "2026-03-29T12:05:00Z" },
-  ],
-  u_4: [
-    { id: "seed-msg-3", senderId: "u_4", body: "Your new Season 1 loadout looks sharp.", createdAt: "2026-03-29T08:42:00Z" },
-  ],
+type DirectThreadMemberRow = {
+  thread_id: string;
+  last_read_at: string | null;
 };
+
+const PRESENCE_TIMEOUT_MS = 2 * 60 * 1000;
 
 function assertConfiguredSession(currentUserId?: string | null) {
   if (!supabase) {
@@ -157,7 +151,17 @@ function isOnline(lastSeenAt: string | null) {
 }
 
 function mapProfileCard(
-  profile: Pick<ProfileSearchRow, "id" | "username" | "avatar_id" | "rank" | "elo" | "app_role" | "facebook_handle" | "tiktok_handle">,
+  profile: Pick<
+    ProfileSearchRow,
+    | "id"
+    | "username"
+    | "avatar_id"
+    | "rank"
+    | "elo"
+    | "app_role"
+    | "facebook_handle"
+    | "tiktok_handle"
+  >,
   relationship: FriendshipState,
   lastSeenAt: string | null,
 ): SocialProfileCard {
@@ -178,129 +182,12 @@ function mapProfileCard(
   };
 }
 
-function buildSeedPresenceMap(ids: string[]) {
-  const map = new Map<string, string>();
-  ids.forEach((id, index) => {
-    if (index % 3 !== 2) {
-      map.set(id, SEED_LAST_SEEN);
-    }
-  });
-  return map;
-}
-
-function seedPlayerById(id: string) {
-  if (id === CURRENT_USER.id) {
-    return CURRENT_USER;
-  }
-  return PLAYERS.find((entry) => entry.id === id) ?? null;
-}
-
-function mapSeedProfile(player: UserProfile, relationship: FriendshipState, lastSeenAt: string | null) {
-  return {
-    id: player.id,
-    username: player.username,
-    avatarId: player.avatarId,
-    rank: player.rank,
-    elo: player.elo,
-    appRole: player.appRole ?? null,
-    socialLinks: {
-      facebook: player.socialLinks.facebook,
-      tiktok: player.socialLinks.tiktok,
-    },
-    isOnline: isOnline(lastSeenAt),
-    lastSeenAt,
-    friendshipState: relationship,
-  } satisfies SocialProfileCard;
-}
-
-function buildSeedDashboard(currentUserId?: string | null): FriendsDashboardSnapshot {
-  const activeUserId = currentUserId && currentUserId !== "guest-player" ? currentUserId : CURRENT_USER.id;
-  const baseUser = activeUserId === CURRENT_USER.id ? CURRENT_USER : seedPlayerById(activeUserId) ?? CURRENT_USER;
-  const players = PLAYERS.filter((entry) => entry.id !== baseUser.id);
-  const presenceMap = buildSeedPresenceMap(players.map((entry) => entry.id));
-  const incoming = FALLBACK_REQUESTS.filter((entry) => entry.receiverId === baseUser.id);
-  const outgoing = FALLBACK_REQUESTS.filter((entry) => entry.senderId === baseUser.id);
-  const pendingIds = new Set(incoming.map((entry) => entry.senderId).concat(outgoing.map((entry) => entry.receiverId)));
-
-  const friends = players
-    .filter((entry) => baseUser.friends.includes(entry.id))
-    .map((entry) => ({
-      profile: mapSeedProfile(entry, "friend", presenceMap.get(entry.id) ?? null),
-      since: entry.joinedAt,
-      threadId: `seed-thread-${entry.id}`,
-    }))
-    .sort((left, right) => Number(right.profile.isOnline) - Number(left.profile.isOnline) || right.profile.elo - left.profile.elo);
-
-  const incomingRequests = incoming
-    .map((entry) => {
-      const profile = seedPlayerById(entry.senderId);
-      return profile
-        ? {
-            id: entry.id,
-            direction: entry.direction,
-            message: entry.message,
-            createdAt: entry.createdAt,
-            profile: mapSeedProfile(profile, "incoming_request", presenceMap.get(profile.id) ?? null),
-          }
-        : null;
-    })
-    .filter((entry): entry is FriendRequestSnapshot => Boolean(entry));
-
-  const outgoingRequests = outgoing
-    .map((entry) => {
-      const profile = seedPlayerById(entry.receiverId);
-      return profile
-        ? {
-            id: entry.id,
-            direction: entry.direction,
-            message: entry.message,
-            createdAt: entry.createdAt,
-            profile: mapSeedProfile(profile, "outgoing_request", presenceMap.get(profile.id) ?? null),
-          }
-        : null;
-    })
-    .filter((entry): entry is FriendRequestSnapshot => Boolean(entry));
-
-  const suggestions = players
-    .filter((entry) => !baseUser.friends.includes(entry.id) && !pendingIds.has(entry.id))
-    .slice(0, 8)
-    .map((entry) => mapSeedProfile(entry, "none", presenceMap.get(entry.id) ?? null));
-
-  return {
-    friends,
-    incomingRequests,
-    outgoingRequests,
-    suggestions,
-    source: "seed",
-    resolution: "fallback",
-  };
-}
-
-function buildSeedConversation(partnerId: string): DirectConversationSnapshot {
-  const partner = seedPlayerById(partnerId);
-  if (!partner) {
-    throw new Error("Could not find that friend in the local preview roster.");
-  }
-
-  const lastSeenAt = buildSeedPresenceMap([partnerId]).get(partnerId) ?? null;
-  const messages = (FALLBACK_MESSAGES[partnerId] ?? []).map((entry) => ({
-    id: entry.id,
-    senderId: entry.senderId,
-    body: entry.body,
-    createdAt: entry.createdAt,
-    isOwn: entry.senderId === CURRENT_USER.id,
-  }));
-
-  return {
-    partner: mapSeedProfile(partner, CURRENT_USER.friends.includes(partner.id) ? "friend" : "none", lastSeenAt),
-    threadId: `seed-thread-${partner.id}`,
-    messages,
-    source: "seed",
-    resolution: messages.length > 0 ? "fallback" : "empty",
-  };
-}
-
-function buildRelationshipMap(currentUserId: string, friendIds: string[], incomingIds: string[], outgoingIds: string[]) {
+function buildRelationshipMap(
+  currentUserId: string,
+  friendIds: string[],
+  incomingIds: string[],
+  outgoingIds: string[],
+) {
   const friends = new Set(friendIds);
   const incoming = new Set(incomingIds);
   const outgoing = new Set(outgoingIds);
@@ -320,7 +207,9 @@ async function loadProfilesByIds(profileIds: string[]) {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, username, avatar_id, rank, elo, app_role, facebook_handle, tiktok_handle")
+    .select(
+      "id, username, avatar_id, rank, elo, app_role, facebook_handle, tiktok_handle",
+    )
     .in("id", profileIds);
 
   if (error) {
@@ -350,13 +239,21 @@ async function loadPresenceMap(profileIds: string[]) {
     throw error;
   }
 
-  return new Map(((data ?? []) as PresenceRow[]).map((entry) => [entry.user_id, entry.last_seen_at]));
+  return new Map(
+    ((data ?? []) as PresenceRow[]).map((entry) => [
+      entry.user_id,
+      entry.last_seen_at,
+    ]),
+  );
 }
 
 async function loadRelationshipState(currentUserId: string) {
   assertConfiguredSession(currentUserId);
 
-  const [{ data: friendshipRows, error: friendshipError }, { data: requestRows, error: requestError }] = await Promise.all([
+  const [
+    { data: friendshipRows, error: friendshipError },
+    { data: requestRows, error: requestError },
+  ] = await Promise.all([
     supabase!
       .from("friendships")
       .select("friend_id, created_at, thread_id")
@@ -395,16 +292,43 @@ export async function touchOwnPresence(currentUserId?: string | null) {
 
   const { error } = await supabase
     .from("user_presence")
-    .upsert({ user_id: currentUserId, last_seen_at: new Date().toISOString() }, { onConflict: "user_id" });
+    .upsert(
+      { user_id: currentUserId, last_seen_at: new Date().toISOString() },
+      { onConflict: "user_id" },
+    );
 
   if (error && !isSupabaseSchemaSetupIssue(error)) {
     throw error;
   }
 }
 
-export async function loadFriendsDashboard(currentUser?: Pick<UserProfile, "id" | "isGuest" | "friends"> | null): Promise<FriendsDashboardSnapshot> {
-  if (!supabase || !currentUser || currentUser.isGuest || currentUser.id === "guest-player") {
-    return buildSeedDashboard(currentUser?.id);
+export async function loadFriendsDashboard(
+  currentUser?: Pick<UserProfile, "id" | "isGuest" | "friends"> | null,
+): Promise<FriendsDashboardSnapshot> {
+  if (
+    !currentUser ||
+    currentUser.isGuest ||
+    currentUser.id === "guest-player"
+  ) {
+    return {
+      friends: [],
+      incomingRequests: [],
+      outgoingRequests: [],
+      suggestions: [],
+      source: "supabase",
+      resolution: "empty",
+    };
+  }
+
+  if (!supabase) {
+    return {
+      friends: [],
+      incomingRequests: [],
+      outgoingRequests: [],
+      suggestions: [],
+      source: "supabase",
+      resolution: "unavailable",
+    };
   }
 
   const relationships = await loadRelationshipState(currentUser.id);
@@ -420,22 +344,38 @@ export async function loadFriendsDashboard(currentUser?: Pick<UserProfile, "id" 
   }
 
   const friendIds = relationships.friendships.map((entry) => entry.friend_id);
-  const incoming = relationships.requests.filter((entry) => entry.receiver_id === currentUser.id);
-  const outgoing = relationships.requests.filter((entry) => entry.sender_id === currentUser.id);
-  const relatedIds = [...new Set(friendIds.concat(incoming.map((entry) => entry.sender_id), outgoing.map((entry) => entry.receiver_id)))];
+  const incoming = relationships.requests.filter(
+    (entry) => entry.receiver_id === currentUser.id,
+  );
+  const outgoing = relationships.requests.filter(
+    (entry) => entry.sender_id === currentUser.id,
+  );
+  const relatedIds = [
+    ...new Set(
+      friendIds.concat(
+        incoming.map((entry) => entry.sender_id),
+        outgoing.map((entry) => entry.receiver_id),
+      ),
+    ),
+  ];
 
   const [profiles, presenceMap, suggestionRows] = await Promise.all([
     loadProfilesByIds(relatedIds),
     loadPresenceMap(relatedIds),
     supabase
       .from("profiles")
-      .select("id, username, avatar_id, rank, elo, app_role, facebook_handle, tiktok_handle")
+      .select(
+        "id, username, avatar_id, rank, elo, app_role, facebook_handle, tiktok_handle",
+      )
       .neq("id", currentUser.id)
       .order("elo", { ascending: false })
       .limit(18),
   ]);
 
-  if (suggestionRows.error && !isSupabaseSchemaSetupIssue(suggestionRows.error)) {
+  if (
+    suggestionRows.error &&
+    !isSupabaseSchemaSetupIssue(suggestionRows.error)
+  ) {
     throw suggestionRows.error;
   }
 
@@ -452,14 +392,22 @@ export async function loadFriendsDashboard(currentUser?: Pick<UserProfile, "id" 
       const profile = profileMap.get(entry.friend_id);
       return profile
         ? {
-            profile: mapProfileCard(profile, "friend", presenceMap.get(profile.id) ?? null),
+            profile: mapProfileCard(
+              profile,
+              "friend",
+              presenceMap.get(profile.id) ?? null,
+            ),
             since: entry.created_at,
             threadId: entry.thread_id,
           }
         : null;
     })
     .filter((entry): entry is FriendEntrySnapshot => Boolean(entry))
-    .sort((left, right) => Number(right.profile.isOnline) - Number(left.profile.isOnline) || right.profile.elo - left.profile.elo);
+    .sort(
+      (left, right) =>
+        Number(right.profile.isOnline) - Number(left.profile.isOnline) ||
+        right.profile.elo - left.profile.elo,
+    );
 
   const incomingRequests = incoming
     .map((entry) => {
@@ -470,7 +418,11 @@ export async function loadFriendsDashboard(currentUser?: Pick<UserProfile, "id" 
             direction: "incoming" as const,
             message: entry.message ?? undefined,
             createdAt: entry.created_at,
-            profile: mapProfileCard(profile, "incoming_request", presenceMap.get(profile.id) ?? null),
+            profile: mapProfileCard(
+              profile,
+              "incoming_request",
+              presenceMap.get(profile.id) ?? null,
+            ),
           }
         : null;
     })
@@ -485,7 +437,11 @@ export async function loadFriendsDashboard(currentUser?: Pick<UserProfile, "id" 
             direction: "outgoing" as const,
             message: entry.message ?? undefined,
             createdAt: entry.created_at,
-            profile: mapProfileCard(profile, "outgoing_request", presenceMap.get(profile.id) ?? null),
+            profile: mapProfileCard(
+              profile,
+              "outgoing_request",
+              presenceMap.get(profile.id) ?? null,
+            ),
           }
         : null;
     })
@@ -496,7 +452,11 @@ export async function loadFriendsDashboard(currentUser?: Pick<UserProfile, "id" 
     .slice(0, 8)
     .map((entry) => mapProfileCard(entry, "none", null));
 
-  const hasData = friends.length > 0 || incomingRequests.length > 0 || outgoingRequests.length > 0 || suggestions.length > 0;
+  const hasData =
+    friends.length > 0 ||
+    incomingRequests.length > 0 ||
+    outgoingRequests.length > 0 ||
+    suggestions.length > 0;
   return {
     friends,
     incomingRequests,
@@ -507,14 +467,18 @@ export async function loadFriendsDashboard(currentUser?: Pick<UserProfile, "id" 
   };
 }
 
-export async function searchSocialProfiles(currentUser?: Pick<UserProfile, "id" | "isGuest"> | null, query = "") {
+export async function searchSocialProfiles(
+  currentUser?: Pick<UserProfile, "id" | "isGuest"> | null,
+  query = "",
+) {
   const trimmed = query.trim();
-  if (!supabase || !currentUser || currentUser.isGuest || currentUser.id === "guest-player") {
-    const snapshot = buildSeedDashboard(currentUser?.id);
-    const source = trimmed
-      ? PLAYERS.filter((entry) => entry.username.toLowerCase().includes(trimmed.toLowerCase()))
-      : snapshot.suggestions.concat(snapshot.friends.map((entry) => entry.profile));
-    return source.slice(0, 10);
+  if (
+    !currentUser ||
+    currentUser.isGuest ||
+    currentUser.id === "guest-player" ||
+    !supabase
+  ) {
+    return [] as SocialProfileCard[];
   }
 
   const relationships = await loadRelationshipState(currentUser.id);
@@ -524,7 +488,9 @@ export async function searchSocialProfiles(currentUser?: Pick<UserProfile, "id" 
 
   let request = supabase
     .from("profiles")
-    .select("id, username, avatar_id, rank, elo, app_role, facebook_handle, tiktok_handle")
+    .select(
+      "id, username, avatar_id, rank, elo, app_role, facebook_handle, tiktok_handle",
+    )
     .neq("id", currentUser.id)
     .order("elo", { ascending: false })
     .limit(12);
@@ -546,14 +512,122 @@ export async function searchSocialProfiles(currentUser?: Pick<UserProfile, "id" 
   const relationshipFor = buildRelationshipMap(
     currentUser.id,
     relationships.friendships.map((entry) => entry.friend_id),
-    relationships.requests.filter((entry) => entry.receiver_id === currentUser.id).map((entry) => entry.sender_id),
-    relationships.requests.filter((entry) => entry.sender_id === currentUser.id).map((entry) => entry.receiver_id),
+    relationships.requests
+      .filter((entry) => entry.receiver_id === currentUser.id)
+      .map((entry) => entry.sender_id),
+    relationships.requests
+      .filter((entry) => entry.sender_id === currentUser.id)
+      .map((entry) => entry.receiver_id),
   );
 
-  return rows.map((entry) => mapProfileCard(entry, relationshipFor(entry.id), presenceMap.get(entry.id) ?? null));
+  return rows.map((entry) =>
+    mapProfileCard(
+      entry,
+      relationshipFor(entry.id),
+      presenceMap.get(entry.id) ?? null,
+    ),
+  );
 }
 
-export async function sendFriendRequest(currentUserId: string, receiverId: string, message?: string) {
+async function loadUnreadMessageCount(currentUserId: string) {
+  assertConfiguredSession(currentUserId);
+
+  const { data: memberRows, error: memberError } = await supabase!
+    .from("direct_thread_members")
+    .select("thread_id, last_read_at")
+    .eq("user_id", currentUserId);
+
+  if (memberError) {
+    if (isSupabaseSchemaSetupIssue(memberError)) {
+      return null;
+    }
+    throw memberError;
+  }
+
+  const members = (memberRows ?? []) as DirectThreadMemberRow[];
+  if (members.length === 0) {
+    return 0;
+  }
+
+  const lastReadByThread = new Map(
+    members.map((entry) => [entry.thread_id, entry.last_read_at]),
+  );
+
+  const { data: messageRows, error: messageError } = await supabase!
+    .from("direct_messages")
+    .select("id, thread_id, sender_id, body, created_at")
+    .in(
+      "thread_id",
+      members.map((entry) => entry.thread_id),
+    )
+    .order("created_at", { ascending: false })
+    .limit(300);
+
+  if (messageError) {
+    if (isSupabaseSchemaSetupIssue(messageError)) {
+      return null;
+    }
+    throw messageError;
+  }
+
+  return ((messageRows ?? []) as DirectMessageRow[]).filter((entry) => {
+    if (entry.sender_id === currentUserId) {
+      return false;
+    }
+
+    const lastReadAt = lastReadByThread.get(entry.thread_id) ?? null;
+    if (!lastReadAt) {
+      return true;
+    }
+
+    return entry.created_at > lastReadAt;
+  }).length;
+}
+
+export async function loadSocialAlertSummary(
+  currentUser?: Pick<UserProfile, "id" | "isGuest"> | null,
+): Promise<SocialAlertSummary> {
+  if (
+    !currentUser ||
+    currentUser.isGuest ||
+    currentUser.id === "guest-player" ||
+    !supabase
+  ) {
+    return {
+      incomingRequests: 0,
+      unreadMessages: 0,
+      connectedFriends: 0,
+      onlineFriends: 0,
+      source: "supabase",
+      resolution: !supabase ? "unavailable" : "empty",
+    };
+  }
+
+  const dashboard = await loadFriendsDashboard(currentUser);
+  const unreadMessages = await loadUnreadMessageCount(currentUser.id);
+
+  return {
+    incomingRequests: dashboard.incomingRequests.length,
+    unreadMessages: unreadMessages ?? 0,
+    connectedFriends: dashboard.friends.length,
+    onlineFriends: dashboard.friends.filter((entry) => entry.profile.isOnline)
+      .length,
+    source: "supabase",
+    resolution:
+      dashboard.resolution === "unavailable" || unreadMessages === null
+        ? "unavailable"
+        : dashboard.friends.length > 0 ||
+            dashboard.incomingRequests.length > 0 ||
+            (unreadMessages ?? 0) > 0
+          ? "live"
+          : "empty",
+  };
+}
+export async function sendFriendRequest(
+  currentUserId: string,
+  receiverId: string,
+  message?: string,
+) {
   assertConfiguredSession(currentUserId);
   const { error } = await supabase!.from("friend_requests").insert({
     sender_id: currentUserId,
@@ -562,7 +636,11 @@ export async function sendFriendRequest(currentUserId: string, receiverId: strin
   });
 
   if (error) {
-    throw new Error(isSupabaseSchemaSetupIssue(error) ? "Friends are not available until the social migrations are pushed." : error.message);
+    throw new Error(
+      isSupabaseSchemaSetupIssue(error)
+        ? "Friends are not available until the social migrations are pushed."
+        : error.message,
+    );
   }
 }
 
@@ -578,7 +656,11 @@ export async function acceptFriendRequest(requestId: string) {
     .eq("status", "pending");
 
   if (error) {
-    throw new Error(isSupabaseSchemaSetupIssue(error) ? "Friends are not available until the social migrations are pushed." : error.message);
+    throw new Error(
+      isSupabaseSchemaSetupIssue(error)
+        ? "Friends are not available until the social migrations are pushed."
+        : error.message,
+    );
   }
 }
 
@@ -594,7 +676,11 @@ export async function declineFriendRequest(requestId: string) {
     .eq("status", "pending");
 
   if (error) {
-    throw new Error(isSupabaseSchemaSetupIssue(error) ? "Friends are not available until the social migrations are pushed." : error.message);
+    throw new Error(
+      isSupabaseSchemaSetupIssue(error)
+        ? "Friends are not available until the social migrations are pushed."
+        : error.message,
+    );
   }
 }
 
@@ -610,7 +696,11 @@ export async function cancelFriendRequest(requestId: string) {
     .eq("status", "pending");
 
   if (error) {
-    throw new Error(isSupabaseSchemaSetupIssue(error) ? "Friends are not available until the social migrations are pushed." : error.message);
+    throw new Error(
+      isSupabaseSchemaSetupIssue(error)
+        ? "Friends are not available until the social migrations are pushed."
+        : error.message,
+    );
   }
 }
 
@@ -619,9 +709,15 @@ export async function removeFriend(friendId: string) {
     return;
   }
 
-  const { error } = await supabase.rpc("remove_friend", { p_friend_id: friendId });
+  const { error } = await supabase.rpc("remove_friend", {
+    p_friend_id: friendId,
+  });
   if (error) {
-    throw new Error(isSupabaseSchemaSetupIssue(error) ? "Friends are not available until the social migrations are pushed." : error.message);
+    throw new Error(
+      isSupabaseSchemaSetupIssue(error)
+        ? "Friends are not available until the social migrations are pushed."
+        : error.message,
+    );
   }
 }
 
@@ -633,19 +729,31 @@ async function ensureThread(currentUserId: string, partnerId: string) {
   });
 
   if (error) {
-    throw new Error(isSupabaseSchemaSetupIssue(error) ? "Messaging is not available until the social migrations are pushed." : error.message);
+    throw new Error(
+      isSupabaseSchemaSetupIssue(error)
+        ? "Messaging is not available until the social migrations are pushed."
+        : error.message,
+    );
   }
 
   return String(data);
 }
 
-export async function loadDirectConversation(currentUser?: Pick<UserProfile, "id" | "isGuest" | "friends"> | null, partnerId?: string | null): Promise<DirectConversationSnapshot | null> {
+export async function loadDirectConversation(
+  currentUser?: Pick<UserProfile, "id" | "isGuest" | "friends"> | null,
+  partnerId?: string | null,
+): Promise<DirectConversationSnapshot | null> {
   if (!partnerId) {
     return null;
   }
 
-  if (!supabase || !currentUser || currentUser.isGuest || currentUser.id === "guest-player") {
-    return buildSeedConversation(partnerId);
+  if (
+    !supabase ||
+    !currentUser ||
+    currentUser.isGuest ||
+    currentUser.id === "guest-player"
+  ) {
+    return null;
   }
 
   const [profiles, presenceMap, relationships] = await Promise.all([
@@ -659,15 +767,25 @@ export async function loadDirectConversation(currentUser?: Pick<UserProfile, "id
     return null;
   }
 
-  const friendship = relationships.friendships.find((entry) => entry.friend_id === partnerId) ?? null;
+  const friendship =
+    relationships.friendships.find((entry) => entry.friend_id === partnerId) ??
+    null;
   const relationshipFor = buildRelationshipMap(
     currentUser.id,
     relationships.friendships.map((entry) => entry.friend_id),
-    relationships.requests.filter((entry) => entry.receiver_id === currentUser.id).map((entry) => entry.sender_id),
-    relationships.requests.filter((entry) => entry.sender_id === currentUser.id).map((entry) => entry.receiver_id),
+    relationships.requests
+      .filter((entry) => entry.receiver_id === currentUser.id)
+      .map((entry) => entry.sender_id),
+    relationships.requests
+      .filter((entry) => entry.sender_id === currentUser.id)
+      .map((entry) => entry.receiver_id),
   );
 
-  const partnerCard = mapProfileCard(partner, relationshipFor(partner.id), presenceMap.get(partner.id) ?? null);
+  const partnerCard = mapProfileCard(
+    partner,
+    relationshipFor(partner.id),
+    presenceMap.get(partner.id) ?? null,
+  );
   if (!friendship) {
     return {
       partner: partnerCard,
@@ -678,7 +796,8 @@ export async function loadDirectConversation(currentUser?: Pick<UserProfile, "id
     };
   }
 
-  const threadId = friendship.thread_id ?? await ensureThread(currentUser.id, partnerId);
+  const threadId =
+    friendship.thread_id ?? (await ensureThread(currentUser.id, partnerId));
   const { data, error } = await supabase!
     .from("direct_messages")
     .select("id, thread_id, sender_id, body, created_at")
@@ -687,7 +806,11 @@ export async function loadDirectConversation(currentUser?: Pick<UserProfile, "id
     .limit(100);
 
   if (error) {
-    throw new Error(isSupabaseSchemaSetupIssue(error) ? "Messaging is not available until the social migrations are pushed." : error.message);
+    throw new Error(
+      isSupabaseSchemaSetupIssue(error)
+        ? "Messaging is not available until the social migrations are pushed."
+        : error.message,
+    );
   }
 
   const messages = ((data ?? []) as DirectMessageRow[]).map((entry) => ({
@@ -717,7 +840,11 @@ export async function loadDirectConversation(currentUser?: Pick<UserProfile, "id
   };
 }
 
-export async function sendDirectMessage(currentUserId: string, partnerId: string, body: string) {
+export async function sendDirectMessage(
+  currentUserId: string,
+  partnerId: string,
+  body: string,
+) {
   const trimmed = body.trim();
   if (!trimmed) {
     throw new Error("Enter a message before sending.");
@@ -731,8 +858,14 @@ export async function sendDirectMessage(currentUserId: string, partnerId: string
   });
 
   if (error) {
-    throw new Error(isSupabaseSchemaSetupIssue(error) ? "Messaging is not available until the social migrations are pushed." : error.message);
+    throw new Error(
+      isSupabaseSchemaSetupIssue(error)
+        ? "Messaging is not available until the social migrations are pushed."
+        : error.message,
+    );
   }
 
   return threadId;
 }
+
+

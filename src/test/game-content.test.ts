@@ -7,80 +7,79 @@ import {
 } from "@/lib/game-content";
 
 describe("game content service", () => {
-  it("loads discovery content through a shared snapshot interface", async () => {
+  it("exposes explicit unavailable states when discovery is offline", async () => {
     const snapshot = await loadDiscoveryContent();
 
-    expect(snapshot.dailyChallenges.length).toBeGreaterThan(0);
-    expect(snapshot.tournaments.length).toBeGreaterThan(0);
-    expect(snapshot.puzzleTypes.length).toBeGreaterThan(0);
-    expect(snapshot.sources.dailyChallenges).toBe("seed");
-    expect(snapshot.sources.tournaments).toBe("seed");
-    expect(snapshot.sources.puzzleTypes).toBe("seed");
+    expect(snapshot.dailyChallenges).toEqual([]);
+    expect(snapshot.tournaments).toEqual([]);
+    expect(snapshot.puzzleTypes).toEqual([]);
+    expect(snapshot.sources.dailyChallenges).toBe("supabase");
+    expect(snapshot.sources.tournaments).toBe("supabase");
+    expect(snapshot.sources.puzzleTypes).toBe("supabase");
     expect(snapshot.resolutions).toEqual({
-      dailyChallenges: "fallback",
-      tournaments: "fallback",
-      puzzleTypes: "fallback",
+      dailyChallenges: "unavailable",
+      tournaments: "unavailable",
+      puzzleTypes: "unavailable",
     });
   });
 
-  it("loads season content with explicit source metadata", async () => {
+  it("exposes explicit unavailable states for season data when live services are offline", async () => {
     const snapshot = await loadSeasonContent(null);
 
-    expect(snapshot.season.maxTier).toBeGreaterThan(0);
-    expect(snapshot.quests.daily.length).toBeGreaterThan(0);
-    expect(snapshot.quests.weekly.length).toBeGreaterThan(0);
-    expect(snapshot.quests.seasonal.length).toBeGreaterThan(0);
-    expect(snapshot.sources.season).toBe("seed");
-    expect(snapshot.sources.entitlements).toBe("seed");
-    expect(snapshot.sources.quests).toBe("seed");
+    expect(snapshot.season).toBeNull();
+    expect(snapshot.quests).toEqual({
+      daily: [],
+      weekly: [],
+      seasonal: [],
+    });
+    expect(snapshot.sources.season).toBe("supabase");
+    expect(snapshot.sources.entitlements).toBe("supabase");
+    expect(snapshot.sources.quests).toBe("supabase");
     expect(snapshot.resolutions).toEqual({
-      season: "fallback",
-      entitlements: "fallback",
-      quests: "fallback",
+      season: "unavailable",
+      entitlements: "unavailable",
+      quests: "unavailable",
     });
   });
 
-  it("loads profile content with seed fallbacks for non-live sessions", async () => {
+  it("loads profile content with honest unavailable states for non-live sessions", async () => {
     const snapshot = await loadProfileContent();
 
-    expect(snapshot.leaderboard.length).toBeGreaterThan(0);
-    expect(snapshot.socialDirectory.length).toBeGreaterThan(0);
-    expect(snapshot.puzzleTypes.length).toBeGreaterThan(0);
-    expect(snapshot.activityFeed.length).toBeGreaterThan(0);
-    expect(snapshot.activityFeed.some((entry) => entry.type === "match")).toBe(true);
-    expect(snapshot.activityFeed.some((entry) => entry.type === "purchase")).toBe(true);
-    expect(snapshot.activityFeed.some((entry) => entry.type === "social")).toBe(true);
-    expect(snapshot.sources.leaderboard).toBe("seed");
-    expect(snapshot.sources.socialDirectory).toBe("seed");
-    expect(snapshot.sources.puzzleTypes).toBe("seed");
-    expect(snapshot.sources.activityFeed).toBe("seed");
+    expect(snapshot.leaderboard).toEqual([]);
+    expect(snapshot.socialDirectory).toEqual([]);
+    expect(snapshot.puzzleTypes).toEqual([]);
+    expect(snapshot.activityFeed).toEqual([]);
+    expect(snapshot.sources.leaderboard).toBe("supabase");
+    expect(snapshot.sources.socialDirectory).toBe("supabase");
+    expect(snapshot.sources.puzzleTypes).toBe("supabase");
+    expect(snapshot.sources.activityFeed).toBe("supabase");
     expect(snapshot.resolutions).toEqual({
-      leaderboard: "fallback",
-      socialDirectory: "fallback",
-      puzzleTypes: "fallback",
-      activityFeed: "fallback",
+      leaderboard: "unavailable",
+      socialDirectory: "unavailable",
+      puzzleTypes: "unavailable",
+      activityFeed: "unavailable",
     });
   });
 
-  it("builds a seed notification summary when live activity is unavailable", async () => {
+  it("builds an unavailable notification summary when live activity is offline", async () => {
     const summary = await loadNotificationSummary();
 
-    expect(summary.source).toBe("seed");
-    expect(summary.resolution).toBe("fallback");
-    expect(summary.recent.length).toBeGreaterThan(0);
-    expect(summary.unreadCount).toBeGreaterThan(0);
+    expect(summary.source).toBe("supabase");
+    expect(summary.resolution).toBe("unavailable");
+    expect(summary.recent).toEqual([]);
+    expect(summary.unreadCount).toBe(0);
   });
 
-  it("loads store content with explicit storefront and VIP sources", async () => {
+  it("loads store content with explicit unavailable metadata when commerce is offline", async () => {
     const snapshot = await loadStoreContent(null);
 
-    expect(snapshot.storefront.items.length).toBeGreaterThan(0);
-    expect(snapshot.vipMembership.priceUsd).toBeGreaterThan(0);
-    expect(snapshot.sources.storefront).toBe("seed");
-    expect(snapshot.sources.vipMembership).toBe("seed");
+    expect(snapshot.storefront.items).toEqual([]);
+    expect(snapshot.vipMembership).toBeNull();
+    expect(snapshot.sources.storefront).toBe("supabase");
+    expect(snapshot.sources.vipMembership).toBe("supabase");
     expect(snapshot.resolutions).toEqual({
-      storefront: "fallback",
-      vipMembership: "fallback",
+      storefront: "unavailable",
+      vipMembership: "unavailable",
     });
   });
 });

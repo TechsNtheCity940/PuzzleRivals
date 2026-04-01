@@ -1,5 +1,4 @@
 import { isPrivilegedUser } from "@/lib/dev-account";
-import { STORE_ITEMS, VIP_MEMBERSHIP } from "@/lib/seed-data";
 import {
   isSupabaseSchemaSetupIssue,
   supabase,
@@ -46,7 +45,7 @@ type WalletRow = {
   title_id: string | null;
 };
 
-export type StorefrontSource = "supabase" | "seed";
+export type StorefrontSource = "supabase";
 
 export interface StorefrontWallet {
   coins: number;
@@ -114,7 +113,9 @@ function asStringArray(value: unknown): string[] {
     return [];
   }
 
-  return value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+  return value.filter(
+    (entry): entry is string => typeof entry === "string" && entry.length > 0,
+  );
 }
 
 function asCategory(value: unknown): ItemCategory {
@@ -151,7 +152,9 @@ function toWallet(profile?: UserProfile | null): StorefrontWallet | null {
     hintBalance: profile.hintBalance ?? 0,
     hasSeasonPass: privileged ? true : (profile.hasSeasonPass ?? false),
     isVip: privileged ? true : profile.isVip,
-    vipExpiresAt: privileged ? (profile.vipExpiresAt ?? "2099-12-31T00:00:00Z") : (profile.vipExpiresAt ?? null),
+    vipExpiresAt: privileged
+      ? (profile.vipExpiresAt ?? "2099-12-31T00:00:00Z")
+      : (profile.vipExpiresAt ?? null),
     themeId: profile.themeId ?? null,
     frameId: profile.frameId ?? null,
     playerCardId: profile.playerCardId ?? null,
@@ -161,7 +164,10 @@ function toWallet(profile?: UserProfile | null): StorefrontWallet | null {
   };
 }
 
-function mapWallet(wallet: WalletRow | null, profile?: UserProfile | null): StorefrontWallet | null {
+function mapWallet(
+  wallet: WalletRow | null,
+  profile?: UserProfile | null,
+): StorefrontWallet | null {
   const privileged = isPrivilegedUser(profile);
 
   if (wallet) {
@@ -176,7 +182,9 @@ function mapWallet(wallet: WalletRow | null, profile?: UserProfile | null): Stor
       hintBalance: wallet.hint_balance,
       hasSeasonPass: privileged ? true : wallet.has_season_pass,
       isVip: privileged ? true : wallet.is_vip,
-      vipExpiresAt: privileged ? (wallet.vip_expires_at ?? "2099-12-31T00:00:00Z") : wallet.vip_expires_at,
+      vipExpiresAt: privileged
+        ? (wallet.vip_expires_at ?? "2099-12-31T00:00:00Z")
+        : wallet.vip_expires_at,
       themeId: wallet.theme_id,
       frameId: wallet.frame_id,
       playerCardId: wallet.player_card_id,
@@ -204,63 +212,18 @@ function isPrivilegedAutoOwnedKind(kind: string) {
   );
 }
 
-function buildFallbackVipMembership(profile?: UserProfile | null): VipMembership {
-  const privileged = isPrivilegedUser(profile);
-  return {
-    isActive: privileged ? true : Boolean(profile?.isVip),
-    expiresAt: privileged ? (profile?.vipExpiresAt ?? "2099-12-31T00:00:00Z") : profile?.vipExpiresAt ?? undefined,
-    perks: [...VIP_MEMBERSHIP.perks],
-    priceUsd: VIP_MEMBERSHIP.priceUsd,
-  };
-}
-
-function getFallbackSnapshot(profile?: UserProfile | null): StorefrontSnapshot {
-  const privileged = isPrivilegedUser(profile);
-  const wallet = toWallet(profile);
-  const items: StorefrontItem[] = STORE_ITEMS.map((item) => ({
-    ...item,
-    kind: item.category,
-    isOwned:
-      (privileged && isPrivilegedAutoOwnedKind(item.category)) ||
-      item.id === profile?.themeId ||
-      item.id === profile?.frameId ||
-      item.id === profile?.playerCardId ||
-      item.id === profile?.bannerId ||
-      item.id === profile?.emblemId ||
-      item.id === profile?.titleId ||
-      (item.category === "battle_pass" && Boolean(profile?.hasSeasonPass)) ||
-      Boolean(item.isOwned),
-    isEquipped:
-      item.id === profile?.themeId ||
-      item.id === profile?.frameId ||
-      item.id === profile?.playerCardId ||
-      item.id === profile?.bannerId ||
-      item.id === profile?.emblemId ||
-      item.id === profile?.titleId,
-    isComplimentary: privileged,
-  }));
-
-  return {
-    items,
-    vipProduct: {
-      id: "vip_monthly",
-      kind: "vip",
-      name: "VIP Membership",
-      description: VIP_MEMBERSHIP.perks[0] ?? "Monthly VIP access",
-      category: "bundle",
-      rarity: 4,
-      priceUsd: VIP_MEMBERSHIP.priceUsd,
-      isOwned: privileged || Boolean(profile?.isVip),
-      isFeatured: true,
-      isComplimentary: privileged,
-    },
-    vipMembership: buildFallbackVipMembership(profile),
-    wallet,
-    source: "seed",
-  };
-}
-
-function getEmptyLiveSnapshot(profile?: UserProfile | null): StorefrontSnapshot {
+const DEFAULT_VIP_PRICE_USD = 7.99;
+const DEFAULT_VIP_PERKS = [
+  "2x Coin earnings from matches",
+  "Exclusive VIP badge and frame",
+  "Priority matchmaking",
+  "Ad-free experience",
+  "Monthly 500 Gem bonus",
+  "Exclusive VIP tournaments",
+];
+function getEmptyLiveSnapshot(
+  profile?: UserProfile | null,
+): StorefrontSnapshot {
   return {
     items: [],
     vipProduct: null,
@@ -298,7 +261,10 @@ function mapProduct(
     name: asString(metadata.name, product.id),
     description: asString(metadata.description),
     category,
-    rarity: Math.max(1, Math.min(6, asNumber(metadata.rarity, 1))) as ItemRarity,
+    rarity: Math.max(
+      1,
+      Math.min(6, asNumber(metadata.rarity, 1)),
+    ) as ItemRarity,
     priceUsd: product.price_usd ?? undefined,
     priceCoins: product.price_coins ?? undefined,
     priceGems: product.price_gems ?? undefined,
@@ -327,9 +293,18 @@ function mapVipMembership(
 
   return {
     isActive: privileged ? true : Boolean(wallet?.isVip ?? profile?.isVip),
-    expiresAt: privileged ? (wallet?.vipExpiresAt ?? profile?.vipExpiresAt ?? "2099-12-31T00:00:00Z") : wallet?.vipExpiresAt ?? profile?.vipExpiresAt ?? undefined,
-    perks: perks.length > 0 ? perks : fallbackDescription ? [fallbackDescription] : [...VIP_MEMBERSHIP.perks],
-    priceUsd: product.price_usd ?? VIP_MEMBERSHIP.priceUsd,
+    expiresAt: privileged
+      ? (wallet?.vipExpiresAt ??
+        profile?.vipExpiresAt ??
+        "2099-12-31T00:00:00Z")
+      : (wallet?.vipExpiresAt ?? profile?.vipExpiresAt ?? undefined),
+    perks:
+      perks.length > 0
+        ? perks
+        : fallbackDescription
+          ? [fallbackDescription]
+          : [...DEFAULT_VIP_PERKS],
+    priceUsd: product.price_usd ?? DEFAULT_VIP_PRICE_USD,
   };
 }
 
@@ -338,7 +313,9 @@ async function invoke<T>(functionName: string, body: Record<string, unknown>) {
     throw new Error(supabaseConfigErrorMessage);
   }
 
-  const { data, error } = await supabase.functions.invoke(functionName, { body });
+  const { data, error } = await supabase.functions.invoke(functionName, {
+    body,
+  });
   if (error) {
     throw new Error(error.message);
   }
@@ -346,14 +323,20 @@ async function invoke<T>(functionName: string, body: Record<string, unknown>) {
   return data as T;
 }
 
-export async function fetchStorefront(profile?: UserProfile | null): Promise<StorefrontSnapshot> {
+export async function fetchStorefront(
+  profile?: UserProfile | null,
+): Promise<StorefrontSnapshot> {
   if (!supabase) {
-    return getFallbackSnapshot(profile);
+    return getEmptyLiveSnapshot(profile);
   }
 
   const shouldLoadProfileState = Boolean(profile && !profile.isGuest);
 
-  const [{ data: products, error: productsError }, inventoryResult, walletResult] = await Promise.all([
+  const [
+    { data: products, error: productsError },
+    inventoryResult,
+    walletResult,
+  ] = await Promise.all([
     supabase
       .from("products")
       .select("id, kind, price_usd, price_coins, price_gems, metadata")
@@ -368,7 +351,9 @@ export async function fetchStorefront(profile?: UserProfile | null): Promise<Sto
     shouldLoadProfileState
       ? supabase
           .from("profiles")
-          .select("coins, gems, puzzle_shards, rank_points, pass_xp, hint_balance, has_season_pass, is_vip, vip_access, vip_expires_at, theme_id, frame_id, player_card_id, banner_id, emblem_id, title_id")
+          .select(
+            "coins, gems, puzzle_shards, rank_points, pass_xp, hint_balance, has_season_pass, is_vip, vip_access, vip_expires_at, theme_id, frame_id, player_card_id, banner_id, emblem_id, title_id",
+          )
           .eq("id", profile.id)
           .single<WalletRow>()
       : Promise.resolve({ data: null, error: null }),
@@ -386,12 +371,16 @@ export async function fetchStorefront(profile?: UserProfile | null): Promise<Sto
     return getEmptyLiveSnapshot(profile);
   }
 
-  const inventorySchemaIssue = Boolean(inventoryResult.error && isSupabaseSchemaSetupIssue(inventoryResult.error));
+  const inventorySchemaIssue = Boolean(
+    inventoryResult.error && isSupabaseSchemaSetupIssue(inventoryResult.error),
+  );
   if (inventoryResult.error && !inventorySchemaIssue) {
     throw inventoryResult.error;
   }
 
-  const walletSchemaIssue = Boolean(walletResult.error && isSupabaseSchemaSetupIssue(walletResult.error));
+  const walletSchemaIssue = Boolean(
+    walletResult.error && isSupabaseSchemaSetupIssue(walletResult.error),
+  );
   if (walletResult.error && !walletSchemaIssue) {
     throw walletResult.error;
   }
@@ -401,7 +390,11 @@ export async function fetchStorefront(profile?: UserProfile | null): Promise<Sto
     ? toWallet(profile)
     : mapWallet((walletResult.data ?? null) as WalletRow | null, profile);
   const ownedIds = new Set(
-    inventorySchemaIssue ? [] : ((inventoryResult.data ?? []) as InventoryRow[]).map((entry) => entry.product_id),
+    inventorySchemaIssue
+      ? []
+      : ((inventoryResult.data ?? []) as InventoryRow[]).map(
+          (entry) => entry.product_id,
+        ),
   );
   const vipRow = productRows.find((product) => product.kind === "vip") ?? null;
   const items = productRows
@@ -410,7 +403,9 @@ export async function fetchStorefront(profile?: UserProfile | null): Promise<Sto
 
   return {
     items,
-    vipProduct: vipRow ? mapProduct(vipRow, ownedIds, wallet, privileged) : null,
+    vipProduct: vipRow
+      ? mapProduct(vipRow, ownedIds, wallet, privileged)
+      : null,
     vipMembership: mapVipMembership(vipRow, wallet, profile),
     wallet,
     source: "supabase",
@@ -425,8 +420,14 @@ export async function equipStoreItem(productId: string) {
   return invoke<{ ok: boolean }>("equip-store-item", { productId });
 }
 
-export async function createPayPalCheckout(productId: string, returnPath: string) {
-  return invoke<{ approvalUrl: string }>("create-paypal-order", { productId, returnPath });
+export async function createPayPalCheckout(
+  productId: string,
+  returnPath: string,
+) {
+  return invoke<{ approvalUrl: string }>("create-paypal-order", {
+    productId,
+    returnPath,
+  });
 }
 
 export async function capturePayPalCheckout(purchaseId: string) {

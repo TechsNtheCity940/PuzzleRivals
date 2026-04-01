@@ -1,5 +1,6 @@
 import { supabase, supabaseConfigErrorMessage } from "@/lib/supabase-client";
 import type { SupportTicketPriority, SupportTicketStatus, UserAppRole } from "@/lib/types";
+import type { SupportClientContext } from "@/lib/support";
 
 export interface AdminDashboardMetrics {
   totalUsers: number;
@@ -63,6 +64,19 @@ export interface AdminSupportTicket {
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
+  clientContext: SupportClientContext | null;
+}
+
+export interface AdminAuditEntry {
+  id: string;
+  action: string;
+  actorUserId: string;
+  actorUsername: string | null;
+  targetUserId: string | null;
+  targetUsername: string | null;
+  targetTicketId: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
 }
 
 export interface AdminDashboardSnapshot {
@@ -71,6 +85,7 @@ export interface AdminDashboardSnapshot {
   products: AdminProductSummary[];
   recentUsers: AdminUserRecord[];
   recentTickets: AdminSupportTicket[];
+  recentAudits: AdminAuditEntry[];
 }
 
 export interface AdminUserUpdateInput {
@@ -144,4 +159,3 @@ export function loadAdminTickets(status: SupportTicketStatus | "all" = "open", l
 export function updateAdminTicket(input: AdminTicketUpdateInput) {
   return invoke<{ ticket: AdminSupportTicket }>({ action: "update_ticket", ...input });
 }
-

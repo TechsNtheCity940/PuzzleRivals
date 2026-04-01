@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { LifeBuoy, Send } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { LifeBuoy, MonitorSmartphone, Send } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,13 @@ import {
 } from "@/components/ui/select";
 import PageHeader from "@/components/layout/PageHeader";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
-import { loadOwnSupportTickets, submitSupportTicket, type SupportTicketRecord } from "@/lib/support";
+import {
+  buildSupportClientContext,
+  loadOwnSupportTickets,
+  submitSupportTicket,
+  type SupportClientContext,
+  type SupportTicketRecord,
+} from "@/lib/support";
 import type { SupportTicketCategory } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -24,6 +30,15 @@ function formatDateTime(value: string | null) {
   const parsed = Date.parse(value);
   if (Number.isNaN(parsed)) return value;
   return new Date(parsed).toLocaleString();
+}
+
+function formatClientSummary(context: SupportClientContext | null) {
+  if (!context) {
+    return "Diagnostics unavailable";
+  }
+
+  const viewport = `${context.viewport.width}x${context.viewport.height} @${context.viewport.pixelRatio}x`;
+  return `${context.route} | ${viewport} | ${context.online ? "online" : "offline"}`;
 }
 
 export default function SupportPage() {
@@ -37,6 +52,7 @@ export default function SupportPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const diagnostics = useMemo(() => buildSupportClientContext(), []);
 
   useEffect(() => {
     if (!isReady || !user || user.isGuest) {
@@ -84,7 +100,7 @@ export default function SupportPage() {
     if (!user) return;
     setIsSubmitting(true);
     try {
-      const ticket = await submitSupportTicket({ reporterUserId: user.id, category, subject, body });
+      const ticket = await submitSupportTicket({ reporterUserId: user.id, category, subject, body, clientContext: diagnostics });
       setTickets((current) => [ticket, ...current]);
       setSubject("");
       setBody("");
@@ -103,7 +119,7 @@ export default function SupportPage() {
         <PageHeader
           eyebrow="Player Support"
           title="Report an Issue"
-          subtitle="Send bugs, complaints, or support requests directly into the owner review console."
+          subtitle="Send bugs, complaints, or support requests directly into the owner review console with attached device diagnostics."
           right={<LifeBuoy size={18} className="text-primary" />}
         />
         {loadError ? <section className="command-panel-soft p-4 text-sm text-muted-foreground">{loadError}</section> : null}
@@ -114,6 +130,13 @@ export default function SupportPage() {
               <div><label className="hud-label">Category</label><Select value={category} onValueChange={(value) => setCategory(value as SupportTicketCategory)}><SelectTrigger className="mt-2"><SelectValue /></SelectTrigger><SelectContent>{CATEGORY_OPTIONS.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent></Select></div>
               <div><label className="hud-label">Subject</label><Input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Short summary of the issue" className="mt-2" /></div>
               <div><label className="hud-label">Details</label><Textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder="What were you doing, what happened, and what did you expect instead?" className="mt-2 min-h-[180px]" /></div>
+              <div className="command-panel-soft flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2"><MonitorSmartphone size={16} className="text-primary" /><p className="text-sm font-black text-white">Attached diagnostics</p></div>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{formatClientSummary(diagnostics)}</p>
+                </div>
+                <span className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">Auto-attached</span>
+              </div>
               <Button onClick={() => void handleSubmit()} variant="play" size="xl" className="w-full sm:w-auto" disabled={isSubmitting}><Send size={16} />{isSubmitting ? "Submitting..." : "Submit Ticket"}</Button>
             </div>
           </section>
@@ -124,6 +147,7 @@ export default function SupportPage() {
                 <div key={ticket.id} className="command-panel-soft p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-base font-black">{ticket.subject}</p><p className="text-xs text-muted-foreground">{ticket.category} | created {formatDateTime(ticket.createdAt)}</p></div><span className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">{ticket.status}</span></div>
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{ticket.body}</p>
+                  {ticket.clientContext ? <div className="mt-3 rounded-[18px] border border-white/10 bg-white/5 p-3 text-sm text-white/80"><p className="hud-label">Diagnostics</p><p className="mt-2 leading-6">{formatClientSummary(ticket.clientContext)}</p></div> : null}
                   {ticket.adminNotes ? <div className="mt-3 rounded-[18px] border border-white/10 bg-white/5 p-3 text-sm text-white/80"><p className="hud-label">Owner Notes</p><p className="mt-2 whitespace-pre-wrap leading-6">{ticket.adminNotes}</p></div> : null}
                 </div>
               )) : <div className="command-panel-soft p-4 text-sm text-muted-foreground">No tickets yet. When you submit one, it will appear here with status updates.</div>}
