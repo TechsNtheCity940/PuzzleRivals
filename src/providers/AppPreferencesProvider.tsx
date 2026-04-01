@@ -62,6 +62,37 @@ const DEFAULT_PREFERENCES: PreferencesShape = {
 const AppPreferencesContext =
   createContext<AppPreferencesContextValue | null>(null);
 
+function isValidArenaMode(value: unknown): value is NeonRivalsRunMode {
+  return typeof value === "string" && value.length > 0;
+}
+
+function isValidBoardFamily(value: unknown): value is NeonRivalsBoardFamily {
+  return typeof value === "string" && value.length > 0;
+}
+
+function sanitizeArenaHistoryEntry(value: unknown): ArenaRotationHistoryEntry | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const entry = value as Partial<ArenaRotationHistoryEntry>;
+  if (
+    !isValidArenaMode(entry.mode) ||
+    !isValidBoardFamily(entry.boardFamily) ||
+    typeof entry.seed !== "number" ||
+    typeof entry.playedAt !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    mode: entry.mode,
+    boardFamily: entry.boardFamily,
+    seed: entry.seed,
+    playedAt: entry.playedAt,
+  };
+}
+
 function readStoredPreferences() {
   if (typeof window === "undefined") {
     return DEFAULT_PREFERENCES;
@@ -78,10 +109,17 @@ function readStoredPreferences() {
       ...DEFAULT_PREFERENCES,
       ...parsed,
       dismissedArenaHints:
-        parsed.dismissedArenaHints ?? DEFAULT_PREFERENCES.dismissedArenaHints,
-      lastArenaMode: parsed.lastArenaMode ?? DEFAULT_PREFERENCES.lastArenaMode,
-      recentArenaHistory:
-        parsed.recentArenaHistory ?? DEFAULT_PREFERENCES.recentArenaHistory,
+        parsed.dismissedArenaHints && typeof parsed.dismissedArenaHints === "object"
+          ? parsed.dismissedArenaHints
+          : DEFAULT_PREFERENCES.dismissedArenaHints,
+      lastArenaMode: isValidArenaMode(parsed.lastArenaMode)
+        ? parsed.lastArenaMode
+        : DEFAULT_PREFERENCES.lastArenaMode,
+      recentArenaHistory: Array.isArray(parsed.recentArenaHistory)
+        ? parsed.recentArenaHistory
+            .map(sanitizeArenaHistoryEntry)
+            .filter((entry): entry is ArenaRotationHistoryEntry => Boolean(entry))
+        : DEFAULT_PREFERENCES.recentArenaHistory,
     } satisfies PreferencesShape;
   } catch {
     return DEFAULT_PREFERENCES;

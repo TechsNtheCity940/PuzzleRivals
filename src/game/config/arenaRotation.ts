@@ -5,9 +5,15 @@ import type {
 } from "@/game/types";
 import { NEON_RIVALS_RUN_MODE_OPTIONS } from "@/game/config/runModes";
 
-const MODE_LOOKUP = new Map(
-  NEON_RIVALS_RUN_MODE_OPTIONS.map((option) => [option.id, option]),
-);
+function getRunModeOptions() {
+  return Array.isArray(NEON_RIVALS_RUN_MODE_OPTIONS)
+    ? NEON_RIVALS_RUN_MODE_OPTIONS
+    : [];
+}
+
+function getModeLookup() {
+  return new Map(getRunModeOptions().map((option) => [option.id, option]));
+}
 
 export const MAX_ARENA_HISTORY = 12;
 
@@ -25,7 +31,7 @@ function seededUnitFloat(seed: number) {
 }
 
 function getBoardFamily(mode: NeonRivalsRunMode): NeonRivalsBoardFamily {
-  return MODE_LOOKUP.get(mode)?.boardFamily ?? "match3";
+  return getModeLookup().get(mode)?.boardFamily ?? "match3";
 }
 
 export function createArenaHistoryEntry(
@@ -95,7 +101,8 @@ export function pickNextArenaMode(input: {
   seedHint: number;
 }) {
   let seed = normalizedSeed(input.seedHint);
-  const candidates = NEON_RIVALS_RUN_MODE_OPTIONS.map((option) => ({
+  const options = getRunModeOptions();
+  const candidates = options.map((option) => ({
     mode: option.id,
     weight: getModeWeight(option.id, input.currentMode, input.history),
   }));

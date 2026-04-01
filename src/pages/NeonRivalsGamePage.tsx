@@ -34,12 +34,20 @@ import { useAuth } from "@/providers/AuthProvider";
 import { useAppPreferences } from "@/providers/AppPreferencesProvider";
 
 const DEFAULT_MODE: NeonRivalsRunMode = "score_attack";
-const RUN_MODE_IDS = new Set(
-  NEON_RIVALS_RUN_MODE_OPTIONS.map((option) => option.id),
-);
+const FALLBACK_RUN_MODE_OPTION = {
+  id: DEFAULT_MODE,
+  boardFamily: "match3" as NeonRivalsBoardFamily,
+  label: "Score Attack",
+  kicker: "Classic clear lane",
+  description: "Build clean cascades and hit the score benchmark before the board runs dry.",
+};
+const RUN_MODE_OPTIONS = Array.isArray(NEON_RIVALS_RUN_MODE_OPTIONS)
+  ? NEON_RIVALS_RUN_MODE_OPTIONS
+  : [FALLBACK_RUN_MODE_OPTION];
+const RUN_MODE_IDS = new Set(RUN_MODE_OPTIONS.map((option) => option.id));
 const MODE_FAMILY_FILTERS: Array<"all" | NeonRivalsBoardFamily> = [
   "all",
-  ...new Set(NEON_RIVALS_RUN_MODE_OPTIONS.map((option) => option.boardFamily)),
+  ...new Set(RUN_MODE_OPTIONS.map((option) => option.boardFamily)),
 ];
 
 const BOARD_CONTROL_HINTS: Record<NeonRivalsBoardFamily, string[]> = {
@@ -228,29 +236,33 @@ export default function NeonRivalsGamePage() {
   const theme = getThemeVisual(user?.themeId);
   const activeMode = useMemo(
     () =>
-      NEON_RIVALS_RUN_MODE_OPTIONS.find((option) => option.id === selectedMode) ??
-      NEON_RIVALS_RUN_MODE_OPTIONS[0],
+      RUN_MODE_OPTIONS.find((option) => option.id === selectedMode) ??
+      RUN_MODE_OPTIONS[0] ?? FALLBACK_RUN_MODE_OPTION,
     [selectedMode],
   );
   const visibleModes = useMemo(
     () =>
-      NEON_RIVALS_RUN_MODE_OPTIONS.filter(
+      RUN_MODE_OPTIONS.filter(
         (option) => modeFamilyFilter === "all" || option.boardFamily === modeFamilyFilter,
       ),
     [modeFamilyFilter],
   );
   const accountNeedsSync = hasSession && !user;
   const boardMetric = getBoardMetricCard(gameState);
-  const controlHints = BOARD_CONTROL_HINTS[gameState.boardFamily];
+  const controlHints =
+    BOARD_CONTROL_HINTS[gameState.boardFamily] ?? BOARD_CONTROL_HINTS.match3;
+  const safeRecentArenaHistory = Array.isArray(recentArenaHistory)
+    ? recentArenaHistory
+    : [];
   const showArenaGuide = !dismissedArenaHints[gameState.boardFamily];
 
   useEffect(() => {
     if (requestedMode !== selectedMode) {
       setSelectedMode(requestedMode);
       setModeFamilyFilter("all");
-      setSessionSeed(createFreshArenaSeed(recentArenaHistory, Date.now()));
+      setSessionSeed(createFreshArenaSeed(safeRecentArenaHistory, Date.now()));
     }
-  }, [recentArenaHistory, requestedMode, selectedMode]);
+  }, [requestedMode, safeRecentArenaHistory, selectedMode]);
 
   useEffect(() => {
     setLastArenaMode(selectedMode);
@@ -365,17 +377,17 @@ export default function NeonRivalsGamePage() {
     submittedKeyRef.current = null;
     setSelectedMode(nextMode);
     setModeFamilyFilter(filter);
-    setSessionSeed(createFreshArenaSeed(recentArenaHistory, Date.now()));
+    setSessionSeed(createFreshArenaSeed(safeRecentArenaHistory, Date.now()));
   }
 
   function launchVariedBoard() {
     const nextMode = pickNextArenaMode({
       currentMode: selectedMode,
-      history: recentArenaHistory,
+      history: safeRecentArenaHistory,
       seedHint: Date.now(),
     });
     const nextFilter =
-      NEON_RIVALS_RUN_MODE_OPTIONS.find((option) => option.id === nextMode)?.boardFamily ??
+      RUN_MODE_OPTIONS.find((option) => option.id === nextMode)?.boardFamily ??
       activeMode.boardFamily;
     launchBoard(nextMode, nextFilter);
   }
@@ -582,7 +594,7 @@ export default function NeonRivalsGamePage() {
                 {activeMode.kicker} | {Math.round(gameState.durationMs / 1000)}s runtime
               </p>
               <p className="mt-2 text-xs uppercase tracking-[0.16em] text-primary">
-                Recent rotation memory: {recentArenaHistory.slice(0, 4).map((entry) => boardFamilyLabel(entry.boardFamily)).join(" | ") || "fresh route"}
+                Recent rotation memory: {safeRecentArenaHistory.slice(0, 4).map((entry) => boardFamilyLabel(entry.boardFamily)).join(" | ") || "fresh route"}
               </p>
               {gameState.targetColorLabel ? (
                 <p className="mt-2 text-xs uppercase tracking-[0.16em] text-[#ffe45d]">Target color: {gameState.targetColorLabel}</p>
