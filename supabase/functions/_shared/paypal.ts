@@ -34,6 +34,45 @@ async function getAccessToken() {
   return payload.access_token;
 }
 
+export function getPayPalWebhookId() {
+  const webhookId = Deno.env.get("PAYPAL_WEBHOOK_ID");
+  if (!webhookId) {
+    throw new Error("PayPal webhook is not configured. Set PAYPAL_WEBHOOK_ID.");
+  }
+  return webhookId;
+}
+
+export async function verifyPayPalWebhookSignature(input: {
+  authAlgo: string;
+  certUrl: string;
+  transmissionId: string;
+  transmissionSig: string;
+  transmissionTime: string;
+  webhookId: string;
+  webhookEvent: Record<string, unknown>;
+}) {
+  const accessToken = await getAccessToken();
+  const response = await fetch(`${getPayPalBaseUrl()}/v1/notifications/verify-webhook-signature`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      auth_algo: input.authAlgo,
+      cert_url: input.certUrl,
+      transmission_id: input.transmissionId,
+      transmission_sig: input.transmissionSig,
+      transmission_time: input.transmissionTime,
+      webhook_id: input.webhookId,
+      webhook_event: input.webhookEvent,
+    }),
+  });
+
+  const payload = await parseResponse(response) as { verification_status?: string };
+  return payload.verification_status === "SUCCESS";
+}
+
 export async function createPayPalOrder(input: {
   name: string;
   description: string;

@@ -20,6 +20,7 @@ It holds the Supabase database schema, row-level security, shared Edge Function 
 - `functions/vote-next-round`
 - `functions/create-paypal-order`
 - `functions/capture-paypal-order`
+- `functions/paypal-webhook`
 - `functions/purchase-store-item`
 - `functions/equip-store-item`
 - `functions/set-security-questions`
@@ -35,7 +36,7 @@ The Supabase path is the app's primary backend for:
 - Realtime lobby snapshots
 - solve submission and progression updates
 - storefront purchase/equip flows
-- PayPal order creation and capture
+- PayPal order creation, capture, and webhook reconciliation
 - account recovery security-question flows
 
 ## Working assumptions
@@ -70,3 +71,17 @@ Then deploy the needed functions with `supabase functions deploy ...`.
 - Keep browser code on the anon/publishable key only.
 - Treat replay-prevention, validation, and deterministic puzzle selection as authoritative backend concerns here.
 
+
+## PayPal webhook setup
+
+After deploying `functions/paypal-webhook`, register this URL in your PayPal app:
+
+```
+https://jikgzrzrubqezcfrzpdj.supabase.co/functions/v1/paypal-webhook
+```
+
+Then store the webhook id returned by PayPal in Supabase secrets:
+
+```sh
+supabase secrets set PAYPAL_WEBHOOK_ID="YOUR_PAYPAL_WEBHOOK_ID"
+```
