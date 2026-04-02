@@ -209,7 +209,7 @@ export default class BoardScene extends Phaser.Scene {
   private createAmbientParticles() {
     this.add.particles(0, 0, "particles_soft", {
       x: { min: 120, max: 960 },
-      y: { min: 280, max: 1450 },
+      y: { min: 180, max: GAME_HEIGHT - 120 },
       lifespan: 2600,
       speedY: { min: -12, max: -26 },
       speedX: { min: -4, max: 4 },

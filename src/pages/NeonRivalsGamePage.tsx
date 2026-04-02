@@ -425,6 +425,18 @@ export default function NeonRivalsGamePage() {
 
         <div className="neon-rivals-route-grid neon-rivals-route-grid--arena">
           <section className="neon-rivals-stage-column">
+            <section className="neon-rivals-stage-panel neon-rivals-stage-panel--arena neon-rivals-stage-panel--priority">
+              <div className="neon-rivals-stage-frame neon-rivals-stage-frame--arena neon-rivals-stage-frame--priority">
+                <NeonRivalsGame
+                  mode={selectedMode}
+                  sessionSeed={sessionSeed}
+                  playerName={user?.username ?? "Guest Rival"}
+                  themeLabel="Neon Rivals"
+                  onStateChange={setGameState}
+                />
+              </div>
+            </section>
+
             <div className="neon-rivals-hud-row neon-rivals-hud-row--dense">
               <div className="neon-rivals-stat-card neon-rivals-stat-card--compact">
                 <p className="section-kicker">Run State</p>
@@ -465,18 +477,6 @@ export default function NeonRivalsGamePage() {
                 <p className="mt-3 text-xs uppercase tracking-[0.16em] text-primary">{progress}% | {getProgressDetail(gameState)}</p>
               </div>
             </div>
-
-            <section className="neon-rivals-stage-panel neon-rivals-stage-panel--arena neon-rivals-stage-panel--priority">
-              <div className="neon-rivals-stage-frame neon-rivals-stage-frame--arena neon-rivals-stage-frame--priority">
-                <NeonRivalsGame
-                  mode={selectedMode}
-                  sessionSeed={sessionSeed}
-                  playerName={user?.username ?? "Guest Rival"}
-                  themeLabel="Neon Rivals"
-                  onStateChange={setGameState}
-                />
-              </div>
-            </section>
           </section>
 
           <aside className="neon-rivals-side-panel neon-rivals-side-panel--arena neon-rivals-side-panel--dense">

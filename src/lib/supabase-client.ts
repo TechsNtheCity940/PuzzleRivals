@@ -55,6 +55,7 @@ type SupabaseErrorLike = {
   message?: string;
   details?: string | null;
   hint?: string | null;
+  status?: number;
 };
 
 export class SupabaseSchemaSetupError extends Error {
@@ -78,11 +79,14 @@ export function isSupabaseSchemaSetupIssue(error: unknown) {
   const message = readErrorMessage(candidate);
 
   return (
+    candidate.status === 404 ||
+    code === "404" ||
     code === "PGRST205" ||
     code === "42P01" ||
     code === "42703" ||
     message.includes("could not find the table") ||
     message.includes("schema cache") ||
+    message.includes("not found") ||
     (message.includes("relation") && message.includes("does not exist")) ||
     (message.includes("column") && message.includes("does not exist"))
   );

@@ -3216,7 +3216,7 @@
   position: absolute;
   inset: var(--np-viewport-inset, 13% 16% 14%);
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: center;
   padding: clamp(0.65rem, 1.5vw, 1rem);
 }
@@ -3452,7 +3452,7 @@
   width: 100%;
   max-width: 1520px;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.7rem;
   overflow: hidden;
   border-radius: 34px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -3553,7 +3553,7 @@
   display: flex;
   min-height: 0;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.7rem;
 }
 
 .neon-rivals-hud-row {
@@ -3655,11 +3655,11 @@
 }
 
 .neon-rivals-stage-panel--priority {
-  padding: 0.7rem;
+  padding: 0.35rem;
 }
 
 .neon-rivals-stage-frame--priority {
-  min-height: min(69vh, 980px);
+  min-height: min(68vh, 860px);
 }
 
 .neon-rivals-side-panel--dense {
@@ -3757,16 +3757,17 @@
   min-height: 0;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem;
+  padding: 0.2rem;
 }
 
 .neon-rivals-game-stage {
   position: relative;
-  width: auto;
-  height: 100%;
+  width: min(100%, 920px, calc(100dvh - 15rem));
+  height: auto;
   max-width: 100%;
   max-height: 100%;
-  aspect-ratio: 9 / 16;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
   overflow: hidden;
 }
 .neon-rivals-game-stage > div,
@@ -3777,6 +3778,7 @@
   max-width: 100%;
   max-height: 100%;
   margin: 0 auto;
+  object-fit: contain;
 }
 
 .neon-rivals-game-overlay {
@@ -3873,14 +3875,14 @@
     padding: 0.65rem;
   }
   .neon-rivals-stage-panel--priority {
-    padding: 0.6rem;
+    padding: 0.45rem;
   }
   .neon-rivals-stage-frame,
   .neon-rivals-stage-frame--arena {
     min-height: min(63dvh, 760px);
   }
   .neon-rivals-stage-frame--priority {
-    min-height: min(68dvh, 780px);
+    min-height: min(60dvh, 680px);
   }
   .neon-rivals-side-panel--dense {
     gap: 0.75rem;
@@ -3895,11 +3897,11 @@
     padding: 0.75rem 0.85rem;
   }
   .neon-rivals-game-host {
-    align-items: flex-start;
-    padding: 0.25rem;
+    align-items: center;
+    padding: 0.15rem;
   }
   .neon-rivals-game-stage {
-    width: 100%;
+    width: min(100%, calc(100dvh - 12rem));
     height: auto;
   }
 }

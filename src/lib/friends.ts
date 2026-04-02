@@ -128,6 +128,17 @@ type DirectThreadMemberRow = {
 
 const PRESENCE_TIMEOUT_MS = 2 * 60 * 1000;
 
+let socialSchemaUnavailable = false;
+
+function markSocialSchemaUnavailable(error: unknown) {
+  if (isSupabaseSchemaSetupIssue(error)) {
+    socialSchemaUnavailable = true;
+    return true;
+  }
+
+  return false;
+}
+
 function assertConfiguredSession(currentUserId?: string | null) {
   if (!supabase) {
     throw new Error(supabaseConfigErrorMessage);
@@ -201,7 +212,7 @@ function buildRelationshipMap(
 }
 
 async function loadProfilesByIds(profileIds: string[]) {
-  if (!supabase || profileIds.length === 0) {
+  if (!supabase || profileIds.length === 0 || socialSchemaUnavailable) {
     return [] as ProfileSearchRow[];
   }
 
@@ -213,7 +224,7 @@ async function loadProfilesByIds(profileIds: string[]) {
     .in("id", profileIds);
 
   if (error) {
-    if (isSupabaseSchemaSetupIssue(error)) {
+    if (markSocialSchemaUnavailable(error)) {
       return [] as ProfileSearchRow[];
     }
     throw error;
@@ -223,7 +234,7 @@ async function loadProfilesByIds(profileIds: string[]) {
 }
 
 async function loadPresenceMap(profileIds: string[]) {
-  if (!supabase || profileIds.length === 0) {
+  if (!supabase || profileIds.length === 0 || socialSchemaUnavailable) {
     return new Map<string, string>();
   }
 
@@ -233,7 +244,7 @@ async function loadPresenceMap(profileIds: string[]) {
     .in("user_id", profileIds);
 
   if (error) {
-    if (isSupabaseSchemaSetupIssue(error)) {
+    if (markSocialSchemaUnavailable(error)) {
       return new Map<string, string>();
     }
     throw error;
@@ -248,6 +259,10 @@ async function loadPresenceMap(profileIds: string[]) {
 }
 
 async function loadRelationshipState(currentUserId: string) {
+  if (socialSchemaUnavailable) {
+    return null;
+  }
+
   assertConfiguredSession(currentUserId);
 
   const [
@@ -266,14 +281,14 @@ async function loadRelationshipState(currentUserId: string) {
   ]);
 
   if (friendshipError) {
-    if (isSupabaseSchemaSetupIssue(friendshipError)) {
+    if (markSocialSchemaUnavailable(friendshipError)) {
       return null;
     }
     throw friendshipError;
   }
 
   if (requestError) {
-    if (isSupabaseSchemaSetupIssue(requestError)) {
+    if (markSocialSchemaUnavailable(requestError)) {
       return null;
     }
     throw requestError;
@@ -286,7 +301,7 @@ async function loadRelationshipState(currentUserId: string) {
 }
 
 export async function touchOwnPresence(currentUserId?: string | null) {
-  if (!supabase || !currentUserId || currentUserId === "guest-player") {
+  if (!supabase || !currentUserId || currentUserId === "guest-player" || socialSchemaUnavailable) {
     return;
   }
 
@@ -297,7 +312,7 @@ export async function touchOwnPresence(currentUserId?: string | null) {
       { onConflict: "user_id" },
     );
 
-  if (error && !isSupabaseSchemaSetupIssue(error)) {
+  if (error && !markSocialSchemaUnavailable(error)) {
     throw error;
   }
 }
@@ -320,7 +335,7 @@ export async function loadFriendsDashboard(
     };
   }
 
-  if (!supabase) {
+  if (!supabase || socialSchemaUnavailable) {
     return {
       friends: [],
       incomingRequests: [],
@@ -374,7 +389,7 @@ export async function loadFriendsDashboard(
 
   if (
     suggestionRows.error &&
-    !isSupabaseSchemaSetupIssue(suggestionRows.error)
+    !markSocialSchemaUnavailable(suggestionRows.error)
   ) {
     throw suggestionRows.error;
   }
@@ -476,7 +491,8 @@ export async function searchSocialProfiles(
     !currentUser ||
     currentUser.isGuest ||
     currentUser.id === "guest-player" ||
-    !supabase
+    !supabase ||
+    socialSchemaUnavailable
   ) {
     return [] as SocialProfileCard[];
   }
@@ -501,7 +517,7 @@ export async function searchSocialProfiles(
 
   const { data, error } = await request;
   if (error) {
-    if (isSupabaseSchemaSetupIssue(error)) {
+    if (markSocialSchemaUnavailable(error)) {
       return [] as SocialProfileCard[];
     }
     throw error;
@@ -530,6 +546,10 @@ export async function searchSocialProfiles(
 }
 
 async function loadUnreadMessageCount(currentUserId: string) {
+  if (socialSchemaUnavailable) {
+    return null;
+  }
+
   assertConfiguredSession(currentUserId);
 
   const { data: memberRows, error: memberError } = await supabase!
@@ -538,7 +558,7 @@ async function loadUnreadMessageCount(currentUserId: string) {
     .eq("user_id", currentUserId);
 
   if (memberError) {
-    if (isSupabaseSchemaSetupIssue(memberError)) {
+    if (markSocialSchemaUnavailable(memberError)) {
       return null;
     }
     throw memberError;
@@ -564,7 +584,7 @@ async function loadUnreadMessageCount(currentUserId: string) {
     .limit(300);
 
   if (messageError) {
-    if (isSupabaseSchemaSetupIssue(messageError)) {
+    if (markSocialSchemaUnavailable(messageError)) {
       return null;
     }
     throw messageError;
@@ -591,7 +611,8 @@ export async function loadSocialAlertSummary(
     !currentUser ||
     currentUser.isGuest ||
     currentUser.id === "guest-player" ||
-    !supabase
+    !supabase ||
+    socialSchemaUnavailable
   ) {
     return {
       incomingRequests: 0,
@@ -637,7 +658,7 @@ export async function sendFriendRequest(
 
   if (error) {
     throw new Error(
-      isSupabaseSchemaSetupIssue(error)
+      markSocialSchemaUnavailable(error)
         ? "Friends are not available until the social migrations are pushed."
         : error.message,
     );
@@ -645,7 +666,7 @@ export async function sendFriendRequest(
 }
 
 export async function acceptFriendRequest(requestId: string) {
-  if (!supabase) {
+  if (!supabase || socialSchemaUnavailable) {
     return;
   }
 
@@ -730,7 +751,7 @@ async function ensureThread(currentUserId: string, partnerId: string) {
 
   if (error) {
     throw new Error(
-      isSupabaseSchemaSetupIssue(error)
+      markSocialSchemaUnavailable(error)
         ? "Messaging is not available until the social migrations are pushed."
         : error.message,
     );
@@ -749,6 +770,7 @@ export async function loadDirectConversation(
 
   if (
     !supabase ||
+    socialSchemaUnavailable ||
     !currentUser ||
     currentUser.isGuest ||
     currentUser.id === "guest-player"
@@ -827,7 +849,7 @@ export async function loadDirectConversation(
     .eq("thread_id", threadId)
     .eq("user_id", currentUser.id);
 
-  if (readError && !isSupabaseSchemaSetupIssue(readError)) {
+  if (readError && !markSocialSchemaUnavailable(readError)) {
     throw readError;
   }
 

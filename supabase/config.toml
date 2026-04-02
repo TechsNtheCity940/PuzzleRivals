@@ -46,3 +46,6 @@ verify_jwt = false
 
 [functions.vote-next-round]
 verify_jwt = false
+
+[functions.app-runtime-status]
+verify_jwt = false

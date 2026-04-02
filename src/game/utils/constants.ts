@@ -1,5 +1,5 @@
 export const GAME_WIDTH = 1080;
-export const GAME_HEIGHT = 1920;
+export const GAME_HEIGHT = 1080;
 
 export const GRID_ROWS = 8;
 export const GRID_COLS = 8;
@@ -9,9 +9,9 @@ export const BOARD_PIXEL_WIDTH = GRID_COLS * TILE_SIZE;
 export const BOARD_PIXEL_HEIGHT = GRID_ROWS * TILE_SIZE;
 
 export const BOARD_ORIGIN_X = Math.round((GAME_WIDTH - BOARD_PIXEL_WIDTH) / 2);
-export const BOARD_ORIGIN_Y = 300;
+export const BOARD_ORIGIN_Y = 188;
 export const BOARD_VIEWPORT_X = 158;
-export const BOARD_VIEWPORT_Y = 378;
+export const BOARD_VIEWPORT_Y = 180;
 export const BOARD_VIEWPORT_WIDTH = 764;
 export const BOARD_VIEWPORT_HEIGHT = 764;
 export const BOARD_VIEWPORT_CENTER_X = BOARD_VIEWPORT_X + BOARD_VIEWPORT_WIDTH / 2;
