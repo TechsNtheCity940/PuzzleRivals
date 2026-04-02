@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshCw, Search, Shield, ShoppingBag } from "lucide-react";
+import { Activity, AlertTriangle, RefreshCw, Search, Shield, ShoppingBag } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,7 @@ import {
   type AdminSupportTicket,
   type AdminUserRecord,
 } from "@/lib/admin-console";
-import { isOwnerUser } from "@/lib/dev-account";
+import { OWNER_ACCOUNT_EMAIL, isOwnerUser } from "@/lib/dev-account";
 import type { SupportTicketPriority, SupportTicketStatus, UserAppRole } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -36,6 +36,8 @@ type UserDraft = {
   hasSeasonPass: boolean;
   isVip: boolean;
   vipExpiresAt: string;
+  isBlocked: boolean;
+  blockedReason: string;
   coins: string;
   gems: string;
   puzzleShards: string;
@@ -85,6 +87,8 @@ function createUserDraft(user: AdminUserRecord): UserDraft {
     hasSeasonPass: user.hasSeasonPass,
     isVip: user.isVip,
     vipExpiresAt: toLocalDateTimeValue(user.vipExpiresAt),
+    isBlocked: user.isBlocked,
+    blockedReason: user.blockedReason ?? "",
     coins: String(user.coins),
     gems: String(user.gems),
     puzzleShards: String(user.puzzleShards),
@@ -114,6 +118,7 @@ function metricCards(snapshot: AdminDashboardSnapshot | null) {
     { label: "Season Pass", value: snapshot.metrics.seasonPassUsers.toLocaleString() },
     { label: "Paid VIP", value: snapshot.metrics.paidVipUsers.toLocaleString() },
     { label: "VIP Access", value: snapshot.metrics.vipAccessUsers.toLocaleString() },
+    { label: "Blocked Users", value: snapshot.metrics.blockedUsers.toLocaleString() },
     { label: "Open Tickets", value: snapshot.metrics.openTickets.toLocaleString() },
   ];
 }
@@ -147,6 +152,8 @@ export default function AdminPage() {
 
   const selectedUser = useMemo(() => users.find((entry) => entry.id === selectedUserId) ?? null, [selectedUserId, users]);
   const selectedTicket = useMemo(() => tickets.find((entry) => entry.id === selectedTicketId) ?? null, [selectedTicketId, tickets]);
+  const latestWebhookIssue = dashboard?.recentWebhooks.find((entry) => !entry.processedAt) ?? dashboard?.recentWebhooks[0] ?? null;
+  const latestRunReview = dashboard?.recentRuns.find((entry) => entry.suspicionLabel !== "clean") ?? dashboard?.recentRuns[0] ?? null;
 
   async function refreshDashboard() {
     const snapshot = await loadAdminDashboard();
@@ -265,6 +272,8 @@ export default function AdminPage() {
         hasSeasonPass: userDraft.hasSeasonPass,
         isVip: userDraft.isVip,
         vipExpiresAt: userDraft.vipExpiresAt ? new Date(userDraft.vipExpiresAt).toISOString() : null,
+        isBlocked: userDraft.isBlocked,
+        blockedReason: userDraft.blockedReason.trim() || null,
         coins: Number(userDraft.coins || 0),
         gems: Number(userDraft.gems || 0),
         puzzleShards: Number(userDraft.puzzleShards || 0),
@@ -331,15 +340,27 @@ export default function AdminPage() {
       <div className="page-stack">
         <PageHeader
           eyebrow="Owner Console"
-          title="Admin"
-          subtitle="Track growth, manage accounts, grant rewards, and triage live player issues from one place."
+          title="Owner Admin"
+          subtitle="Owner-only control plane for growth, VIP access, moderation, commerce, support, and Arena telemetry."
           right={<Button onClick={() => { void refreshDashboard().catch((error) => toast.error(error instanceof Error ? error.message : "Refresh failed.")); void refreshUsers(searchQuery).catch(() => undefined); void refreshTickets(ticketFilter).catch(() => undefined); }} variant="outline" size="sm"><RefreshCw size={16} />Refresh</Button>}
         />
         {loadError ? <section className="command-panel-soft p-4 text-sm text-muted-foreground">{loadError}</section> : null}
         <section className="hero-panel">
-          <div className="metric-grid">{metricCards(dashboard).map((card) => <div key={card.label} className="rich-stat"><p className="hud-label">{card.label}</p><p className="stat-value">{card.value}</p></div>)}</div>
+          <div className="command-panel-soft flex flex-wrap items-center justify-between gap-4 p-4">
+            <div>
+              <p className="section-kicker">Owner Identity</p>
+              <h2 className="section-title mt-1">JudgeMrogan owner access is live</h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">Only the owner account can open this route, promote VIP access, block users, or review privileged telemetry.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="segment-chip segment-chip-active">Owner Only</span>
+              <span className="segment-chip">{OWNER_ACCOUNT_EMAIL}</span>
+            </div>
+          </div>
+          <div className="metric-grid mt-4">{metricCards(dashboard).map((card) => <div key={card.label} className="rich-stat"><p className="hud-label">{card.label}</p><p className="stat-value">{card.value}</p></div>)}</div>
           {dashboard ? (
-            <div className="mt-6 grid gap-4 xl:grid-cols-[320px,1fr,1fr]">
+            <>
+              <div className="mt-6 grid gap-4 xl:grid-cols-[320px,1fr,1fr]">
               <div className="command-panel-soft p-4">
                 <p className="section-kicker">Commerce Readiness</p>
                 <h2 className="section-title mt-1">Checkout status</h2>
@@ -355,6 +376,10 @@ export default function AdminPage() {
                   <div className="flex items-center justify-between gap-3">
                     <span>Active catalog</span>
                     <span className="text-foreground">{dashboard.monitoring.activeProductCount}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Webhook</span>
+                    <span className={monitoringTone(dashboard.monitoring.paypalWebhookConfigured)}>{dashboard.monitoring.paypalWebhookConfigured ? "Configured" : "Missing"}</span>
                   </div>
                 </div>
                 {!dashboard.monitoring.paypalConfigured ? (
@@ -404,6 +429,59 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
+            <div className="mt-4 grid gap-4 xl:grid-cols-3">
+              <div className="command-panel-soft p-4">
+                <div className="flex items-start gap-3">
+                  <div className="neon-rivals-stat-icon"><Activity size={18} /></div>
+                  <div>
+                    <p className="section-kicker">Webhook Monitor</p>
+                    <h2 className="section-title mt-1">Latest delivery</h2>
+                  </div>
+                </div>
+                {latestWebhookIssue ? (
+                  <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                    <p className="font-black text-foreground">{latestWebhookIssue.eventType}</p>
+                    <p className={latestWebhookIssue.processedAt ? "text-emerald-300" : "text-amber-300"}>{latestWebhookIssue.processedAt ? "Processed" : "Pending"}</p>
+                    <p>{latestWebhookIssue.summary ?? latestWebhookIssue.orderId ?? "No summary"}</p>
+                    <p className="text-xs">{formatDateTime(latestWebhookIssue.receivedAt)}</p>
+                  </div>
+                ) : <div className="mt-4 text-sm text-muted-foreground">No webhook deliveries recorded yet.</div>}
+              </div>
+              <div className="command-panel-soft p-4">
+                <div className="flex items-start gap-3">
+                  <div className="neon-rivals-stat-icon"><AlertTriangle size={18} /></div>
+                  <div>
+                    <p className="section-kicker">Arena Review</p>
+                    <h2 className="section-title mt-1">Recent run flag</h2>
+                  </div>
+                </div>
+                {latestRunReview ? (
+                  <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                    <p className="font-black text-foreground">{latestRunReview.username} | {latestRunReview.mode}</p>
+                    <p className={latestRunReview.suspicionLabel === "high" ? "text-destructive" : latestRunReview.suspicionLabel === "review" ? "text-amber-300" : "text-emerald-300"}>{latestRunReview.suspicionLabel.toUpperCase()}</p>
+                    <p>{latestRunReview.suspicionReason ?? `${latestRunReview.objectiveTitle} | ${latestRunReview.score.toLocaleString()} score`}</p>
+                    <p className="text-xs">{formatDateTime(latestRunReview.createdAt)}</p>
+                  </div>
+                ) : <div className="mt-4 text-sm text-muted-foreground">No Arena runs available yet.</div>}
+              </div>
+              <div className="command-panel-soft p-4">
+                <div className="flex items-start gap-3">
+                  <div className="neon-rivals-stat-icon"><Shield size={18} /></div>
+                  <div>
+                    <p className="section-kicker">Owner Audit</p>
+                    <h2 className="section-title mt-1">Latest privileged action</h2>
+                  </div>
+                </div>
+                {dashboard.recentAudits.length > 0 ? (
+                  <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                    <p className="font-black text-foreground">{dashboard.recentAudits[0].action.replaceAll("_", " ")}</p>
+                    <p>Actor {dashboard.recentAudits[0].actorUsername ?? dashboard.recentAudits[0].actorUserId}</p>
+                    <p>{dashboard.recentAudits[0].targetUsername ?? dashboard.recentAudits[0].targetTicketId ?? "No target"}</p>
+                    <p className="text-xs">{formatDateTime(dashboard.recentAudits[0].createdAt)}</p>
+                  </div>
+                ) : <div className="mt-4 text-sm text-muted-foreground">No privileged actions logged yet.</div>}
+              </div>            </div>
+            </>
           ) : null}
         </section>
         <div className="page-grid">
@@ -419,7 +497,7 @@ export default function AdminPage() {
                   {(users.length > 0 ? users : dashboard?.recentUsers ?? []).map((entry) => (
                     <button key={entry.id} type="button" onClick={() => setSelectedUserId(entry.id)} className={`command-panel-soft w-full p-4 text-left ${selectedUserId === entry.id ? "border-primary/50 bg-primary/10" : ""}`}>
                       <div className="flex items-center justify-between gap-3"><div className="min-w-0"><p className="truncate text-base font-black">{entry.username}</p><p className="truncate text-xs text-muted-foreground">{entry.email ?? "No email found"}</p></div><span className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">{entry.appRole ?? "player"}</span></div>
-                      <p className="mt-2 text-xs text-muted-foreground">{entry.vipAccess ? "VIP Access" : "Standard access"} | ELO {entry.elo} | Joined {new Date(entry.createdAt).toLocaleDateString()}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">{entry.vipAccess ? "VIP Access" : "Standard access"}{entry.isBlocked ? " | Blocked" : ""} | ELO {entry.elo} | Joined {new Date(entry.createdAt).toLocaleDateString()}</p>
                     </button>
                   ))}
                   {isUsersLoading ? <div className="command-panel-soft p-4 text-sm text-muted-foreground">Searching users...</div> : null}
@@ -433,7 +511,7 @@ export default function AdminPage() {
                         <p className="section-kicker">Selected Player</p>
                         <h3 className="text-2xl font-black">{selectedUser.username}</h3>
                         <p className="mt-1 text-sm text-muted-foreground">{selectedUser.email ?? "No email available"}</p>
-                        <p className="mt-2 text-xs text-muted-foreground">Role {selectedUser.appRole ?? "player"} | Season Pass {selectedUser.hasSeasonPass ? "Yes" : "No"} | Paid VIP {selectedUser.isVip ? "Yes" : "No"} | VIP Access {selectedUser.vipAccess ? "Yes" : "No"}</p>
+                        <p className="mt-2 text-xs text-muted-foreground">Role {selectedUser.appRole ?? "player"} | Season Pass {selectedUser.hasSeasonPass ? "Yes" : "No"} | Paid VIP {selectedUser.isVip ? "Yes" : "No"} | VIP Access {selectedUser.vipAccess ? "Yes" : "No"} | Blocked {selectedUser.isBlocked ? "Yes" : "No"}</p>
                       </div>
                       <div className="text-right text-xs text-muted-foreground"><p>Rank {selectedUser.rank ?? "unranked"}</p><p>ELO {selectedUser.elo}</p><p>Created {formatDateTime(selectedUser.createdAt)}</p></div>
                     </div>
@@ -441,8 +519,8 @@ export default function AdminPage() {
                     <div><label className="hud-label">Role</label><Select value={userDraft.appRole} onValueChange={(value) => setUserDraft({ ...userDraft, appRole: value as UserAppRole })}><SelectTrigger className="mt-2"><SelectValue /></SelectTrigger><SelectContent>{ROLE_OPTIONS.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent></Select></div>
                     <div className="command-panel-soft p-4"><div className="flex items-center justify-between gap-3"><div><p className="font-black">Season Pass</p><p className="text-xs text-muted-foreground">Grant or remove premium season access.</p></div><Switch checked={userDraft.hasSeasonPass} onCheckedChange={(checked) => setUserDraft({ ...userDraft, hasSeasonPass: checked })} /></div></div>
                     <div className="command-panel-soft p-4"><div className="flex items-center justify-between gap-3"><div><p className="font-black">Paid VIP</p><p className="text-xs text-muted-foreground">Standard membership state and expiry.</p></div><Switch checked={userDraft.isVip} onCheckedChange={(checked) => setUserDraft({ ...userDraft, isVip: checked })} /></div></div>
-                    <div className="command-panel-soft p-4 md:col-span-2"><div className="flex items-center justify-between gap-3"><div><p className="font-black">VIP Access</p><p className="text-xs text-muted-foreground">Very Intelligent Puzzler. Complimentary access to purchasable cosmetics, season items, and store unlocks.</p></div><Switch checked={userDraft.vipAccess} onCheckedChange={(checked) => setUserDraft({ ...userDraft, vipAccess: checked })} /></div></div>
-                    <div><label className="hud-label">VIP Expiration</label><Input type="datetime-local" value={userDraft.vipExpiresAt} onChange={(event) => setUserDraft({ ...userDraft, vipExpiresAt: event.target.value })} className="mt-2" /></div><div />
+                    <div className="command-panel-soft p-4 md:col-span-2"><div className="flex items-center justify-between gap-3"><div><p className="font-black">VIP Access</p><p className="text-xs text-muted-foreground">Very Intelligent Puzzler. Complimentary access to purchasable cosmetics, season items, and store unlocks.</p></div><Switch checked={userDraft.vipAccess} onCheckedChange={(checked) => setUserDraft({ ...userDraft, vipAccess: checked })} /></div></div><div className="command-panel-soft p-4 md:col-span-2"><div className="flex items-center justify-between gap-3"><div><p className="font-black">Block Account</p><p className="text-xs text-muted-foreground">Blocked users lose backend access and will see a restricted shell instead of live gameplay and store flows.</p></div><Switch checked={userDraft.isBlocked} onCheckedChange={(checked) => setUserDraft({ ...userDraft, isBlocked: checked })} /></div></div>
+                    <div><label className="hud-label">VIP Expiration</label><Input type="datetime-local" value={userDraft.vipExpiresAt} onChange={(event) => setUserDraft({ ...userDraft, vipExpiresAt: event.target.value })} className="mt-2" /></div><div><label className="hud-label">Blocked At</label><div className="command-panel mt-2 px-3 py-2 text-sm text-muted-foreground">{formatDateTime(selectedUser.blockedAt)}</div></div><div className="md:col-span-2"><label className="hud-label">Block Reason</label><Textarea value={userDraft.blockedReason} onChange={(event) => setUserDraft({ ...userDraft, blockedReason: event.target.value })} className="mt-2 min-h-[120px]" placeholder="Moderation reason, abuse details, chargeback, cheating notes, or follow-up context." /></div>
                     <div><label className="hud-label">Coins</label><Input type="number" value={userDraft.coins} onChange={(event) => setUserDraft({ ...userDraft, coins: event.target.value })} className="mt-2" /></div>
                     <div><label className="hud-label">Gems</label><Input type="number" value={userDraft.gems} onChange={(event) => setUserDraft({ ...userDraft, gems: event.target.value })} className="mt-2" /></div>
                     <div><label className="hud-label">Puzzle Shards</label><Input type="number" value={userDraft.puzzleShards} onChange={(event) => setUserDraft({ ...userDraft, puzzleShards: event.target.value })} className="mt-2" /></div>
@@ -469,3 +547,4 @@ export default function AdminPage() {
     </div>
   );
 }
+

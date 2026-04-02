@@ -33,6 +33,8 @@ function isForbiddenBrowserKey(key: string) {
 export const hasForbiddenBrowserKey = isForbiddenBrowserKey(supabaseBrowserKey);
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseBrowserKey && !hasForbiddenBrowserKey);
+export const supabaseFunctionsUrl = supabaseUrl ? `${supabaseUrl}/functions/v1` : "";
+
 export const supabaseProjectRef = (() => {
   try {
     const hostname = new URL(supabaseUrl).hostname;

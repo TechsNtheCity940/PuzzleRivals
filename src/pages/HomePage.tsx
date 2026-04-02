@@ -234,7 +234,7 @@ export default function HomePage() {
             ) : (
               <IdentityLoadoutCard
                 username={user?.username ?? "Guest Player"}
-                subtitle={canSave ? "Account synced" : "Guest session active"}
+                subtitle={ownerAccess ? "Owner account" : canSave ? "Account synced" : "Guest session active"}
                 avatarId={user?.avatarId}
                 frameId={user?.frameId}
                 playerCardId={user?.playerCardId}
@@ -550,9 +550,11 @@ export default function HomePage() {
                   <IdentityLoadoutCard
                     username={user?.username ?? "Guest Player"}
                     subtitle={
-                      canSave
-                        ? "Live identity synced"
-                        : "Guest identity loadout"
+                      ownerAccess
+                        ? "Owner account unlock"
+                        : canSave
+                          ? "Live identity synced"
+                          : "Guest identity loadout"
                     }
                     avatarId={user?.avatarId}
                     frameId={user?.frameId}

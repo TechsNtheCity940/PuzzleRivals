@@ -3,6 +3,7 @@ import {
   Bell,
   Home,
   Settings2,
+  Shield,
   ShoppingBag,
   Star,
   Swords,
@@ -11,32 +12,35 @@ import {
   Users,
 } from "lucide-react";
 
-const tabs = [
-  { to: "/", icon: Home, label: "Home" },
-  { to: "/play", icon: Swords, label: "Play" },
-  { to: "/tournaments", icon: Trophy, label: "Tourneys" },
-  { to: "/store", icon: ShoppingBag, label: "Store" },
-  { to: "/season", icon: Star, label: "Season" },
-  { to: "/friends", icon: Users, label: "Friends" },
-  { to: "/notifications", icon: Bell, label: "Alerts" },
-  { to: "/profile", icon: User, label: "Profile" },
-  { to: "/settings", icon: Settings2, label: "Settings" },
-];
-
 export default function BottomNav({
   friendsBadge = 0,
   notificationsBadge = 0,
+  ownerAccess = false,
 }: {
   friendsBadge?: number;
   notificationsBadge?: number;
+  ownerAccess?: boolean;
 }) {
   const location = useLocation();
 
   if (location.pathname.startsWith("/match")) return null;
 
+  const tabs = [
+    { to: "/", icon: Home, label: "Home" },
+    { to: "/play", icon: Swords, label: "Play" },
+    { to: "/tournaments", icon: Trophy, label: "Tourneys" },
+    { to: "/store", icon: ShoppingBag, label: "Store" },
+    { to: "/season", icon: Star, label: "Season" },
+    { to: "/friends", icon: Users, label: "Friends" },
+    { to: "/notifications", icon: Bell, label: "Alerts" },
+    ...(ownerAccess ? [{ to: "/admin", icon: Shield, label: "Admin" }] : []),
+    { to: "/profile", icon: User, label: "Profile" },
+    { to: "/settings", icon: Settings2, label: "Settings" },
+  ];
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 safe-bottom md:px-6">
-      <div className="nav-dock mx-auto grid w-full max-w-6xl grid-cols-9 items-center gap-1 p-2">
+      <div className={`nav-dock mx-auto grid w-full max-w-6xl items-center gap-1 p-2 ${ownerAccess ? "grid-cols-10" : "grid-cols-9"}`}>
         {tabs.map(({ to, icon: Icon, label }) => {
           const isActive =
             to === "/"

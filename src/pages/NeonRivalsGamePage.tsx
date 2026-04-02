@@ -509,7 +509,7 @@ export default function NeonRivalsGamePage() {
                 <div>
                   <p className="section-kicker">Run Modes</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Rotation memory is active. Recent mode and family cooldowns prevent obvious repeats.
+                    Secondary controls stay here. The board remains the main focus while rotation memory prevents obvious repeats.
                   </p>
                 </div>
                 <Zap size={18} className="text-primary" />

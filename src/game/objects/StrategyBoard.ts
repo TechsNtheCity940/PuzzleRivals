@@ -351,15 +351,15 @@ export default class StrategyBoard {
 
   private buildBoardSurface() {
     const palette = boardPalette(this.mode);
-    const boardSize = Math.min(BOARD_VIEWPORT_WIDTH - 92, BOARD_VIEWPORT_HEIGHT - 210);
+    const boardSize = Math.min(BOARD_VIEWPORT_WIDTH - 54, BOARD_VIEWPORT_HEIGHT - 142);
     this.cellSize = Math.floor(boardSize / this.size);
     const actualBoardSize = this.cellSize * this.size;
     this.boardLeft = Math.round(BOARD_VIEWPORT_CENTER_X - actualBoardSize / 2);
-    this.boardTop = Math.round(BOARD_VIEWPORT_CENTER_Y - actualBoardSize / 2 + 68);
+    this.boardTop = Math.round(BOARD_VIEWPORT_CENTER_Y - actualBoardSize / 2 + 34);
 
     this.boardShadow = this.scene.add.rectangle(
       BOARD_VIEWPORT_CENTER_X,
-      BOARD_VIEWPORT_CENTER_Y + 54,
+      BOARD_VIEWPORT_CENTER_Y + 34,
       actualBoardSize + 84,
       actualBoardSize + 150,
       0x070f1d,
@@ -370,7 +370,7 @@ export default class StrategyBoard {
 
     this.boardFrame = this.scene.add.rectangle(
       BOARD_VIEWPORT_CENTER_X,
-      BOARD_VIEWPORT_CENTER_Y + 54,
+      BOARD_VIEWPORT_CENTER_Y + 34,
       actualBoardSize + 40,
       actualBoardSize + 106,
       0x0a1630,
@@ -397,26 +397,26 @@ export default class StrategyBoard {
       ease: "Sine.easeInOut",
     });
 
-    this.roundText = this.scene.add.text(BOARD_VIEWPORT_CENTER_X, this.boardTop - 116, "ROUND 1/1", {
+    this.roundText = this.scene.add.text(BOARD_VIEWPORT_CENTER_X, this.boardTop - 86, "ROUND 1/1", {
       fontFamily: "Chakra Petch, Arial",
-      fontSize: "24px",
+      fontSize: "20px",
       color: "#65f2ff",
       letterSpacing: 6,
       align: "center",
     }).setOrigin(0.5).setDepth(28);
 
-    this.promptText = this.scene.add.text(BOARD_VIEWPORT_CENTER_X, this.boardTop - 86, "", {
+    this.promptText = this.scene.add.text(BOARD_VIEWPORT_CENTER_X, this.boardTop - 56, "", {
       fontFamily: "Arial Black, Arial",
-      fontSize: "28px",
+      fontSize: "22px",
       color: "#ffffff",
       align: "center",
       wordWrap: { width: actualBoardSize + 10 },
       lineSpacing: 8,
     }).setOrigin(0.5, 0).setDepth(28);
 
-    this.helperText = this.scene.add.text(BOARD_VIEWPORT_CENTER_X, this.boardTop - 12, "", {
+    this.helperText = this.scene.add.text(BOARD_VIEWPORT_CENTER_X, this.boardTop + 4, "", {
       fontFamily: "Chakra Petch, Arial",
-      fontSize: "17px",
+      fontSize: "14px",
       color: "#b8c9de",
       align: "center",
       wordWrap: { width: actualBoardSize + 20 },

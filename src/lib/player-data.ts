@@ -33,6 +33,10 @@ type ProfileRow = {
   vip_access: boolean;
   vip_expires_at: string | null;
   has_season_pass: boolean;
+  is_blocked: boolean;
+  blocked_at: string | null;
+  blocked_reason: string | null;
+  blocked_by: string | null;
   theme_id: string | null;
   frame_id: string | null;
   player_card_id: string | null;
@@ -156,6 +160,10 @@ export function buildGuestUser(overrides: Partial<UserProfile> = {}): UserProfil
     hasSeasonPass: overrides.hasSeasonPass ?? false,
     vipExpiresAt: overrides.vipExpiresAt ?? null,
     vipAccess: overrides.vipAccess ?? false,
+    isBlocked: overrides.isBlocked ?? false,
+    blockedAt: overrides.blockedAt ?? null,
+    blockedReason: overrides.blockedReason ?? null,
+    blockedBy: overrides.blockedBy ?? null,
     puzzleShards: overrides.puzzleShards ?? 0,
     rankPoints: overrides.rankPoints ?? 0,
     passXp: overrides.passXp ?? 0,
@@ -294,6 +302,10 @@ export async function loadCurrentUserFromSession(session: Session | null): Promi
     hasSeasonPass: privilegedAccount ? true : profile.has_season_pass,
     vipExpiresAt: privilegedAccount ? (profile.vip_expires_at ?? "2099-12-31T00:00:00Z") : profile.vip_expires_at,
     vipAccess: privilegedAccount,
+    isBlocked: profile.is_blocked,
+    blockedAt: profile.blocked_at,
+    blockedReason: profile.blocked_reason,
+    blockedBy: profile.blocked_by,
     elo: profile.elo,
     rank: getRankBand(profile.elo).tier,
     level: profile.level,

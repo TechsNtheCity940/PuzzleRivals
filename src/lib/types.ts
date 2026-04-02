@@ -88,6 +88,10 @@ export interface UserProfile {
   hasSeasonPass?: boolean;
   vipExpiresAt?: string | null;
   vipAccess?: boolean;
+  isBlocked?: boolean;
+  blockedAt?: string | null;
+  blockedReason?: string | null;
+  blockedBy?: string | null;
   elo: number;
   rank: RankTier;
   level: number;

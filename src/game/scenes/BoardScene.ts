@@ -189,7 +189,7 @@ export default class BoardScene extends Phaser.Scene {
   private createBoardArt(boardFamily: NeonRivalsBoardFamily) {
     const frameBase = this.add.image(GAME_WIDTH / 2, BOARD_VIEWPORT_CENTER_Y + 20, "board_frame_base");
     const frameGlow = this.add.image(GAME_WIDTH / 2, BOARD_VIEWPORT_CENTER_Y + 20, "board_frame_glow");
-    const gridBase = this.add.image(GAME_WIDTH / 2, BOARD_VIEWPORT_CENTER_Y - 76, "board_grid_base");
+    const gridBase = this.add.image(GAME_WIDTH / 2, BOARD_VIEWPORT_CENTER_Y - 18, "board_grid_base");
 
     frameBase.setAlpha(0.96);
     frameGlow.setAlpha(0.72);
@@ -225,70 +225,65 @@ export default class BoardScene extends Phaser.Scene {
     themeLabel: string,
     objective: ReturnType<typeof buildNeonRivalsObjective>,
   ) {
-    this.add.text(40, 42, themeLabel.toUpperCase(), {
+    this.add.text(24, 18, themeLabel.toUpperCase(), {
       fontFamily: "Chakra Petch, Arial",
-      fontSize: "28px",
+      fontSize: "11px",
       color: "#c8ff4d",
-      letterSpacing: 8,
-    });
-
-    this.modeChip = this.add.text(40, 94, objective.title.toUpperCase(), {
-      fontFamily: "Chakra Petch, Arial",
-      fontSize: "22px",
-      color: "#5fe2ff",
       letterSpacing: 5,
     });
 
+    this.modeChip = this.add.text(24, 38, objective.title.toUpperCase(), {
+      fontFamily: "Chakra Petch, Arial",
+      fontSize: "13px",
+      color: "#5fe2ff",
+      letterSpacing: 3,
+    });
+
     this.add
-      .text(GAME_WIDTH - 40, 46, playerName.toUpperCase(), {
+      .text(GAME_WIDTH - 24, 18, playerName.toUpperCase(), {
         fontFamily: "Chakra Petch, Arial",
-        fontSize: "20px",
+        fontSize: "11px",
         color: "#9dc7eb",
         align: "right",
       })
       .setOrigin(1, 0);
 
-    this.scoreText = this.add.text(40, 146, "Score 0", {
+    this.scoreText = this.add.text(24, 58, "Score 0", {
       fontFamily: "Arial Black, Arial",
-      fontSize: "50px",
+      fontSize: "19px",
       color: "#ffffff",
     });
 
-    this.comboText = this.add.text(
-      40,
-      204,
-      objective.boardFamily === "match3" ? "Combo x0" : "Board metric 0",
-      {
-        fontFamily: "Chakra Petch, Arial",
-        fontSize: "28px",
-        color: "#5fe2ff",
-      },
-    );
-
-    this.objectiveText = this.add.text(40, 252, objective.description, {
+    this.comboText = this.add.text(24, 84, objective.boardFamily === "match3" ? "Combo x0" : "Board metric 0", {
       fontFamily: "Chakra Petch, Arial",
-      fontSize: "22px",
-      color: "#dbe9ff",
-      wordWrap: { width: 700 },
-      lineSpacing: 8,
+      fontSize: "12px",
+      color: "#5fe2ff",
     });
 
-    this.targetText = this.add.text(40, 328, objective.label, {
+    this.objectiveText = this.add.text(24, 102, objective.description, {
       fontFamily: "Chakra Petch, Arial",
-      fontSize: "24px",
+      fontSize: "11px",
+      color: "#dbe9ff",
+      wordWrap: { width: 360 },
+      lineSpacing: 3,
+    });
+
+    this.targetText = this.add.text(24, 142, objective.label, {
+      fontFamily: "Chakra Petch, Arial",
+      fontSize: "12px",
       color: objective.targetColor ? "#ffe45d" : "#c8ff4d",
-      wordWrap: { width: 780 },
-      lineSpacing: 8,
+      wordWrap: { width: 520 },
+      lineSpacing: 3,
     });
 
     this.movesText = this.add
       .text(
-        GAME_WIDTH - 40,
-        92,
+        GAME_WIDTH - 24,
+        44,
         `${objective.startingMoves} ${objective.resourceLabel}`,
         {
           fontFamily: "Chakra Petch, Arial",
-          fontSize: "28px",
+          fontSize: "14px",
           color: "#ffffff",
           align: "right",
         },

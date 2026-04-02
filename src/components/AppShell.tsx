@@ -5,13 +5,14 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { Bell, RefreshCw, Settings2, Sparkles, WifiOff } from "lucide-react";
+import { Bell, RefreshCw, Settings2, Shield, Sparkles, WifiOff } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
 import StockAvatar from "@/components/profile/StockAvatar";
 import { Button } from "@/components/ui/button";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import { getThemeVisual } from "@/lib/cosmetics";
+import { isOwnerUser } from "@/lib/dev-account";
 import { loadNotificationSummary } from "@/lib/game-content";
 import { loadSocialAlertSummary } from "@/lib/friends";
 import { FALLBACK_APP_RUNTIME_STATUS, loadAppRuntimeStatus } from "@/lib/app-status";
@@ -60,6 +61,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const hideHeader = isMatchRoute || isNeonRivalsRoute;
   const hideBottomNav = isNeonRivalsRoute;
   const accountNeedsSync = hasSession && !user;
+  const ownerAccess = isOwnerUser(user);
+  const blockedAccount = Boolean(user?.isBlocked);
   const theme = getThemeVisual(user?.themeId);
   const themeVars = {
     "--theme-shell-art": theme.shellArt ? `url("${theme.shellArt}")` : "none",
@@ -154,6 +157,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
       });
     }
 
+    if (blockedAccount) {
+      signals.push({
+        title: "Account blocked",
+        body: user?.blockedReason ?? "This account is blocked from live services. Contact support if you believe this is incorrect.",
+        tone: "warning",
+      });
+    }
+
     if (accountNeedsSync) {
       signals.push({
         title: "Profile sync required",
@@ -177,7 +188,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     }
 
     return signals;
-  }, [accountNeedsSync, backendWarning, isOffline, runtimeStatus]);
+  }, [accountNeedsSync, backendWarning, blockedAccount, isOffline, runtimeStatus, user?.blockedReason]);
 
   return (
     <div className={`app-shell bg-background ${theme.shellClass}`} style={themeVars}>
@@ -270,6 +281,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
                       </span>
                     ) : null}
                   </Button>
+                  {ownerAccess ? (
+                    <Button
+                      type="button"
+                      onClick={() => navigate("/admin")}
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full px-4"
+                      aria-label="Open owner admin console"
+                    >
+                      <Shield size={16} />
+                      Admin
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     onClick={() => navigate("/settings")}
@@ -288,7 +312,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     <div className="hidden sm:block">
                       <IdentityLoadoutCard
                         username={user?.username ?? "Profile"}
-                        subtitle={unreadBadgeLabel(totalUnreadCount)}
+                        subtitle={ownerAccess ? `Owner account | ${unreadBadgeLabel(totalUnreadCount)}` : unreadBadgeLabel(totalUnreadCount)}
                         avatarId={user?.avatarId}
                         frameId={user?.frameId}
                         playerCardId={user?.playerCardId}
@@ -357,12 +381,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         ) : null}
-        {children}
+        {blockedAccount ? (
+          <div className="page-screen"><div className="page-stack"><section className="section-panel"><div className="flex items-start gap-4"><div className="neon-rivals-stat-icon"><Shield size={18} /></div><div><p className="section-kicker">Account blocked</p><h1 className="section-title mt-1">Live access restricted</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">{user?.blockedReason ?? "This account has been blocked by the owner console. Gameplay, purchases, and social actions are restricted until the block is lifted."}</p></div></div><div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => navigate("/support")} variant="play" size="lg">Contact Support</Button><Button onClick={() => void signOut()} variant="outline" size="lg">Sign Out</Button></div></section></div></div>
+        ) : children}
       </main>
       {!hideBottomNav ? (
         <BottomNav
           friendsBadge={friendUnreadCount}
           notificationsBadge={totalUnreadCount}
+          ownerAccess={ownerAccess}
         />
       ) : null}
     </div>

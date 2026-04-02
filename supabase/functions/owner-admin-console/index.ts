@@ -19,12 +19,14 @@ type AdminDashboardMetrics = {
   seasonPassUsers: number;
   paidVipUsers: number;
   vipAccessUsers: number;
+  blockedUsers: number;
   openTickets: number;
 };
 
 type AdminDashboardMonitoring = {
   paypalMode: "live" | "sandbox";
   paypalConfigured: boolean;
+  paypalWebhookConfigured: boolean;
   activeProductCount: number;
 };
 
@@ -37,6 +39,9 @@ type AdminUserRecord = {
   hasSeasonPass: boolean;
   isVip: boolean;
   vipExpiresAt: string | null;
+  isBlocked: boolean;
+  blockedAt: string | null;
+  blockedReason: string | null;
   coins: number;
   gems: number;
   puzzleShards: number;
@@ -65,6 +70,47 @@ type SupportTicketRecord = {
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
+  clientContext: Record<string, unknown> | null;
+};
+
+type AdminAuditEntry = {
+  id: string;
+  action: string;
+  actorUserId: string;
+  actorUsername: string | null;
+  targetUserId: string | null;
+  targetUsername: string | null;
+  targetTicketId: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+};
+
+type AdminWebhookEntry = {
+  id: string;
+  paypalEventId: string;
+  eventType: string;
+  orderId: string | null;
+  summary: string | null;
+  resourceStatus: string | null;
+  receivedAt: string;
+  processedAt: string | null;
+};
+
+type AdminArenaRunEntry = {
+  id: string;
+  userId: string;
+  username: string;
+  mode: string;
+  status: "complete" | "failed";
+  objectiveTitle: string;
+  score: number;
+  maxCombo: number;
+  matchedTiles: number;
+  movesLeft: number;
+  durationMs: number;
+  createdAt: string;
+  suspicionLabel: "clean" | "review" | "high";
+  suspicionReason: string | null;
 };
 
 type ProfileRow = {
@@ -75,6 +121,10 @@ type ProfileRow = {
   has_season_pass: boolean;
   is_vip: boolean;
   vip_expires_at: string | null;
+  is_blocked: boolean;
+  blocked_at: string | null;
+  blocked_reason: string | null;
+  blocked_by: string | null;
   coins: number;
   gems: number;
   puzzle_shards: number;
@@ -106,13 +156,52 @@ type TicketRow = {
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
+  client_context: Record<string, unknown> | null;
+};
+
+type AuditRow = {
+  id: string;
+  action: string;
+  actor_user_id: string;
+  target_user_id: string | null;
+  target_ticket_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+};
+
+type WebhookRow = {
+  id: string;
+  paypal_event_id: string;
+  event_type: string;
+  payload: Record<string, unknown> | null;
+  received_at: string;
+  processed_at: string | null;
+};
+
+type RunRow = {
+  id: string;
+  user_id: string;
+  mode: string;
+  status: "complete" | "failed";
+  objective_title: string;
+  score: number;
+  max_combo: number;
+  matched_tiles: number;
+  moves_left: number;
+  target_score: number;
+  objective_target: number;
+  duration_ms: number;
+  created_at: string;
 };
 
 const VALID_APP_ROLES = new Set(["player", "admin", "owner"]);
 const VALID_TICKET_STATUSES = new Set(["open", "reviewing", "resolved", "dismissed"]);
 const VALID_TICKET_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
-const PROFILE_SELECT = "id, username, app_role, vip_access, has_season_pass, is_vip, vip_expires_at, coins, gems, puzzle_shards, rank_points, pass_xp, hint_balance, avatar_id, rank, elo, created_at";
-const TICKET_SELECT = "id, reporter_user_id, category, subject, body, status, priority, admin_notes, assigned_to, created_at, updated_at, resolved_at";
+const PROFILE_SELECT = "id, username, app_role, vip_access, has_season_pass, is_vip, vip_expires_at, is_blocked, blocked_at, blocked_reason, blocked_by, coins, gems, puzzle_shards, rank_points, pass_xp, hint_balance, avatar_id, rank, elo, created_at";
+const TICKET_SELECT = "id, reporter_user_id, category, subject, body, status, priority, admin_notes, assigned_to, created_at, updated_at, resolved_at, client_context";
+const AUDIT_SELECT = "id, action, actor_user_id, target_user_id, target_ticket_id, metadata, created_at";
+const WEBHOOK_SELECT = "id, paypal_event_id, event_type, payload, received_at, processed_at";
+const RUN_SELECT = "id, user_id, mode, status, objective_title, score, max_combo, matched_tiles, moves_left, target_score, objective_target, duration_ms, created_at";
 
 function toErrorStatus(error: unknown) {
   const message = error instanceof Error ? error.message : "Request failed.";
@@ -145,6 +234,54 @@ function readProductName(metadata: Record<string, unknown> | null) {
   return "Unnamed product";
 }
 
+function parseWebhookOrderId(payload: Record<string, unknown> | null) {
+  const resource = payload?.resource as Record<string, unknown> | undefined;
+  const supplementary = resource?.supplementary_data as Record<string, unknown> | undefined;
+  const relatedIds = supplementary?.related_ids as Record<string, unknown> | undefined;
+  const resourceId = typeof resource?.id === "string" ? resource.id : null;
+  const orderId = typeof relatedIds?.order_id === "string" ? relatedIds.order_id : null;
+  return orderId ?? resourceId;
+}
+
+function parseWebhookResourceStatus(payload: Record<string, unknown> | null) {
+  const resource = payload?.resource as Record<string, unknown> | undefined;
+  return typeof resource?.status === "string" ? resource.status : null;
+}
+
+function parseWebhookSummary(payload: Record<string, unknown> | null) {
+  return typeof payload?.summary === "string" ? payload.summary : null;
+}
+
+function assessRunSuspicion(run: RunRow) {
+  const reasons: string[] = [];
+
+  if (run.status === "complete" && run.duration_ms > 0 && run.duration_ms < 7000) {
+    reasons.push("completed in under 7 seconds");
+  }
+
+  if (run.max_combo >= 18) {
+    reasons.push(`max combo ${run.max_combo}`);
+  }
+
+  if (run.target_score > 0 && run.score > run.target_score * 4) {
+    reasons.push(`score ${run.score} exceeds target by 4x+`);
+  }
+
+  if (run.objective_target > 0 && run.matched_tiles > run.objective_target * 5) {
+    reasons.push("matched tiles far exceed the objective target");
+  }
+
+  if (reasons.length >= 2) {
+    return { suspicionLabel: "high" as const, suspicionReason: reasons.join(" | ") };
+  }
+
+  if (reasons.length === 1) {
+    return { suspicionLabel: "review" as const, suspicionReason: reasons[0] };
+  }
+
+  return { suspicionLabel: "clean" as const, suspicionReason: null };
+}
+
 async function listAllAuthUsers(admin: SupabaseClient, maxUsers = 2000) {
   const users: Array<{ id: string; email: string | null }> = [];
   let page = 1;
@@ -172,6 +309,19 @@ async function listAllAuthUsers(admin: SupabaseClient, maxUsers = 2000) {
   return users;
 }
 
+async function loadProfileNameMap(admin: SupabaseClient, ids: string[]) {
+  if (ids.length === 0) {
+    return new Map<string, { username: string }>();
+  }
+
+  const { data, error } = await admin.from("profiles").select("id, username").in("id", ids);
+  if (error) {
+    throw error;
+  }
+
+  return new Map(((data ?? []) as Array<{ id: string; username: string }>).map((entry) => [entry.id, { username: entry.username }]));
+}
+
 function mapUserRecord(profile: ProfileRow, email: string | null): AdminUserRecord {
   return {
     id: profile.id,
@@ -182,6 +332,9 @@ function mapUserRecord(profile: ProfileRow, email: string | null): AdminUserReco
     hasSeasonPass: Boolean(profile.has_season_pass),
     isVip: Boolean(profile.is_vip),
     vipExpiresAt: profile.vip_expires_at,
+    isBlocked: Boolean(profile.is_blocked),
+    blockedAt: profile.blocked_at,
+    blockedReason: profile.blocked_reason,
     coins: profile.coins,
     gems: profile.gems,
     puzzleShards: profile.puzzle_shards,
@@ -202,14 +355,7 @@ async function mapTickets(admin: SupabaseClient, tickets: TicketRow[], authUserM
     ),
   );
 
-  let profileMap = new Map<string, { username: string }>();
-  if (relatedUserIds.length > 0) {
-    const { data, error } = await admin.from("profiles").select("id, username").in("id", relatedUserIds);
-    if (error) {
-      throw error;
-    }
-    profileMap = new Map(((data ?? []) as Array<{ id: string; username: string }>).map((entry) => [entry.id, { username: entry.username }]));
-  }
+  const profileMap = await loadProfileNameMap(admin, relatedUserIds);
 
   let effectiveAuthUserMap = authUserMap;
   if (!effectiveAuthUserMap) {
@@ -233,7 +379,86 @@ async function mapTickets(admin: SupabaseClient, tickets: TicketRow[], authUserM
     createdAt: ticket.created_at,
     updatedAt: ticket.updated_at,
     resolvedAt: ticket.resolved_at,
+    clientContext: ticket.client_context ?? null,
   })) satisfies SupportTicketRecord[];
+}
+
+async function mapAudits(admin: SupabaseClient, audits: AuditRow[]) {
+  const profileIds = Array.from(
+    new Set(audits.flatMap((audit) => [audit.actor_user_id, audit.target_user_id].filter(Boolean) as string[])),
+  );
+  const profileMap = await loadProfileNameMap(admin, profileIds);
+
+  return audits.map((audit) => ({
+    id: audit.id,
+    action: audit.action,
+    actorUserId: audit.actor_user_id,
+    actorUsername: profileMap.get(audit.actor_user_id)?.username ?? null,
+    targetUserId: audit.target_user_id,
+    targetUsername: audit.target_user_id ? (profileMap.get(audit.target_user_id)?.username ?? null) : null,
+    targetTicketId: audit.target_ticket_id,
+    metadata: audit.metadata ?? {},
+    createdAt: audit.created_at,
+  })) satisfies AdminAuditEntry[];
+}
+
+function mapWebhooks(rows: WebhookRow[]) {
+  return rows.map((entry) => ({
+    id: entry.id,
+    paypalEventId: entry.paypal_event_id,
+    eventType: entry.event_type,
+    orderId: parseWebhookOrderId(entry.payload),
+    summary: parseWebhookSummary(entry.payload),
+    resourceStatus: parseWebhookResourceStatus(entry.payload),
+    receivedAt: entry.received_at,
+    processedAt: entry.processed_at,
+  })) satisfies AdminWebhookEntry[];
+}
+
+async function mapRuns(admin: SupabaseClient, rows: RunRow[]) {
+  const profileMap = await loadProfileNameMap(admin, Array.from(new Set(rows.map((entry) => entry.user_id))));
+  return rows.map((entry) => {
+    const suspicion = assessRunSuspicion(entry);
+    return {
+      id: entry.id,
+      userId: entry.user_id,
+      username: profileMap.get(entry.user_id)?.username ?? "Unknown rival",
+      mode: entry.mode,
+      status: entry.status,
+      objectiveTitle: entry.objective_title,
+      score: entry.score,
+      maxCombo: entry.max_combo,
+      matchedTiles: entry.matched_tiles,
+      movesLeft: entry.moves_left,
+      durationMs: entry.duration_ms,
+      createdAt: entry.created_at,
+      suspicionLabel: suspicion.suspicionLabel,
+      suspicionReason: suspicion.suspicionReason,
+    };
+  }) satisfies AdminArenaRunEntry[];
+}
+
+async function writeAuditLog(
+  admin: SupabaseClient,
+  input: {
+    actorUserId: string;
+    action: string;
+    targetUserId?: string | null;
+    targetTicketId?: string | null;
+    metadata?: Record<string, unknown>;
+  },
+) {
+  const { error } = await admin.from("owner_admin_audit_log").insert({
+    actor_user_id: input.actorUserId,
+    action: input.action,
+    target_user_id: input.targetUserId ?? null,
+    target_ticket_id: input.targetTicketId ?? null,
+    metadata: input.metadata ?? {},
+  });
+
+  if (error) {
+    throw error;
+  }
 }
 
 async function loadDashboard(admin: SupabaseClient) {
@@ -250,11 +475,15 @@ async function loadDashboard(admin: SupabaseClient) {
     seasonPassUsersResult,
     paidVipUsersResult,
     vipAccessUsersResult,
+    blockedUsersResult,
     openTicketsResult,
     purchasesResult,
     productsResult,
     recentUsersResult,
     recentTicketsResult,
+    recentAuditsResult,
+    recentWebhooksResult,
+    recentRunsResult,
   ] = await Promise.all([
     admin.from("profiles").select("id", { count: "exact", head: true }),
     admin.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", last24h),
@@ -263,11 +492,15 @@ async function loadDashboard(admin: SupabaseClient) {
     admin.from("profiles").select("id", { count: "exact", head: true }).eq("has_season_pass", true),
     admin.from("profiles").select("id", { count: "exact", head: true }).eq("is_vip", true),
     admin.from("profiles").select("id", { count: "exact", head: true }).eq("vip_access", true),
+    admin.from("profiles").select("id", { count: "exact", head: true }).eq("is_blocked", true),
     admin.from("support_tickets").select("id", { count: "exact", head: true }).in("status", ["open", "reviewing"]),
     admin.from("purchases").select("amount, currency, status"),
     admin.from("products").select("id, kind, metadata").eq("active", true).order("id"),
     admin.from("profiles").select(PROFILE_SELECT).order("created_at", { ascending: false }).limit(8),
     admin.from("support_tickets").select(TICKET_SELECT).order("created_at", { ascending: false }).limit(8),
+    admin.from("owner_admin_audit_log").select(AUDIT_SELECT).order("created_at", { ascending: false }).limit(10),
+    admin.from("paypal_webhook_events").select(WEBHOOK_SELECT).order("received_at", { ascending: false }).limit(10),
+    admin.from("neon_rivals_runs").select(RUN_SELECT).order("created_at", { ascending: false }).limit(12),
   ]);
 
   for (const result of [
@@ -278,11 +511,15 @@ async function loadDashboard(admin: SupabaseClient) {
     seasonPassUsersResult,
     paidVipUsersResult,
     vipAccessUsersResult,
+    blockedUsersResult,
     openTicketsResult,
     purchasesResult,
     productsResult,
     recentUsersResult,
     recentTicketsResult,
+    recentAuditsResult,
+    recentWebhooksResult,
+    recentRunsResult,
   ]) {
     if (result.error) {
       throw result.error;
@@ -305,6 +542,7 @@ async function loadDashboard(admin: SupabaseClient) {
   const authUserMap = new Map(authUsers.map((entry) => [entry.id, entry.email]));
   const paypalMode = (Deno.env.get("PAYPAL_ENV") ?? "live") === "live" ? "live" : "sandbox";
   const paypalConfigured = Boolean(Deno.env.get("PAYPAL_CLIENT_ID") && Deno.env.get("PAYPAL_CLIENT_SECRET"));
+  const paypalWebhookConfigured = Boolean(Deno.env.get("PAYPAL_WEBHOOK_ID"));
 
   return {
     metrics: {
@@ -317,16 +555,21 @@ async function loadDashboard(admin: SupabaseClient) {
       seasonPassUsers: seasonPassUsersResult.count ?? 0,
       paidVipUsers: paidVipUsersResult.count ?? 0,
       vipAccessUsers: vipAccessUsersResult.count ?? 0,
+      blockedUsers: blockedUsersResult.count ?? 0,
       openTickets: openTicketsResult.count ?? 0,
     } satisfies AdminDashboardMetrics,
     monitoring: {
       paypalMode,
       paypalConfigured,
+      paypalWebhookConfigured,
       activeProductCount: products.length,
     } satisfies AdminDashboardMonitoring,
     products,
     recentUsers: ((recentUsersResult.data ?? []) as ProfileRow[]).map((profile) => mapUserRecord(profile, authUserMap.get(profile.id) ?? null)),
     recentTickets: await mapTickets(admin, (recentTicketsResult.data ?? []) as TicketRow[], authUserMap),
+    recentAudits: await mapAudits(admin, (recentAuditsResult.data ?? []) as AuditRow[]),
+    recentWebhooks: mapWebhooks((recentWebhooksResult.data ?? []) as WebhookRow[]),
+    recentRuns: await mapRuns(admin, (recentRunsResult.data ?? []) as RunRow[]),
   };
 }
 
@@ -403,6 +646,10 @@ async function updateUser(admin: SupabaseClient, ownerUserId: string, payload: R
     throw new Error("The owner account cannot remove its own owner access from this screen.");
   }
 
+  if (userId === ownerUserId && payload.isBlocked === true) {
+    throw new Error("The owner account cannot block itself.");
+  }
+
   const updates: Record<string, unknown> = {};
   if (typeof payload.username === "string") {
     const username = payload.username.trim();
@@ -422,6 +669,14 @@ async function updateUser(admin: SupabaseClient, ownerUserId: string, payload: R
       throw new Error("vipExpiresAt must be a valid date.");
     }
     updates.vip_expires_at = parsed.toISOString();
+  }
+  if (typeof payload.isBlocked === "boolean") {
+    updates.is_blocked = payload.isBlocked;
+    updates.blocked_at = payload.isBlocked ? new Date().toISOString() : null;
+    updates.blocked_by = payload.isBlocked ? ownerUserId : null;
+    updates.blocked_reason = payload.isBlocked ? (asOptionalString(payload.blockedReason) ?? "Blocked by owner console") : null;
+  } else if (payload.blockedReason !== undefined) {
+    updates.blocked_reason = asOptionalString(payload.blockedReason);
   }
   if (typeof payload.coins === "number") updates.coins = Math.max(0, Math.floor(payload.coins));
   if (typeof payload.gems === "number") updates.gems = Math.max(0, Math.floor(payload.gems));
@@ -443,6 +698,13 @@ async function updateUser(admin: SupabaseClient, ownerUserId: string, payload: R
     throw error;
   }
 
+  await writeAuditLog(admin, {
+    actorUserId: ownerUserId,
+    action: "update_user",
+    targetUserId: userId,
+    metadata: updates,
+  });
+
   const authUsers = await listAllAuthUsers(admin);
   const authUserMap = new Map(authUsers.map((entry) => [entry.id, entry.email]));
   const { data, error: reloadError } = await admin.from("profiles").select(PROFILE_SELECT).eq("id", userId).single();
@@ -455,7 +717,7 @@ async function updateUser(admin: SupabaseClient, ownerUserId: string, payload: R
   };
 }
 
-async function grantProduct(admin: SupabaseClient, payload: Record<string, unknown>) {
+async function grantProduct(admin: SupabaseClient, ownerUserId: string, payload: Record<string, unknown>) {
   const userId = asString(payload.userId).trim();
   const productId = asString(payload.productId).trim();
   if (!userId || !productId) {
@@ -464,6 +726,14 @@ async function grantProduct(admin: SupabaseClient, payload: Record<string, unkno
 
   const product = await getActiveProduct(admin, productId);
   await applyProductGrant(admin, userId, product, "owner_admin_grant");
+
+  await writeAuditLog(admin, {
+    actorUserId: ownerUserId,
+    action: "grant_product",
+    targetUserId: userId,
+    metadata: { productId },
+  });
+
   return { ok: true };
 }
 
@@ -486,7 +756,7 @@ async function listTickets(admin: SupabaseClient, status: unknown, limitValue: u
   };
 }
 
-async function updateTicket(admin: SupabaseClient, payload: Record<string, unknown>) {
+async function updateTicket(admin: SupabaseClient, ownerUserId: string, payload: Record<string, unknown>) {
   const ticketId = asString(payload.ticketId).trim();
   if (!ticketId) {
     throw new Error("ticketId is required.");
@@ -518,6 +788,13 @@ async function updateTicket(admin: SupabaseClient, payload: Record<string, unkno
   if (error) {
     throw error;
   }
+
+  await writeAuditLog(admin, {
+    actorUserId: ownerUserId,
+    action: "update_ticket",
+    targetTicketId: ticketId,
+    metadata: updates,
+  });
 
   const { data, error: reloadError } = await admin.from("support_tickets").select(TICKET_SELECT).eq("id", ticketId).single();
   if (reloadError) {
@@ -555,13 +832,13 @@ Deno.serve(async (req) => {
         result = await updateUser(admin, user.id, body as Record<string, unknown>);
         break;
       case "grant_product":
-        result = await grantProduct(admin, body as Record<string, unknown>);
+        result = await grantProduct(admin, user.id, body as Record<string, unknown>);
         break;
       case "list_tickets":
         result = await listTickets(admin, (body as Record<string, unknown>).status, (body as Record<string, unknown>).limit);
         break;
       case "update_ticket":
-        result = await updateTicket(admin, body as Record<string, unknown>);
+        result = await updateTicket(admin, user.id, body as Record<string, unknown>);
         break;
       default:
         throw new Error(`Unsupported action: ${action}`);

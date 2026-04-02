@@ -12,12 +12,14 @@ export interface AdminDashboardMetrics {
   seasonPassUsers: number;
   paidVipUsers: number;
   vipAccessUsers: number;
+  blockedUsers: number;
   openTickets: number;
 }
 
 export interface AdminDashboardMonitoring {
   paypalMode: "live" | "sandbox";
   paypalConfigured: boolean;
+  paypalWebhookConfigured: boolean;
   activeProductCount: number;
 }
 
@@ -36,6 +38,9 @@ export interface AdminUserRecord {
   hasSeasonPass: boolean;
   isVip: boolean;
   vipExpiresAt: string | null;
+  isBlocked: boolean;
+  blockedAt: string | null;
+  blockedReason: string | null;
   coins: number;
   gems: number;
   puzzleShards: number;
@@ -79,6 +84,34 @@ export interface AdminAuditEntry {
   createdAt: string;
 }
 
+export interface AdminWebhookEntry {
+  id: string;
+  paypalEventId: string;
+  eventType: string;
+  orderId: string | null;
+  summary: string | null;
+  resourceStatus: string | null;
+  receivedAt: string;
+  processedAt: string | null;
+}
+
+export interface AdminArenaRunEntry {
+  id: string;
+  userId: string;
+  username: string;
+  mode: string;
+  status: "complete" | "failed";
+  objectiveTitle: string;
+  score: number;
+  maxCombo: number;
+  matchedTiles: number;
+  movesLeft: number;
+  durationMs: number;
+  createdAt: string;
+  suspicionLabel: "clean" | "review" | "high";
+  suspicionReason: string | null;
+}
+
 export interface AdminDashboardSnapshot {
   metrics: AdminDashboardMetrics;
   monitoring: AdminDashboardMonitoring;
@@ -86,6 +119,8 @@ export interface AdminDashboardSnapshot {
   recentUsers: AdminUserRecord[];
   recentTickets: AdminSupportTicket[];
   recentAudits: AdminAuditEntry[];
+  recentWebhooks: AdminWebhookEntry[];
+  recentRuns: AdminArenaRunEntry[];
 }
 
 export interface AdminUserUpdateInput {
@@ -96,6 +131,8 @@ export interface AdminUserUpdateInput {
   hasSeasonPass?: boolean;
   isVip?: boolean;
   vipExpiresAt?: string | null;
+  isBlocked?: boolean;
+  blockedReason?: string | null;
   coins?: number;
   gems?: number;
   puzzleShards?: number;
@@ -118,7 +155,7 @@ function mapAdminFunctionError(message: string) {
     normalized.includes("no edge functions") ||
     normalized.includes("failed to send a request to the edge function")
   ) {
-    return "The owner admin console backend is unavailable. Deploy the Supabase function `owner-admin-console` and retry.";
+    return "The owner admin console backend is unavailable. Deploy the Supabase function owner-admin-console and retry.";
   }
   return message;
 }

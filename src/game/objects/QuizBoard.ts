@@ -148,12 +148,12 @@ export default class QuizBoard {
 
   private buildBoardSurface() {
     const palette = getQuizPalette(this.mode);
-    const panelWidth = Math.min(BOARD_VIEWPORT_WIDTH - 40, 712);
-    const panelHeight = Math.min(BOARD_VIEWPORT_HEIGHT - 10, 730);
+    const panelWidth = Math.min(BOARD_VIEWPORT_WIDTH - 28, 828);
+    const panelHeight = Math.min(BOARD_VIEWPORT_HEIGHT - 18, 818);
 
     this.boardShadow = this.scene.add.rectangle(
       BOARD_VIEWPORT_CENTER_X,
-      BOARD_VIEWPORT_CENTER_Y + 18,
+      BOARD_VIEWPORT_CENTER_Y + 10,
       panelWidth + 72,
       panelHeight + 88,
       0x06101e,
@@ -164,7 +164,7 @@ export default class QuizBoard {
 
     this.boardFrame = this.scene.add.rectangle(
       BOARD_VIEWPORT_CENTER_X,
-      BOARD_VIEWPORT_CENTER_Y + 18,
+      BOARD_VIEWPORT_CENTER_Y + 10,
       panelWidth + 24,
       panelHeight + 26,
       0x08182e,
@@ -192,7 +192,7 @@ export default class QuizBoard {
     });
 
     this.roundText = this.scene.add
-      .text(BOARD_VIEWPORT_CENTER_X, BOARD_VIEWPORT_CENTER_Y - 302, "ROUND 1/1", {
+      .text(BOARD_VIEWPORT_CENTER_X, BOARD_VIEWPORT_CENTER_Y - 328, "ROUND 1/1", {
         fontFamily: "Chakra Petch, Arial",
         fontSize: "24px",
         color: "#65f2ff",
@@ -202,9 +202,9 @@ export default class QuizBoard {
       .setDepth(28);
 
     this.titleText = this.scene.add
-      .text(BOARD_VIEWPORT_CENTER_X, BOARD_VIEWPORT_CENTER_Y - 262, "", {
+      .text(BOARD_VIEWPORT_CENTER_X, BOARD_VIEWPORT_CENTER_Y - 286, "", {
         fontFamily: "Arial Black, Arial",
-        fontSize: "30px",
+        fontSize: "24px",
         color: "#ffffff",
         align: "center",
         wordWrap: { width: panelWidth - 110 },
@@ -216,11 +216,11 @@ export default class QuizBoard {
     this.helperText = this.scene.add
       .text(
         BOARD_VIEWPORT_CENTER_X,
-        BOARD_VIEWPORT_CENTER_Y - 122,
+        BOARD_VIEWPORT_CENTER_Y - 150,
         "Read the prompt first, then fire the cleanest answer lane.",
         {
           fontFamily: "Chakra Petch, Arial",
-          fontSize: "17px",
+          fontSize: "14px",
           color: "#b8c9de",
           align: "center",
           wordWrap: { width: panelWidth - 140 },
@@ -231,24 +231,24 @@ export default class QuizBoard {
 
     this.promptPanel = this.scene.add.rectangle(
       BOARD_VIEWPORT_CENTER_X,
-      BOARD_VIEWPORT_CENTER_Y - 176,
-      panelWidth - 80,
-      116,
+      BOARD_VIEWPORT_CENTER_Y - 204,
+      panelWidth - 54,
+      94,
       palette.accentSoft,
       0.18,
     );
     this.promptPanel.setStrokeStyle(2, palette.accent, 0.38);
     this.promptPanel.setDepth(26);
 
-    const optionWidth = 286;
-    const optionHeight = 162;
-    const startX = BOARD_VIEWPORT_CENTER_X - optionWidth / 2 - 30;
-    const startY = BOARD_VIEWPORT_CENTER_Y + 48;
+    const optionWidth = Math.floor((panelWidth - 78) / 2);
+    const optionHeight = 170;
+    const startX = BOARD_VIEWPORT_CENTER_X - optionWidth / 2 - 18;
+    const startY = BOARD_VIEWPORT_CENTER_Y + 34;
     this.optionPanels = [
       this.createOptionPanel(startX, startY, optionWidth, optionHeight, 0),
-      this.createOptionPanel(startX + optionWidth + 60, startY, optionWidth, optionHeight, 1),
-      this.createOptionPanel(startX, startY + optionHeight + 34, optionWidth, optionHeight, 2),
-      this.createOptionPanel(startX + optionWidth + 60, startY + optionHeight + 34, optionWidth, optionHeight, 3),
+      this.createOptionPanel(startX + optionWidth + 36, startY, optionWidth, optionHeight, 1),
+      this.createOptionPanel(startX, startY + optionHeight + 26, optionWidth, optionHeight, 2),
+      this.createOptionPanel(startX + optionWidth + 36, startY + optionHeight + 26, optionWidth, optionHeight, 3),
     ];
   }
 

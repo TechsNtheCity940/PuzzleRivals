@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase-client";
+import { supabaseFunctionsUrl } from "@/lib/supabase-client";
 
 export type AppRuntimeStatusResolution = "live" | "unavailable";
 
@@ -19,18 +19,29 @@ export const FALLBACK_APP_RUNTIME_STATUS: AppRuntimeStatus = {
 };
 
 export async function loadAppRuntimeStatus(): Promise<AppRuntimeStatus> {
-  if (!supabase) {
+  if (!supabaseFunctionsUrl) {
     return FALLBACK_APP_RUNTIME_STATUS;
   }
 
-  const { data, error } = await supabase.functions.invoke("app-runtime-status");
-  if (error) {
+  try {
+    const response = await fetch(`${supabaseFunctionsUrl}/app-runtime-status`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      return FALLBACK_APP_RUNTIME_STATUS;
+    }
+
+    const data = (await response.json()) as Partial<AppRuntimeStatus>;
+    return {
+      ...FALLBACK_APP_RUNTIME_STATUS,
+      ...data,
+      source: "supabase",
+    };
+  } catch {
     return FALLBACK_APP_RUNTIME_STATUS;
   }
-
-  return {
-    ...FALLBACK_APP_RUNTIME_STATUS,
-    ...(data as Partial<AppRuntimeStatus>),
-    source: "supabase",
-  };
 }
