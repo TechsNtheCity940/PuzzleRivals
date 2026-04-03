@@ -34,6 +34,7 @@ interface PipeBoardOptions {
 
 type DirectionIndex = 0 | 1 | 2 | 3;
 
+const DIRECTION_ORDER: DirectionIndex[] = [0, 1, 2, 3];
 const DIRECTION_STEPS: Record<DirectionIndex, { x: number; y: number }> = {
   0: { x: 0, y: -1 },
   1: { x: 1, y: 0 },
@@ -47,10 +48,14 @@ interface PipeVisual {
   plate: Phaser.GameObjects.Rectangle;
   pipe: Phaser.GameObjects.Graphics;
   flow: Phaser.GameObjects.Graphics;
+  leak: Phaser.GameObjects.Graphics;
   marker: Phaser.GameObjects.Arc;
+  tag: Phaser.GameObjects.Text;
   inputZone: Phaser.GameObjects.Rectangle;
   droplets: Phaser.GameObjects.Arc[];
   flowTweens: Phaser.Tweens.Tween[];
+  leakSparks: Phaser.GameObjects.Arc[];
+  leakTweens: Phaser.Tweens.Tween[];
 }
 
 function emptyColorProgress() {
@@ -100,14 +105,24 @@ export default class PipeBoard {
   }
 
   create() {
-    this.movesLeft = this.objective.startingMoves;
-    this.targetScore = this.objective.targetScore;
+    const totalCells = this.grid.flat().length;
+    const rotatableCells = this.countRotatableCells();
+
+    this.movesLeft = Math.max(
+      this.objective.startingMoves,
+      rotatableCells + Math.ceil(this.size * 1.2),
+    );
+    this.targetScore = Math.max(
+      this.objective.targetScore,
+      950 + totalCells * 52,
+    );
     this.runStartedAtMs = this.scene.time.now;
     this.score = 0;
     this.combo = 0;
     this.maxCombo = 0;
-    this.selectedRow = -1;
-    this.selectedCol = -1;
+    this.selectedRow = 0;
+    this.selectedCol = 0;
+    this.matchedTiles = this.countConnected(this.grid);
     this.buildBoardSurface();
     this.refreshAllVisuals();
     this.status = "running";
@@ -117,6 +132,7 @@ export default class PipeBoard {
   destroy() {
     this.visuals.flat().forEach((visual) => {
       this.clearFlowAnimation(visual);
+      this.clearLeakAnimation(visual);
       visual.inputZone.destroy();
       visual.container.destroy();
     });
@@ -206,16 +222,27 @@ export default class PipeBoard {
         plate.setStrokeStyle(2, 0x25567e, 0.4);
         const pipe = this.scene.add.graphics();
         const flow = this.scene.add.graphics();
+        const leak = this.scene.add.graphics();
         const marker = this.scene.add.circle(0, 0, this.cellSize * 0.08, 0x5fe2ff, 0.9);
+        const tag = this.scene.add.text(0, this.cellSize * 0.22, "", {
+          fontFamily: "Chakra Petch, Arial",
+          fontSize: `${Math.max(10, Math.round(this.cellSize * 0.12))}px`,
+          fontStyle: "700",
+          color: "#f8fffd",
+          stroke: "#04111c",
+          strokeThickness: 4,
+          align: "center",
+        });
+        tag.setOrigin(0.5);
+
         const inputZone = this.scene.add.rectangle(
           center.x,
           center.y,
-          this.cellSize + 8,
-          this.cellSize + 8,
+          this.cellSize + 12,
+          this.cellSize + 12,
           0xffffff,
           0.001,
         );
-
         inputZone.setDepth(36);
         inputZone.setInteractive({ useHandCursor: true });
         inputZone.on("pointerdown", () => {
@@ -226,8 +253,10 @@ export default class PipeBoard {
         plate.setDepth(1);
         pipe.setDepth(2);
         flow.setDepth(3);
-        marker.setDepth(4);
-        container.add([glow, plate, pipe, flow, marker]);
+        leak.setDepth(4);
+        marker.setDepth(5);
+        tag.setDepth(6);
+        container.add([glow, plate, pipe, flow, leak, marker, tag]);
 
         currentRow.push({
           container,
@@ -235,10 +264,14 @@ export default class PipeBoard {
           plate,
           pipe,
           flow,
+          leak,
           marker,
+          tag,
           inputZone,
           droplets: [],
           flowTweens: [],
+          leakSparks: [],
+          leakTweens: [],
         });
       }
       this.visuals.push(currentRow);
@@ -299,14 +332,24 @@ export default class PipeBoard {
 
     this.grid = nextGrid;
     const connected = this.countConnected(this.grid);
-    const delta = Math.max(0, connected - previousConnected);
+    const delta = connected - previousConnected;
     this.matchedTiles = connected;
-    this.score += 70 + delta * 95;
+
+    if (delta > 0) {
+      this.combo += 1;
+      this.maxCombo = Math.max(this.maxCombo, this.combo);
+      this.score += 65 + delta * 140 + this.combo * 22;
+    } else {
+      this.combo = 0;
+      this.score += 10;
+    }
+
     this.refreshAllVisuals();
     this.emitState();
 
     if (this.getProgressPercent() >= 100) {
       this.status = "complete";
+      this.score += 320 + this.movesLeft * 18;
       await this.playCompletion();
       this.emitState();
       this.bridge?.onComplete?.(this.snapshotState());
@@ -333,6 +376,7 @@ export default class PipeBoard {
         const visual = this.visuals[row][col];
         this.drawPipeVisual(cell, visual, row, col);
         visual.container.setAngle(cell.rotation);
+        visual.tag.setAngle(-cell.rotation);
       }
     }
   }
@@ -355,8 +399,12 @@ export default class PipeBoard {
             : 0x2e5677;
     const arm = this.cellSize * 0.34;
     const pipeWidth = Math.max(8, Math.round(this.cellSize * 0.13));
-    const activeDirections = this.getActiveFlowDirections(row, col, cell)
-      .map((direction) => this.toLocalDirection(direction, cell.rotation));
+    const activeDirections = this.getActiveFlowDirections(row, col, cell).map((direction) =>
+      this.toLocalDirection(direction, cell.rotation),
+    );
+    const deadEnds = this.getDeadEndDirections(row, col, cell).map((direction) =>
+      this.toLocalDirection(direction, cell.rotation),
+    );
 
     visual.plate.setFillStyle(baseColor, 0.92);
     visual.plate.setStrokeStyle(
@@ -373,8 +421,13 @@ export default class PipeBoard {
       cell.isSink ? 0xd8ff87 : cell.isSource ? 0x8ff8ff : 0xffec66,
       isEndpoint ? 0.95 : isSelected ? 0.34 : 0.12,
     );
+    visual.tag.setText(cell.isSource ? "IN" : cell.isSink ? "OUT" : "");
+    visual.tag.setVisible(isEndpoint);
+    visual.tag.setColor(cell.isSink ? "#ebffb1" : "#d6ffff");
 
     this.clearFlowAnimation(visual);
+    this.clearLeakAnimation(visual);
+
     visual.pipe.clear();
     visual.pipe.lineStyle(pipeWidth, pipeColor, 1);
     visual.pipe.beginPath();
@@ -447,36 +500,78 @@ export default class PipeBoard {
       visual.flow.fillStyle(cell.isSink ? 0xe8ffaf : 0xb7ffff, cell.isSource ? 1 : 0.94);
       visual.flow.fillCircle(0, 0, pipeWidth * 0.28);
     }
+
+    if (cell.isConnected && deadEnds.length > 0) {
+      visual.leak.lineStyle(2, 0xff76b6, 0.82);
+      deadEnds.forEach((direction, index) => {
+        const endpoint = this.getLocalDirectionEndpoint(direction, arm);
+        const sparkEnd = {
+          x: endpoint.x * 1.15,
+          y: endpoint.y * 1.15,
+        };
+
+        visual.leak.beginPath();
+        visual.leak.moveTo(endpoint.x * 0.82, endpoint.y * 0.82);
+        visual.leak.lineTo(sparkEnd.x, sparkEnd.y);
+        visual.leak.strokePath();
+
+        const spark = this.scene.add.circle(
+          sparkEnd.x,
+          sparkEnd.y,
+          Math.max(2, pipeWidth * 0.14),
+          0xffa8d1,
+          0.92,
+        );
+        spark.setDepth(5);
+        visual.container.add(spark);
+        visual.leakSparks.push(spark);
+
+        const start = { x: endpoint.x * 0.92, y: endpoint.y * 0.92 };
+        const end = { x: endpoint.x * 1.2, y: endpoint.y * 1.2 };
+        const tween = this.scene.tweens.add({
+          targets: spark,
+          x: end.x,
+          y: end.y,
+          alpha: { from: 0.92, to: 0.16 },
+          scale: { from: 1, to: 1.65 },
+          duration: 360,
+          delay: index * 90,
+          repeat: -1,
+          ease: "Sine.easeInOut",
+          onRepeat: () => {
+            spark.setPosition(start.x, start.y);
+            spark.setAlpha(0.92);
+            spark.setScale(1);
+          },
+        });
+        visual.leakTweens.push(tween);
+      });
+    }
   }
 
   private getActiveFlowDirections(row: number, col: number, cell: PipeCell): DirectionIndex[] {
     const directions: DirectionIndex[] = [];
 
-    for (let direction = 0 as DirectionIndex; direction < 4; direction = (direction + 1) as DirectionIndex) {
+    for (const direction of DIRECTION_ORDER) {
       if (!cell.connections[direction]) {
         continue;
       }
 
       const nextRow = row + DIRECTION_STEPS[direction].y;
       const nextCol = col + DIRECTION_STEPS[direction].x;
-      if (
-        nextRow < 0 ||
-        nextRow >= this.size ||
-        nextCol < 0 ||
-        nextCol >= this.size
-      ) {
+      if (nextRow < 0 || nextRow >= this.size || nextCol < 0 || nextCol >= this.size) {
         continue;
       }
 
       const neighbor = this.grid[nextRow][nextCol];
-      const opposite = (((direction + 2) % 4) as DirectionIndex);
+      const opposite = ((direction + 2) % 4) as DirectionIndex;
       if (neighbor.connections[opposite] && neighbor.isConnected) {
         directions.push(direction);
       }
     }
 
     if (directions.length === 0 && cell.isSource) {
-      for (let direction = 0 as DirectionIndex; direction < 4; direction = (direction + 1) as DirectionIndex) {
+      for (const direction of DIRECTION_ORDER) {
         if (cell.connections[direction]) {
           directions.push(direction);
         }
@@ -484,6 +579,31 @@ export default class PipeBoard {
     }
 
     return directions;
+  }
+
+  private getDeadEndDirections(row: number, col: number, cell: PipeCell): DirectionIndex[] {
+    const deadEnds: DirectionIndex[] = [];
+
+    for (const direction of DIRECTION_ORDER) {
+      if (!cell.connections[direction]) {
+        continue;
+      }
+
+      const nextRow = row + DIRECTION_STEPS[direction].y;
+      const nextCol = col + DIRECTION_STEPS[direction].x;
+      if (nextRow < 0 || nextRow >= this.size || nextCol < 0 || nextCol >= this.size) {
+        deadEnds.push(direction);
+        continue;
+      }
+
+      const neighbor = this.grid[nextRow][nextCol];
+      const opposite = ((direction + 2) % 4) as DirectionIndex;
+      if (!neighbor.connections[opposite]) {
+        deadEnds.push(direction);
+      }
+    }
+
+    return deadEnds;
   }
 
   private toLocalDirection(direction: DirectionIndex, rotation: number): DirectionIndex {
@@ -504,6 +624,18 @@ export default class PipeBoard {
     visual.flowTweens = [];
     visual.droplets.forEach((droplet) => droplet.destroy());
     visual.droplets = [];
+  }
+
+  private clearLeakAnimation(visual: PipeVisual) {
+    visual.leak.clear();
+    visual.leakTweens.forEach((tween) => tween.stop());
+    visual.leakTweens = [];
+    visual.leakSparks.forEach((spark) => spark.destroy());
+    visual.leakSparks = [];
+  }
+
+  private countRotatableCells() {
+    return this.grid.flat().filter((cell) => !cell.isSource && !cell.isSink).length;
   }
 
   private countConnected(grid: PipeCell[][]) {
