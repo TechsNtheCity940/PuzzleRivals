@@ -272,6 +272,11 @@ function mapProduct(
     isEquipped: equipped,
     isFeatured: asBoolean(metadata.featured, false),
     collection: asString(metadata.collection) || undefined,
+    seasonId: asString(metadata.seasonId) || undefined,
+    hintAmount: asNumber(metadata.hint_amount, 0) || undefined,
+    bundlePassXp: asNumber(metadata.bundle_pass_xp, 0) || undefined,
+    bundleCoins: asNumber(metadata.bundle_coins, 0) || undefined,
+    bundleGems: asNumber(metadata.bundle_gems, 0) || undefined,
     isComplimentary: privileged,
   };
 }
@@ -433,3 +438,4 @@ export async function createPayPalCheckout(
 export async function capturePayPalCheckout(purchaseId: string) {
   return invoke<{ ok: boolean }>("capture-paypal-order", { purchaseId });
 }
+

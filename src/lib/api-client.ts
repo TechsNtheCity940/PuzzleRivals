@@ -2,6 +2,16 @@ import type { BackendLobby, MatchMode, PuzzleSubmission } from "@/lib/backend";
 import type { NeonRivalsRunSubmission, NeonRivalsRunSyncResult } from "@/game/types";
 import { supabase, supabaseConfigErrorMessage } from "@/lib/supabase-client";
 
+export interface MatchHintSyncResult {
+  lobby: BackendLobby;
+  penalty: number;
+  hintUses: number;
+  hintPenaltyTotal: number;
+  nextHintAvailableAt: string;
+  remainingHints: number;
+  liveScore: number;
+}
+
 async function invoke<T>(functionName: string, body: Record<string, unknown>) {
   if (!supabase) {
     throw new Error(supabaseConfigErrorMessage);
@@ -81,11 +91,32 @@ export const supabaseApi = {
   syncLobby(lobbyId: string) {
     return invoke<{ lobby: BackendLobby }>("sync-lobby", { lobbyId });
   },
-  submitProgress(lobbyId: string, stage: "practice" | "live", submission: PuzzleSubmission) {
-    return invoke<{ lobby: BackendLobby; progress: number }>("submit-progress", { lobbyId, stage, submission });
+  submitProgress(
+    lobbyId: string,
+    stage: "practice" | "live",
+    submission: PuzzleSubmission,
+    score?: number,
+  ) {
+    return invoke<{ lobby: BackendLobby; progress: number; liveScore: number }>(
+      "submit-progress",
+      { lobbyId, stage, submission, score },
+    );
   },
-  submitSolve(lobbyId: string, stage: "practice" | "live", submission: PuzzleSubmission) {
-    return invoke<{ lobby: BackendLobby }>("submit-solve", { lobbyId, stage, submission });
+  submitSolve(
+    lobbyId: string,
+    stage: "practice" | "live",
+    submission: PuzzleSubmission,
+    score?: number,
+  ) {
+    return invoke<{ lobby: BackendLobby }>("submit-solve", {
+      lobbyId,
+      stage,
+      submission,
+      score,
+    });
+  },
+  useMatchHint(lobbyId: string) {
+    return invoke<MatchHintSyncResult>("use-match-hint", { lobbyId });
   },
   voteNextRound(lobbyId: string, vote: "continue" | "exit") {
     return invoke<{ lobby: BackendLobby }>("vote-next-round", { lobbyId, vote });

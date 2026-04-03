@@ -1,6 +1,4 @@
 import {
-  Suspense,
-  lazy,
   useCallback,
   useEffect,
   useMemo,
@@ -24,6 +22,7 @@ import NeonRivalsGame from "@/components/game/NeonRivalsGame";
 import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
 import PageHeader from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/sonner";
 import { subscribeToLobby, supabaseApi } from "@/lib/api-client";
 import type { NeonRivalsGameState } from "@/game/types";
 import type {
@@ -33,11 +32,9 @@ import type {
   PuzzleSubmission,
 } from "@/lib/backend";
 import {
-  getPuzzleHelpText,
   getPuzzleHintText,
   isRapidFirePuzzleType,
 } from "@/lib/match-rules";
-import { getNeonPuzzleThemeCategory } from "@/lib/match-board-theme";
 import { DEFAULT_AVATAR_ID } from "@/lib/profile-customization";
 import { getRankColor } from "@/lib/seed-data";
 import {
@@ -46,11 +43,9 @@ import {
 } from "@/lib/supabase-client";
 import { cn } from "@/lib/utils";
 import { getRankedArenaModeForPuzzleType } from "../../shared/ranked-arena";
+import { getEffectiveMatchScore, getMatchHintPenalty } from "../../shared/match-hints";
 import { useAuth } from "@/providers/AuthProvider";
 
-const MatchPuzzleBoard = lazy(
-  () => import("@/components/match/MatchPuzzleBoard"),
-);
 
 function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -76,8 +71,14 @@ function formatPlacement(rank: number) {
 
 function rankPlayers(players: BackendLobbyPlayer[], rapidFire: boolean) {
   return [...players].sort((left, right) => {
-    if (rapidFire && right.score !== left.score)
-      return right.score - left.score;
+    const leftSolved = left.solvedAtMs !== null || left.progress >= 100 || left.completions > 0;
+    const rightSolved = right.solvedAtMs !== null || right.progress >= 100 || right.completions > 0;
+
+    if (!rapidFire && leftSolved !== rightSolved) {
+      return leftSolved ? -1 : 1;
+    }
+
+    if (right.score !== left.score) return right.score - left.score;
     if (rapidFire && right.completions !== left.completions)
       return right.completions - left.completions;
     if (right.progress !== left.progress) return right.progress - left.progress;
@@ -239,7 +240,6 @@ export default function MatchPage() {
     canSave,
     hasSession,
     signOut,
-    saveProfile,
   } = useAuth();
   const accountNeedsSync = hasSession && !user;
 
@@ -249,8 +249,12 @@ export default function MatchPage() {
   const [rematchKey, setRematchKey] = useState(0);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
   const [localHintBalance, setLocalHintBalance] = useState(0);
-  const [hintUnlocked, setHintUnlocked] = useState(false);
   const [hintSaving, setHintSaving] = useState(false);
+  const [hintPenaltyTotal, setHintPenaltyTotal] = useState(0);
+  const [hintUsesThisRound, setHintUsesThisRound] = useState(0);
+  const [lastHintPenalty, setLastHintPenalty] = useState(0);
+  const [hintCooldownUntil, setHintCooldownUntil] = useState<number | null>(null);
+  const [hintMessage, setHintMessage] = useState<string | null>(null);
   const [solvePending, setSolvePending] = useState(false);
   const [exitPending, setExitPending] = useState(false);
   const [resultsSnapshot, setResultsSnapshot] = useState<BackendLobby | null>(
@@ -273,6 +277,7 @@ export default function MatchPage() {
   const practiceTimeLeftRef = useRef(0);
   const liveTimeLeftRef = useRef(0);
   const solvePendingRef = useRef(false);
+  const arenaStateRef = useRef<NeonRivalsGameState | null>(null);
 
   useEffect(() => {
     setLocalHintBalance(user?.hintBalance ?? 0);
@@ -285,7 +290,11 @@ export default function MatchPage() {
     setLobby(null);
     setLobbyError(null);
     setPracticeSolved(false);
-    setHintUnlocked(false);
+    setHintPenaltyTotal(0);
+    setHintUsesThisRound(0);
+    setLastHintPenalty(0);
+    setHintCooldownUntil(null);
+    setHintMessage(null);
     setSolvePending(false);
     setResultsSnapshot(null);
     readySentLobbyIdRef.current = null;
@@ -404,7 +413,11 @@ export default function MatchPage() {
     const completedAt = lobby?.results?.completedAt ?? null;
     if (!completedAt || completedRoundRef.current === completedAt) return;
     completedRoundRef.current = completedAt;
-    setHintUnlocked(false);
+    setHintPenaltyTotal(0);
+    setHintUsesThisRound(0);
+    setLastHintPenalty(0);
+    setHintCooldownUntil(null);
+    setHintMessage(null);
     void refreshUser();
   }, [lobby, refreshUser]);
 
@@ -431,7 +444,11 @@ export default function MatchPage() {
   }, [lobby]);
 
   useEffect(() => {
-    setHintUnlocked(false);
+    setHintPenaltyTotal(0);
+    setHintUsesThisRound(0);
+    setLastHintPenalty(0);
+    setHintCooldownUntil(null);
+    setHintMessage(null);
     setArenaState(null);
     liveSolveStageKeyRef.current = null;
     progressSubmissionKeyRef.current = null;
@@ -545,6 +562,24 @@ export default function MatchPage() {
     : null;
 
   useEffect(() => {
+    const nextPenaltyTotal = selfPlayer?.hintPenaltyTotal ?? 0;
+    const nextHintUses = selfPlayer?.hintUses ?? 0;
+    const nextCooldown = selfPlayer?.nextHintAvailableAt
+      ? new Date(selfPlayer.nextHintAvailableAt).getTime()
+      : null;
+
+    setHintPenaltyTotal(nextPenaltyTotal);
+    setHintUsesThisRound(nextHintUses);
+    setHintCooldownUntil(
+      nextCooldown && nextCooldown > Date.now() ? nextCooldown : null,
+    );
+  }, [
+    selfPlayer?.hintPenaltyTotal,
+    selfPlayer?.hintUses,
+    selfPlayer?.nextHintAvailableAt,
+  ]);
+
+  useEffect(() => {
     lobbyRef.current = lobby;
   }, [lobby]);
 
@@ -557,19 +592,17 @@ export default function MatchPage() {
     solvePendingRef.current = solvePending;
   }, [solvePending]);
 
-  const handlePracticeSolve = useCallback(() => {
-    setPracticeSolved(true);
-  }, []);
+  useEffect(() => {
+    arenaStateRef.current = arenaState;
+  }, [arenaState]);
 
-  const handleBoardProgress = useCallback((_progress: number) => {
-    // Progress is synced through explicit submission events only.
-  }, []);
 
   const queueProgressSubmission = useCallback(
     (
       stage: "practice" | "live",
       submission: PuzzleSubmission,
       progress: number,
+      score = 0,
     ) => {
       const currentLobby = lobbyRef.current;
       if (!currentLobby) return;
@@ -586,7 +619,8 @@ export default function MatchPage() {
         return;
       }
 
-      const submissionKey = `${currentLobby.id}:${stage}:${progress}:${JSON.stringify(submission)}`;
+      const normalizedScore = Math.max(0, Math.floor(score));
+      const submissionKey = `${currentLobby.id}:${stage}:${progress}:${normalizedScore}:${JSON.stringify(submission)}`;
       if (progressSubmissionKeyRef.current === submissionKey) {
         return;
       }
@@ -613,7 +647,12 @@ export default function MatchPage() {
           return;
 
         void supabaseApi
-          .submitProgress(latestLobby.id, stage, submission)
+          .submitProgress(
+            latestLobby.id,
+            stage,
+            submission,
+            stage === "live" ? normalizedScore : undefined,
+          )
           .then((response) => {
             syncFailureCountRef.current = 0;
             syncPausedUntilRef.current = 0;
@@ -651,7 +690,12 @@ export default function MatchPage() {
     solvePendingRef.current = true;
 
     void supabaseApi
-      .submitSolve(currentLobby.id, "live", currentSubmission)
+      .submitSolve(
+        currentLobby.id,
+        "live",
+        currentSubmission,
+        arenaStateRef.current?.score ?? 0,
+      )
       .then((response) => setLobby(response.lobby))
       .catch((error) => {
         const message =
@@ -666,18 +710,57 @@ export default function MatchPage() {
       });
   }, []);
 
-  async function handleHintUnlock() {
-    if (!user || hintUnlocked || localHintBalance <= 0 || hintSaving) return;
+  async function handleUseHint() {
+    const currentLobby = lobbyRef.current;
+    if (!currentLobby || !currentLobby.selection || !user || hintSaving) {
+      return;
+    }
+    if (currentLobby.status !== "live" || liveTimeLeftRef.current <= 0) {
+      return;
+    }
 
-    const nextBalance = Math.max(0, localHintBalance - 1);
-    setHintUnlocked(true);
-    setLocalHintBalance(nextBalance);
+    const currentPlayer = currentLobby.players.find((player) => player.playerId === user.id);
+    if (currentPlayer?.solvedAtMs !== null) {
+      return;
+    }
+
+    if (localHintBalance <= 0) {
+      toast.error("No hints are available on this account.");
+      return;
+    }
+
+    if (hintCooldownUntil && hintCooldownUntil > Date.now()) {
+      const seconds = Math.max(1, Math.ceil((hintCooldownUntil - Date.now()) / 1000));
+      toast.error(`Hint cooling down for ${seconds}s.`);
+      return;
+    }
+
     setHintSaving(true);
 
     try {
-      await saveProfile({ hintBalance: nextBalance });
+      const response = await supabaseApi.useMatchHint(currentLobby.id);
+      const cooldownAt = response.nextHintAvailableAt
+        ? new Date(response.nextHintAvailableAt).getTime()
+        : null;
+      const message = getPuzzleHintText(currentLobby.selection.puzzleType);
+
+      syncFailureCountRef.current = 0;
+      syncPausedUntilRef.current = 0;
+      setLobby(response.lobby);
+      setLocalHintBalance(response.remainingHints);
+      setHintPenaltyTotal(response.hintPenaltyTotal);
+      setHintUsesThisRound(response.hintUses);
+      setLastHintPenalty(response.penalty);
+      setHintCooldownUntil(cooldownAt);
+      setHintMessage(message);
+      void refreshUser();
+      toast.message(`Hint used. -${response.penalty} score`, {
+        description: message,
+      });
     } catch (error) {
-      console.error("Failed to save hint balance", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to use a match hint.",
+      );
     } finally {
       setHintSaving(false);
     }
@@ -731,33 +814,64 @@ export default function MatchPage() {
       );
     }
 
+    const currentHintPenaltyTotal = selfPlayer.hintPenaltyTotal ?? hintPenaltyTotal;
+    const displayedScore = isPractice
+      ? Math.max(0, Math.floor(arenaState?.score ?? selfPlayer.score ?? 0))
+      : getEffectiveMatchScore(
+          Math.max(
+            Number(selfPlayer.liveScoreRaw ?? selfPlayer.score ?? 0),
+            Math.floor(arenaState?.score ?? 0),
+          ),
+          currentHintPenaltyTotal,
+        );
+    const hintCooldownSeconds =
+      !isPractice && hintCooldownUntil && hintCooldownUntil > clockNow
+        ? Math.max(1, Math.ceil((hintCooldownUntil - clockNow) / 1000))
+        : 0;
+    const nextHintPenalty = getMatchHintPenalty(
+      (selfPlayer.hintUses ?? hintUsesThisRound) + 1,
+    );
+
     const resolveNumericValue = (player: BackendLobbyPlayer) => {
-      if (player.playerId === user?.id && arenaState) {
-        return rapidFire ? arenaState.score : arenaState.objectiveProgressPercent;
-      }
+      const playerScore = Math.max(
+        Number(player.liveScoreRaw ?? player.score ?? 0),
+        player.playerId === user?.id && arenaState
+          ? Math.floor(arenaState.score)
+          : 0,
+      );
 
-      if (isPractice) {
-        return player.practiceProgress;
-      }
-
-      return rapidFire ? player.score : player.progress;
+      return getEffectiveMatchScore(
+        playerScore,
+        player.hintPenaltyTotal ?? hintPenaltyTotal,
+      );
     };
 
     const rankedPlayers = [...lobby.players]
       .sort((left, right) => {
-        if (!isPractice && !rapidFire) {
-          const leftSolved = left.solvedAtMs !== null;
-          const rightSolved = right.solvedAtMs !== null;
-          if (leftSolved !== rightSolved) {
-            return leftSolved ? -1 : 1;
-          }
-          if (leftSolved && rightSolved) {
-            return (left.solvedAtMs ?? Number.MAX_SAFE_INTEGER) -
-              (right.solvedAtMs ?? Number.MAX_SAFE_INTEGER);
-          }
+        const leftSolved = left.solvedAtMs !== null || left.progress >= 100 || left.completions > 0;
+        const rightSolved = right.solvedAtMs !== null || right.progress >= 100 || right.completions > 0;
+
+        if (!isPractice && !rapidFire && leftSolved !== rightSolved) {
+          return leftSolved ? -1 : 1;
         }
 
-        return resolveNumericValue(right) - resolveNumericValue(left);
+        const scoreDelta = resolveNumericValue(right) - resolveNumericValue(left);
+        if (scoreDelta !== 0) {
+          return scoreDelta;
+        }
+
+        if (rapidFire && right.completions !== left.completions) {
+          return right.completions - left.completions;
+        }
+
+        if (right.progress !== left.progress) {
+          return right.progress - left.progress;
+        }
+
+        if (left.solvedAtMs === null && right.solvedAtMs === null) return 0;
+        if (left.solvedAtMs === null) return 1;
+        if (right.solvedAtMs === null) return -1;
+        return left.solvedAtMs - right.solvedAtMs;
       })
       .slice(0, 4);
 
@@ -776,6 +890,40 @@ export default function MatchPage() {
               <span className="match-ranked-stage-chip">
                 {selectionMeta?.label ?? "Random Puzzle"}
               </span>
+              <span className="match-ranked-stage-chip">
+                Score {Math.round(displayedScore)}
+              </span>
+              {!isPractice ? (
+                <Button
+                  onClick={() => void handleUseHint()}
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    hintSaving ||
+                    localHintBalance <= 0 ||
+                    hintCooldownSeconds > 0 ||
+                    disabled
+                  }
+                  className="h-8 rounded-full border-primary/20 bg-white/5 px-4 text-[10px] font-black uppercase tracking-[0.16em]"
+                >
+                  <Lightbulb size={14} />
+                  {hintSaving
+                    ? "Using..."
+                    : hintCooldownSeconds > 0
+                      ? `Hint ${hintCooldownSeconds}s`
+                      : localHintBalance <= 0
+                        ? "No Hints"
+                        : `Hint -${nextHintPenalty}`}
+                </Button>
+              ) : null}
+              {!isPractice && hintMessage ? (
+                <p className="w-full text-xs leading-5 text-white/70">
+                  {hintMessage}
+                  <span className="ml-2 text-primary">
+                    {hintUsesThisRound} used | -{lastHintPenalty || nextHintPenalty} last
+                  </span>
+                </p>
+              ) : null}
             </div>
             <div
               className={cn(
@@ -793,12 +941,7 @@ export default function MatchPage() {
           <div className="match-ranked-scorestrip">
             {rankedPlayers.map((player, index) => {
               const numericValue = resolveNumericValue(player);
-              const valueLabel =
-                !isPractice && !rapidFire && player.solvedAtMs !== null
-                  ? formatSolveTime(player.solvedAtMs)
-                  : rapidFire
-                    ? `${Math.round(numericValue)} pts`
-                    : `${Math.round(numericValue)}%`;
+              const valueLabel = `${Math.round(numericValue)} pts`;
 
               return (
                 <div
@@ -846,6 +989,7 @@ export default function MatchPage() {
                     stage,
                     submission,
                     state.objectiveProgressPercent,
+                    state.score,
                   );
                 }}
                 onStateChange={(state) => {
@@ -1094,7 +1238,7 @@ export default function MatchPage() {
                       : ""}
                 </span>
                 <span>{formatSolveTime(entry.solvedAtMs)}</span>
-                <span>{resultsRapidFire ? entry.score : entry.progress}</span>
+                <span>{entry.score}</span>
                 <span>
                   {resultsRapidFire
                     ? entry.completions
@@ -1195,6 +1339,15 @@ export default function MatchPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
 
 
 

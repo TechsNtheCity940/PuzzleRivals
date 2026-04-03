@@ -79,6 +79,10 @@ export interface BackendLobbyPlayer {
   solvedAtMs: number | null;
   completions: number;
   score: number;
+  liveScoreRaw?: number;
+  hintUses?: number;
+  hintPenaltyTotal?: number;
+  nextHintAvailableAt?: string | null;
   currentSeed: number;
   pace: number;
   reward?: BackendLobbyReward;
@@ -297,3 +301,5 @@ export type PuzzleSubmission =
   | ChessOpeningSubmission
   | ChessMateNetSubmission
   | VocabularyDuelSubmission;
+
+

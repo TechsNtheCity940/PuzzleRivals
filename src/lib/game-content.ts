@@ -440,6 +440,7 @@ function defaultSeasonRewardLabel(
   if (type === "title") return itemId ? `Title ${itemId}` : "Exclusive title";
   if (!amount) return type;
   if (type === "pass_xp") return `${amount} Pass XP`;
+  if (type === "hints") return `${amount} Hint${amount === 1 ? "" : "s"}`;
   if (type === "xp") return `${amount} XP`;
   if (type === "gems") return `${amount} Gems`;
   if (type === "shards") return `${amount} Shards`;
@@ -458,6 +459,7 @@ function mapSeasonReward(value: unknown): SeasonReward | undefined {
     type !== "xp" &&
     type !== "shards" &&
     type !== "pass_xp" &&
+    type !== "hints" &&
     type !== "item" &&
     type !== "title"
   ) {
@@ -1211,3 +1213,4 @@ export async function loadStoreContent(
     },
   };
 }
+

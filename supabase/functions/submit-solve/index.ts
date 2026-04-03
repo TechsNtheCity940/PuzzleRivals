@@ -1,3 +1,4 @@
+import { getEffectiveMatchScore } from "../../../shared/match-hints.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { requireUser } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
@@ -12,6 +13,14 @@ import {
   RAPID_FIRE_CUTOFF_MS,
 } from "../_shared/match-rules.ts";
 
+function normalizeScore(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.floor(value));
+  }
+
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -19,10 +28,11 @@ Deno.serve(async (req) => {
 
   try {
     const { user } = await requireUser(req);
-    const { lobbyId, stage, submission } = await req.json() as {
+    const { lobbyId, stage, submission, score } = await req.json() as {
       lobbyId: string;
       stage: "practice" | "live";
       submission: PuzzleSubmission;
+      score?: number;
     };
     const admin = createAdminClient();
 
@@ -45,7 +55,7 @@ Deno.serve(async (req) => {
       admin.from("lobbies").select("live_ends_at").eq("id", lobbyId).single(),
       admin
         .from("round_results")
-        .select("live_progress, solved_at_ms, live_completions, live_score, current_live_seed, current_variant_started_at_ms")
+        .select("live_progress, solved_at_ms, live_completions, live_score, live_score_raw, hint_uses, hint_penalty_total, next_hint_available_at, current_live_seed, current_variant_started_at_ms")
         .eq("round_id", round.id)
         .eq("user_id", user.id)
         .maybeSingle(),
@@ -67,9 +77,16 @@ Deno.serve(async (req) => {
     const currentBestSolveMs = currentResult?.solved_at_ms ? Number(currentResult.solved_at_ms) : null;
     const nextBestSolveMs = currentBestSolveMs === null ? variantSolveMs : Math.min(currentBestSolveMs, variantSolveMs);
     const nextCompletionCount = Number(currentResult?.live_completions ?? 0) + 1;
-    const nextLiveScore = Number(currentResult?.live_score ?? 0) + getSolveScore(variantSolveMs);
     const liveEndsAtMs = lobby.live_ends_at ? new Date(lobby.live_ends_at).getTime() : Date.now();
     const shouldRollVariant = repeatable && liveEndsAtMs - Date.now() > RAPID_FIRE_CUTOFF_MS;
+    const existingRawScore = Number(currentResult?.live_score_raw ?? currentResult?.live_score ?? 0);
+    const submittedScore = normalizeScore(score);
+    const liveScoreRaw = repeatable
+      ? Math.max(existingRawScore, submittedScore ?? existingRawScore + getSolveScore(variantSolveMs))
+      : Math.max(existingRawScore, submittedScore ?? 100);
+    const hintUses = Number(currentResult?.hint_uses ?? 0);
+    const hintPenaltyTotal = Number(currentResult?.hint_penalty_total ?? 0);
+    const liveScore = getEffectiveMatchScore(liveScoreRaw, hintPenaltyTotal);
 
     const payload: Record<string, unknown> = {
       round_id: round.id,
@@ -78,7 +95,11 @@ Deno.serve(async (req) => {
       solved_at_ms: repeatable ? nextBestSolveMs : currentBestSolveMs ?? roundElapsedMs,
       live_progress: shouldRollVariant ? 0 : 100,
       live_completions: repeatable ? nextCompletionCount : Math.max(Number(currentResult?.live_completions ?? 0), 1),
-      live_score: repeatable ? nextLiveScore : Math.max(Number(currentResult?.live_score ?? 0), 100),
+      live_score_raw: liveScoreRaw,
+      live_score: liveScore,
+      hint_uses: hintUses,
+      hint_penalty_total: hintPenaltyTotal,
+      next_hint_available_at: currentResult?.next_hint_available_at ?? null,
       current_live_seed: shouldRollVariant
         ? createVariantSeed(Number(round.live_seed), user.id, nextCompletionCount)
         : activeSeed,

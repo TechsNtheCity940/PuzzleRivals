@@ -123,6 +123,15 @@ export async function assertPurchasable(
     return;
   }
 
+  if (
+    product.kind === "bundle" &&
+    asNumber(product.metadata?.bundle_pass_xp, 0) > 0 &&
+    typeof product.metadata?.seasonId === "string" &&
+    !wallet.has_season_pass
+  ) {
+    throw new Error("Unlock the season pass before buying season tier skips.");
+  }
+
   if (!isNonConsumable(product)) {
     return;
   }
@@ -289,3 +298,4 @@ export async function createPurchaseRecord(
 
   return purchase.id as string;
 }
+

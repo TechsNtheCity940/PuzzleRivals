@@ -21,6 +21,8 @@ import {
   NEON_RIVALS_ELITE_FRAMES,
   NEON_RIVALS_PREMIUM_AVATAR_TIER,
   NEON_RIVALS_RANKED_REWARDS,
+  NEON_RIVALS_SEASON_PASS_PRODUCT_ID,
+  NEON_RIVALS_TIER_SKIP_OFFERS,
   NEON_RIVALS_SECOND_AVATAR_ID,
   NEON_RIVALS_STRATEGIST_AVATAR_ID,
   NEON_RIVALS_STRATEGIST_CLIP,
@@ -28,8 +30,6 @@ import {
 import { capturePayPalCheckout, createPayPalCheckout } from "@/lib/storefront";
 import { FALLBACK_APP_RUNTIME_STATUS, loadAppRuntimeStatus } from "@/lib/app-status";
 import { useAuth } from "@/providers/AuthProvider";
-
-const BATTLE_PASS_PRODUCT_ID = "s_6";
 
 type PreviewKind = "theme" | "frame" | "player_card" | "banner" | "emblem";
 
@@ -234,7 +234,7 @@ export default function SeasonPage() {
     const purchaseId = params.get("purchase");
 
     if (checkoutState === "cancelled") {
-      toast.message("Battle pass checkout cancelled.");
+      toast.message("Season pass checkout cancelled.");
       clearCheckoutParams(params, setParams);
       return;
     }
@@ -243,7 +243,7 @@ export default function SeasonPage() {
     let active = true;
     async function capture() {
       if (commerceUnavailable) {
-        toast.error("Battle pass checkout is paused until live PayPal credentials are configured.");
+        toast.error("Season pass checkout is paused until live PayPal credentials are configured.");
         return;
       }
       setIsPurchasing(true);
@@ -254,12 +254,12 @@ export default function SeasonPage() {
         if (active) {
           setSeasonContent(snapshot);
         }
-        toast.success("Battle pass unlocked.");
+        toast.success("Season pass unlocked.");
       } catch (error) {
         toast.error(
           error instanceof Error
             ? error.message
-            : "Failed to capture battle pass purchase.",
+            : "Failed to capture season pass purchase.",
         );
       } finally {
         if (active) {
@@ -294,34 +294,48 @@ export default function SeasonPage() {
     }));
   }, [currentTier, season]);
 
-  async function unlockPremiumTrack() {
+  async function startSeasonCheckout(
+    productId: string,
+    itemLabel: string,
+    requiresSeasonPass = false,
+  ) {
     if (accountNeedsSync) {
-      toast.error("Profile sync is required before unlocking the battle pass.");
+      toast.error("Profile sync is required before unlocking season rewards.");
       return;
     }
     if (!canSave) {
-      toast.error("Sign in before buying the battle pass.");
+      toast.error("Sign in before buying season rewards.");
       return;
     }
     if (commerceUnavailable) {
-      toast.error("Battle pass checkout is paused until live PayPal credentials are configured.");
+      toast.error("Season pass checkout is paused until live PayPal credentials are configured.");
       return;
     }
+    if (requiresSeasonPass && !seasonContent?.hasSeasonPass) {
+      toast.error("Unlock the season pass before buying tier skips.");
+      return;
+    }
+
     setIsPurchasing(true);
     try {
-      const response = await createPayPalCheckout(
-        BATTLE_PASS_PRODUCT_ID,
-        "/season",
-      );
+      const response = await createPayPalCheckout(productId, "/season");
       window.location.assign(response.approvalUrl);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to start checkout.",
+        error instanceof Error
+          ? error.message
+          : `Failed to start checkout for ${itemLabel}.`,
       );
       setIsPurchasing(false);
     }
   }
 
+  async function unlockPremiumTrack() {
+    await startSeasonCheckout(
+      NEON_RIVALS_SEASON_PASS_PRODUCT_ID,
+      "the season pass",
+    );
+  }
   const subtitle = loadError
     ? loadError
     : accountNeedsSync
@@ -331,7 +345,7 @@ export default function SeasonPage() {
         : isLoading
           ? "Loading Neon Rivals season lane..."
           : (describeSeasonResolution(seasonResolution) ??
-            `Electric | Competitive | Puzzle Arena | ${sourceLabel(seasonContent?.sources.season ?? "supabase")} rewards`);
+            `Season pass live | Free lane + premium lane | ${sourceLabel(seasonContent?.sources.season ?? "supabase")} rewards`);
 
   return (
     <div className="page-screen">
@@ -425,13 +439,13 @@ export default function SeasonPage() {
               <div className="spotlight-panel flex flex-col justify-between gap-4">
               {commerceUnavailable ? (
                 <div className="rounded-[22px] border border-amber-400/20 bg-amber-500/8 px-4 py-3 text-sm text-muted-foreground">
-                  Battle pass checkout is paused until live PayPal credentials are complete. The season lane, rewards, and previews remain visible.
+                  Season pass checkout is paused until live PayPal credentials are complete. The season lane, rewards, and previews remain visible.
                 </div>
               ) : null}
                 <div>
-                  <p className="section-kicker">Premium Track</p>
+                  <p className="section-kicker">Season Pass</p>
                   <p className="mt-2 text-3xl font-black">
-                    Unlock the full Neon Rivals lane
+                    Unlock every Season 1 premium reward
                   </p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     Strategist avatar, pulse frame, Neon Circuit card, and the
@@ -452,7 +466,7 @@ export default function SeasonPage() {
                       ? "Checkout Paused"
                       : isPurchasing
                         ? "Opening..."
-                      : "Unlock Neon Rivals Pass"}
+                      : "Buy Season Pass"}
                 </Button>
               </div>
             ) : (
@@ -578,7 +592,7 @@ export default function SeasonPage() {
                 <p className="stat-value text-primary">{nextTierXp} XP</p>
               </div>
               <div className="rich-stat">
-                <p className="hud-label">Track State</p>
+                <p className="hud-label">Season Access</p>
                 <p className="stat-value">
                   {seasonContent?.hasSeasonPass ? "Premium" : "Free"}
                 </p>
@@ -595,8 +609,8 @@ export default function SeasonPage() {
           <section className="section-panel">
             <div className="section-header">
               <div>
-                <p className="section-kicker">Focused Rewards</p>
-                <h2 className="section-title">Current tier lane</h2>
+                <p className="section-kicker">Free + Premium Lane</p>
+                <h2 className="section-title">Rank-up reward track</h2>
               </div>
             </div>
             <div className="section-stack">
@@ -606,7 +620,7 @@ export default function SeasonPage() {
                     key={track.tier}
                     icon={track.isUnlocked ? Gift : Lock}
                     title={`Tier ${track.tier}`}
-                    description={track.freeReward?.label ?? "No free reward"}
+                    description={`Free: ${track.freeReward?.label ?? "No reward"}`}
                     active={track.tier === currentTier}
                     right={
                       <div>
@@ -634,6 +648,56 @@ export default function SeasonPage() {
           </section>
         </div>
 
+        <section className="section-panel">
+          <div className="section-header">
+            <div>
+              <p className="section-kicker">Tier Boosts</p>
+              <h2 className="section-title">Season tier skips</h2>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {NEON_RIVALS_TIER_SKIP_OFFERS.map((offer) => (
+              <div
+                key={offer.id}
+                className="command-panel-soft flex flex-col gap-4 border border-white/10 bg-slate-950/65 p-5"
+              >
+                <div>
+                  <p className="section-kicker">{Math.round((offer.bundlePassXp ?? 0) / 500)} tier boost</p>
+                  <h3 className="mt-2 text-lg font-black">{offer.name}</h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {offer.description}
+                  </p>
+                </div>
+                <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-muted-foreground">
+                  Requires an active season pass. This only advances cosmetic rewards and pass payouts. It does not change live puzzle power.
+                </div>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full"
+                  disabled={
+                    isLoading ||
+                    isPurchasing ||
+                    accountNeedsSync ||
+                    commerceUnavailable ||
+                    !seasonContent?.hasSeasonPass
+                  }
+                  onClick={() =>
+                    void startSeasonCheckout(offer.id, offer.name, true)
+                  }
+                >
+                  {accountNeedsSync
+                    ? "Profile Sync Required"
+                    : !seasonContent?.hasSeasonPass
+                      ? "Season Pass Required"
+                      : isPurchasing
+                        ? "Opening..."
+                        : `Buy for $${offer.priceUsd?.toFixed(2) ?? "0.00"}`}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </section>
         <section className="section-panel">
           <div className="section-header">
             <div>
@@ -801,7 +865,7 @@ export default function SeasonPage() {
                             {quest.track}
                           </p>
                           <p className="mt-1 text-xs font-black text-primary">
-                            +{quest.reward.passXp ?? 0} PX / +
+                            +{quest.reward.passXp ?? 0} XP / +
                             {quest.reward.coins ?? 0}C
                           </p>
                         </div>
@@ -875,6 +939,9 @@ export default function SeasonPage() {
     </div>
   );
 }
+
+
+
 
 
 

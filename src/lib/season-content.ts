@@ -12,7 +12,8 @@ import type {
 export const NEON_RIVALS_SEASON_ID = "season1_neon_rivals";
 export const NEON_RIVALS_SEASON_KEY = "season-1";
 export const NEON_RIVALS_BATTLE_PASS_PRODUCT_ID = "s_6";
-export const NEON_RIVALS_PREMIUM_AVATAR_TIER = 20;
+export const NEON_RIVALS_SEASON_PASS_PRODUCT_ID = NEON_RIVALS_BATTLE_PASS_PRODUCT_ID;
+export const NEON_RIVALS_PREMIUM_AVATAR_TIER = 36;
 export const NEON_RIVALS_SECOND_AVATAR_ID = "season1-neon-rival" as const;
 export const NEON_RIVALS_STRATEGIST_AVATAR_ID = "season1-neon-strategist" as const;
 export const NEON_RIVALS_COLLECTION = "Season 1: Neon Rivals";
@@ -39,7 +40,7 @@ export const NEON_RIVALS_COSMETICS: SeasonalContentDefinition[] = [
     category: "puzzle_theme",
     rarity: 4,
     rewardSource: "season_pass",
-    unlockMethod: "free_tier",
+    unlockMethod: "premium_tier",
     imageRef: "/cosmetics/themes/electric-shell.svg",
     themeTags: ["neon", "electric", "competitive", "season-1"],
     isAnimated: true,
@@ -83,8 +84,8 @@ export const NEON_RIVALS_COSMETICS: SeasonalContentDefinition[] = [
     seasonId: NEON_RIVALS_SEASON_ID,
     category: "emblem",
     rarity: 5,
-    rewardSource: "season_milestone",
-    unlockMethod: "season_objective",
+    rewardSource: "season_pass",
+    unlockMethod: "premium_tier",
     imageRef: "/cosmetics/emblems/voltage-emblem.svg",
     themeTags: ["voltage", "prestige", "ranked"],
     isAnimated: false,
@@ -109,14 +110,14 @@ export const NEON_RIVALS_COSMETICS: SeasonalContentDefinition[] = [
   },
   {
     id: "avatar_season1_neon_rival",
-    name: "Neon Hacker Avatar",
+    name: "Neon Rival Avatar",
     seasonId: NEON_RIVALS_SEASON_ID,
     category: "avatar",
-    rarity: 4,
-    rewardSource: "featured_store",
-    unlockMethod: "store_featured",
+    rarity: 6,
+    rewardSource: "season_pass",
+    unlockMethod: "premium_tier",
     imageRef: "/avatars/season1-neon-rival.svg",
-    themeTags: ["hooded", "magenta", "operator"],
+    themeTags: ["magenta", "operator", "exclusive"],
     isAnimated: false,
     sortOrder: 6,
     availableFrom: "2026-03-20",
@@ -131,7 +132,7 @@ export const NEON_RIVALS_COSMETICS: SeasonalContentDefinition[] = [
     rewardSource: "season_pass",
     unlockMethod: "premium_tier",
     imageRef: "/avatars/season1-neon-strategist.svg",
-    themeTags: ["hooded", "gold", "chess", "exclusive"],
+    themeTags: ["gold", "chess", "exclusive"],
     isAnimated: false,
     sortOrder: 7,
     availableFrom: "2026-03-20",
@@ -143,8 +144,8 @@ export const NEON_RIVALS_COSMETICS: SeasonalContentDefinition[] = [
     seasonId: NEON_RIVALS_SEASON_ID,
     category: "player_card",
     rarity: 6,
-    rewardSource: "ranked",
-    unlockMethod: "rank_finish",
+    rewardSource: "season_pass",
+    unlockMethod: "premium_tier",
     imageRef: "/cosmetics/cards/neon-rivals-rank-card.svg",
     themeTags: ["ranked", "legend", "animated"],
     isAnimated: true,
@@ -158,29 +159,125 @@ export const NEON_RIVALS_COSMETICS: SeasonalContentDefinition[] = [
     seasonId: NEON_RIVALS_SEASON_ID,
     category: "banner",
     rarity: 5,
-    rewardSource: "ranked",
-    unlockMethod: "rank_finish",
+    rewardSource: "season_pass",
+    unlockMethod: "premium_tier",
     imageRef: "/cosmetics/banners/neon-rivals-season-banner.svg",
-    themeTags: ["season-1", "arena", "ranked"],
+    themeTags: ["season-1", "arena", "prestige"],
     isAnimated: false,
     sortOrder: 9,
     availableFrom: "2026-03-20",
     availableTo: "2026-06-20",
   },
   {
-    id: "badge_ranked_season1_legend",
-    name: "Legend Neon Badge",
+    id: "frame_elite_obsidian",
+    name: "Obsidian Elite Frame",
     seasonId: NEON_RIVALS_SEASON_ID,
-    category: "badge",
-    rarity: 6,
-    rewardSource: "ranked",
-    unlockMethod: "rank_finish",
-    imageRef: "/cosmetics/badges/legend-neon-badge.svg",
-    themeTags: ["badge", "legend", "ranked"],
-    isAnimated: true,
+    category: "frame",
+    rarity: 5,
+    rewardSource: "season_pass",
+    unlockMethod: "premium_tier",
+    imageRef: "/cosmetics/frames/elite-obsidian-frame.svg",
+    themeTags: ["elite", "obsidian", "prestige"],
+    isAnimated: false,
     sortOrder: 10,
     availableFrom: "2026-03-20",
     availableTo: "2026-06-20",
+  },
+  {
+    id: "frame_elite_nova",
+    name: "Nova Elite Frame",
+    seasonId: NEON_RIVALS_SEASON_ID,
+    category: "frame",
+    rarity: 5,
+    rewardSource: "season_pass",
+    unlockMethod: "premium_tier",
+    imageRef: "/cosmetics/frames/elite-nova-frame.svg",
+    themeTags: ["elite", "nova", "prestige"],
+    isAnimated: false,
+    sortOrder: 11,
+    availableFrom: "2026-03-20",
+    availableTo: "2026-06-20",
+  },
+  {
+    id: "frame_elite_inferno",
+    name: "Inferno Elite Frame",
+    seasonId: NEON_RIVALS_SEASON_ID,
+    category: "frame",
+    rarity: 5,
+    rewardSource: "season_pass",
+    unlockMethod: "premium_tier",
+    imageRef: "/cosmetics/frames/elite-inferno-frame.svg",
+    themeTags: ["elite", "inferno", "prestige"],
+    isAnimated: false,
+    sortOrder: 12,
+    availableFrom: "2026-03-20",
+    availableTo: "2026-06-20",
+  },
+  {
+    id: "frame_elite_aurora",
+    name: "Aurora Elite Frame",
+    seasonId: NEON_RIVALS_SEASON_ID,
+    category: "frame",
+    rarity: 6,
+    rewardSource: "season_pass",
+    unlockMethod: "premium_tier",
+    imageRef: "/cosmetics/frames/elite-aurora-frame.svg",
+    themeTags: ["elite", "aurora", "grandmaster"],
+    isAnimated: false,
+    sortOrder: 13,
+    availableFrom: "2026-03-20",
+    availableTo: "2026-06-20",
+  },
+  {
+    id: "badge_ranked_legend",
+    name: "Legend Voltage Badge",
+    seasonId: NEON_RIVALS_SEASON_ID,
+    category: "badge",
+    rarity: 6,
+    rewardSource: "season_pass",
+    unlockMethod: "premium_tier",
+    imageRef: "/cosmetics/badges/legend-neon-badge.svg",
+    themeTags: ["legend", "badge", "prestige"],
+    isAnimated: true,
+    sortOrder: 14,
+    availableFrom: "2026-03-20",
+    availableTo: "2026-06-20",
+  },
+];
+
+export const NEON_RIVALS_TIER_SKIP_OFFERS: StoreItem[] = [
+  {
+    id: "season1_tier_skip_1",
+    name: "Season Tier Skip x1",
+    description: "Instantly adds 1 Season 1 tier worth of pass XP.",
+    category: "bundle",
+    rarity: 2,
+    priceUsd: 1.49,
+    collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
+    bundlePassXp: 500,
+  },
+  {
+    id: "season1_tier_skip_5",
+    name: "Season Tier Skip x5",
+    description: "Push 5 season pass tiers immediately without changing match balance.",
+    category: "bundle",
+    rarity: 3,
+    priceUsd: 5.99,
+    collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
+    bundlePassXp: 2500,
+  },
+  {
+    id: "season1_tier_skip_10",
+    name: "Season Tier Skip x10",
+    description: "Fast-track 10 season pass tiers for players who want the full cosmetic lane early.",
+    category: "bundle",
+    rarity: 4,
+    priceUsd: 9.99,
+    collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
+    bundlePassXp: 5000,
   },
 ];
 
@@ -194,6 +291,7 @@ export const NEON_RIVALS_STORE_ITEMS: StoreItem[] = [
     priceGems: 180,
     isFeatured: true,
     collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
   },
   {
     id: "card_neon_circuit",
@@ -204,6 +302,7 @@ export const NEON_RIVALS_STORE_ITEMS: StoreItem[] = [
     priceGems: 220,
     isFeatured: true,
     collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
   },
   {
     id: "banner_static_shock",
@@ -214,6 +313,7 @@ export const NEON_RIVALS_STORE_ITEMS: StoreItem[] = [
     priceCoins: 5400,
     isFeatured: true,
     collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
   },
   {
     id: "emblem_voltage",
@@ -223,6 +323,7 @@ export const NEON_RIVALS_STORE_ITEMS: StoreItem[] = [
     rarity: 5,
     priceGems: 260,
     collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
   },
   {
     id: "frame_pulse",
@@ -233,17 +334,91 @@ export const NEON_RIVALS_STORE_ITEMS: StoreItem[] = [
     priceGems: 300,
     isFeatured: true,
     collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
   },
   {
     id: "avatar_season1_neon_rival",
-    name: "Neon Hacker Avatar",
-    description: "Season 1 hacker portrait with hot-pink glow, luminous eyes, and puzzle-arena sparks.",
+    name: "Neon Rival Avatar",
+    description: "Season 1 lead rival portrait with hot-pink glow, luminous eyes, and arena sparks.",
     category: "avatar",
-    rarity: 4,
-    priceGems: 180,
+    rarity: 6,
+    priceGems: 320,
     isFeatured: true,
     collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
   },
+  {
+    id: "avatar_season1_neon_strategist",
+    name: "Neon Strategist Avatar",
+    description: "Season 1 premium strategist portrait with gold light accents and command-board energy.",
+    category: "avatar",
+    rarity: 6,
+    priceGems: 320,
+    isFeatured: true,
+    collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
+  },
+  {
+    id: "banner_season1_neon_rivals",
+    name: "Season 1 Banner",
+    description: "The grandmaster-season banner for Neon Rivals identity decks.",
+    category: "banner",
+    rarity: 5,
+    priceGems: 260,
+    collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
+  },
+  {
+    id: "ranked_card_season1_highrank",
+    name: "Neon Rivals High-Rank Card",
+    description: "Animated prestige card that anchors the Season 1 identity deck.",
+    category: "player_card",
+    rarity: 6,
+    priceGems: 360,
+    collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
+  },
+  {
+    id: "frame_elite_obsidian",
+    name: "Obsidian Elite Frame",
+    description: "Prestige frame with obsidian glow rails.",
+    category: "frame",
+    rarity: 5,
+    priceGems: 240,
+    collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
+  },
+  {
+    id: "frame_elite_nova",
+    name: "Nova Elite Frame",
+    description: "Prestige frame with nova-blue edge bloom.",
+    category: "frame",
+    rarity: 5,
+    priceGems: 260,
+    collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
+  },
+  {
+    id: "frame_elite_inferno",
+    name: "Inferno Elite Frame",
+    description: "Prestige frame with inferno pulse highlights.",
+    category: "frame",
+    rarity: 5,
+    priceGems: 280,
+    collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
+  },
+  {
+    id: "frame_elite_aurora",
+    name: "Aurora Elite Frame",
+    description: "Top-end elite frame with aurora charge flow.",
+    category: "frame",
+    rarity: 6,
+    priceGems: 340,
+    collection: NEON_RIVALS_COLLECTION,
+    seasonId: NEON_RIVALS_SEASON_ID,
+  },
+  ...NEON_RIVALS_TIER_SKIP_OFFERS,
 ];
 
 export const NEON_RIVALS_ELITE_FRAMES = [
@@ -264,34 +439,45 @@ export const NEON_RIVALS_RANKED_REWARDS: RankedRewardDefinition[] = [
   { tier: "legend", badgeId: "badge_ranked_legend", badgeLabel: "Legend Voltage", badgeAssetRef: "/cosmetics/badges/legend-neon-badge.svg", accentClassName: "ranked-badge-legend", frameId: "frame_elite_aurora", frameLabel: "Aurora Elite", bannerId: "banner_season1_neon_rivals", bannerLabel: "Season Banner", playerCardId: "ranked_card_season1_highrank", playerCardLabel: "Animated High-Rank Card", summary: "Peak season reward set with the brightest pulse and full prestige stack." },
 ];
 
-function makeCurrencyReward(tier: number): SeasonReward {
+function makeFreeReward(tier: number): SeasonReward {
   if (tier % 5 === 0) {
-    return { type: "gems", amount: tier * 12, label: `${tier * 12} Gems` };
+    const hints = tier >= 30 ? 3 : tier >= 15 ? 2 : 1;
+    return { type: "hints", amount: hints, label: `${hints} Hint${hints === 1 ? "" : "s"}` };
   }
+
+  const coins = 250 + tier * 95;
+  return { type: "coins", amount: coins, label: `${coins} Coins` };
+}
+
+function makePremiumReward(tier: number): SeasonReward {
+  if (tier % 5 === 0) {
+    const hints = tier >= 30 ? 4 : tier >= 15 ? 3 : 2;
+    return { type: "hints", amount: hints, label: `${hints} Hint${hints === 1 ? "" : "s"}` };
+  }
+
   if (tier % 2 === 0) {
-    return { type: "coins", amount: tier * 350, label: `${tier * 350} Coins` };
+    const passXp = 120 + tier * 20;
+    return { type: "pass_xp", amount: passXp, label: `${passXp} Pass XP` };
   }
-  return { type: "pass_xp", amount: tier * 140, label: `${tier * 140} Pass XP` };
+
+  const coins = 600 + tier * 120;
+  return { type: "coins", amount: coins, label: `${coins} Coins` };
 }
 
 const PREMIUM_ITEM_TIERS: Record<number, SeasonReward> = {
   1: { type: "item", itemId: "puzzle_theme_electric", label: "Electric Puzzle Theme" },
   4: { type: "item", itemId: "card_neon_circuit", label: "Neon Circuit Card" },
-  8: { type: "item", itemId: "banner_static_shock", label: "Static Shock Banner" },
-  12: { type: "item", itemId: "frame_pulse", label: "Pulse Frame" },
-  20: { type: "item", itemId: "avatar_season1_neon_strategist", label: "Neon Strategist Avatar" },
-  28: { type: "item", itemId: "emblem_voltage", label: "Voltage Emblem" },
-  34: { type: "item", itemId: "avatar_season1_neon_rival", label: "Neon Hacker Avatar" },
-  40: { type: "item", itemId: "ranked_card_season1_highrank", label: "Animated High-Rank Card" },
-};
-
-const FREE_ITEM_TIERS: Record<number, SeasonReward> = {
-  3: { type: "item", itemId: "puzzle_theme_electric", label: "Electric Puzzle Theme" },
-  10: { type: "item", itemId: "banner_static_shock", label: "Static Shock Banner" },
-  16: { type: "shards", amount: 140, label: "140 Shards" },
-  24: { type: "item", itemId: "emblem_voltage", label: "Voltage Emblem" },
-  32: { type: "gems", amount: 240, label: "240 Gems" },
-  40: { type: "coins", amount: 6000, label: "6000 Coins" },
+  7: { type: "item", itemId: "banner_static_shock", label: "Static Shock Banner" },
+  10: { type: "item", itemId: "frame_pulse", label: "Pulse Frame" },
+  13: { type: "item", itemId: "emblem_voltage", label: "Voltage Emblem" },
+  16: { type: "item", itemId: "frame_elite_obsidian", label: "Obsidian Elite Frame" },
+  22: { type: "item", itemId: "frame_elite_nova", label: "Nova Elite Frame" },
+  28: { type: "item", itemId: "frame_elite_inferno", label: "Inferno Elite Frame" },
+  36: { type: "item", itemId: "avatar_season1_neon_strategist", label: "Neon Strategist Avatar" },
+  37: { type: "item", itemId: "frame_elite_aurora", label: "Aurora Elite Frame" },
+  38: { type: "item", itemId: "banner_season1_neon_rivals", label: "Season 1 Banner" },
+  39: { type: "item", itemId: "ranked_card_season1_highrank", label: "Neon Rivals High-Rank Card" },
+  40: { type: "item", itemId: "avatar_season1_neon_rival", label: "Neon Rival Avatar" },
 };
 
 export function buildNeonRivalsTracks(currentTier = 14, maxTier = 40): SeasonTrack[] {
@@ -299,10 +485,8 @@ export function buildNeonRivalsTracks(currentTier = 14, maxTier = 40): SeasonTra
     const tier = index + 1;
     return {
       tier,
-      freeReward: FREE_ITEM_TIERS[tier] ?? makeCurrencyReward(tier),
-      premiumReward: PREMIUM_ITEM_TIERS[tier] ?? (tier % 3 === 0
-        ? { type: "shards", amount: tier * 18, label: `${tier * 18} Shards` }
-        : { type: "gems", amount: tier * 14, label: `${tier * 14} Gems` }),
+      freeReward: makeFreeReward(tier),
+      premiumReward: PREMIUM_ITEM_TIERS[tier] ?? makePremiumReward(tier),
       isUnlocked: tier <= currentTier,
     };
   });
@@ -322,39 +506,39 @@ export const CURRENT_NEON_RIVALS_SEASON: SeasonPass = {
 
 export const NEON_RIVALS_SEASONAL_CHALLENGES: QuestDefinition[] = [
   {
-    id: "sq_gold",
-    title: "Reach Gold",
-    description: "Climb into Gold during Neon Rivals to claim the Voltage Emblem.",
+    id: "sq_ranked_finish",
+    title: "Finish 5 Ranked Battles",
+    description: "Finish five ranked Arena battles to bank extra Season 1 pass XP and coins.",
     track: "seasonal",
-    target: 1400,
+    target: 5,
     progress: 0,
-    reward: { gems: 60, shards: 120, itemId: "emblem_voltage" },
+    reward: { coins: 1200, passXp: 350 },
     isCompleted: false,
   },
   {
-    id: "sq_pass_xp",
+    id: "sq_ranked_wins",
+    title: "Win 3 Ranked Matches",
+    description: "String together ranked wins to accelerate your season-pass progress.",
+    track: "seasonal",
+    target: 3,
+    progress: 0,
+    reward: { coins: 900, passXp: 260, shards: 90 },
+    isCompleted: false,
+  },
+  {
+    id: "sq_pass_climb",
     title: "Earn 5000 Pass XP",
-    description: "Push your season lane forward to unlock the Neon Circuit card reward cache.",
+    description: "Climb the full Neon Rivals season lane and lock in another premium milestone.",
     track: "seasonal",
     target: 5000,
     progress: 0,
-    reward: { gems: 80, itemId: "card_neon_circuit" },
-    isCompleted: false,
-  },
-  {
-    id: "sq_master_finish",
-    title: "Finish Master or Higher",
-    description: "End the season at Master, Grandmaster, or Legend for the season banner track.",
-    track: "seasonal",
-    target: 3200,
-    progress: 0,
-    reward: { shards: 180, itemId: "banner_season1_neon_rivals" },
+    reward: { coins: 1800, passXp: 500, itemId: "card_neon_circuit" },
     isCompleted: false,
   },
 ];
 
 export function isSeasonOnePremiumAvatarReward(itemId?: string | null) {
-  return itemId === "avatar_season1_neon_strategist";
+  return itemId === "avatar_season1_neon_strategist" || itemId === "avatar_season1_neon_rival";
 }
 
 export function findSeasonalCosmetic(itemId?: string | null) {
@@ -364,3 +548,4 @@ export function findSeasonalCosmetic(itemId?: string | null) {
 export function getRankedRewardForTier(tier: RankTier) {
   return NEON_RIVALS_RANKED_REWARDS.find((entry) => entry.tier === tier) ?? null;
 }
+

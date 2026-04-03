@@ -22,7 +22,7 @@ export const STORE_TABS: Array<{ id: "all" | ItemCategory; label: string }> = [
   { id: "emblem", label: "Emblems" },
   { id: "bundle", label: "Bundles" },
   { id: "hint_pack", label: "Hints" },
-  { id: "battle_pass", label: "Pass" },
+  { id: "battle_pass", label: "Season Pass" },
 ];
 
 export const CASUAL_MATCH_REWARDS: Record<1 | 2 | 3 | 4, MatchReward> = {
@@ -169,14 +169,21 @@ function withAbsoluteFallbackProgress(
   user: UserProfile | null,
 ) {
   if (!user) return quest;
-  if (quest.id === "sq_gold") {
+  if (quest.id === "sq_ranked_finish") {
     return {
       ...quest,
-      progress: Math.min(quest.target, user.rankPoints ?? 0),
-      isCompleted: (user.rankPoints ?? 0) >= quest.target,
+      progress: Math.min(quest.target, user.matchesPlayed ?? 0),
+      isCompleted: (user.matchesPlayed ?? 0) >= quest.target,
     };
   }
-  if (quest.id === "sq_pass_xp") {
+  if (quest.id === "sq_ranked_wins") {
+    return {
+      ...quest,
+      progress: Math.min(quest.target, user.wins ?? 0),
+      isCompleted: (user.wins ?? 0) >= quest.target,
+    };
+  }
+  if (quest.id === "sq_pass_climb") {
     return {
       ...quest,
       progress: Math.min(quest.target, user.passXp ?? 0),
@@ -297,3 +304,5 @@ export function getPassTierProgress(passXp: number, maxTier: number) {
     nextTierXp: PASS_XP_PER_TIER - (passXp % PASS_XP_PER_TIER || 0),
   };
 }
+
+

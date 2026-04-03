@@ -174,6 +174,10 @@ export async function getLobbySnapshot(lobbyId: string) {
       solvedAtMs: result?.solved_at_ms ? Number(result.solved_at_ms) : null,
       completions: Number(result?.live_completions ?? (result?.solved_at_ms ? 1 : 0)),
       score: Number(result?.live_score ?? (result?.solved_at_ms ? 100 : 0)),
+      liveScoreRaw: Number(result?.live_score_raw ?? result?.live_score ?? (result?.solved_at_ms ? 100 : 0)),
+      hintUses: Number(result?.hint_uses ?? 0),
+      hintPenaltyTotal: Number(result?.hint_penalty_total ?? 0),
+      nextHintAvailableAt: typeof result?.next_hint_available_at === "string" ? String(result.next_hint_available_at) : null,
       currentSeed: Number(result?.current_live_seed ?? round?.live_seed ?? 0),
       pace: 0,
       reward: result?.placement
@@ -235,3 +239,5 @@ export async function getLobbySnapshot(lobbyId: string) {
     },
   };
 }
+
+

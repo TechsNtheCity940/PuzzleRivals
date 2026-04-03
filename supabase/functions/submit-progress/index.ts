@@ -1,3 +1,4 @@
+import { getEffectiveMatchScore } from "../../../shared/match-hints.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { requireUser } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
@@ -6,6 +7,14 @@ import { getLobbySnapshot } from "../_shared/matchmaking.ts";
 import { evaluatePuzzleSubmission, type PuzzleSubmission } from "../_shared/puzzle.ts";
 import { isRapidFirePuzzleType } from "../_shared/match-rules.ts";
 
+function normalizeScore(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.floor(value));
+  }
+
+  return 0;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -13,10 +22,11 @@ Deno.serve(async (req) => {
 
   try {
     const { user } = await requireUser(req);
-    const { lobbyId, stage, submission } = await req.json() as {
+    const { lobbyId, stage, submission, score } = await req.json() as {
       lobbyId: string;
       stage: "practice" | "live";
       submission: PuzzleSubmission;
+      score?: number;
     };
     const admin = createAdminClient();
 
@@ -40,7 +50,7 @@ Deno.serve(async (req) => {
 
     const { data: currentResult, error: resultError } = await admin
       .from("round_results")
-      .select("practice_progress, live_progress, current_live_seed, current_variant_started_at_ms, live_completions, live_score, solved_at_ms")
+      .select("practice_progress, live_progress, current_live_seed, current_variant_started_at_ms, live_completions, live_score, live_score_raw, hint_uses, hint_penalty_total, next_hint_available_at, solved_at_ms")
       .eq("round_id", round.id)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -62,6 +72,14 @@ Deno.serve(async (req) => {
     const liveProgress = stage === "live"
       ? Math.max(Number(currentResult?.live_progress ?? 0), progress)
       : Number(currentResult?.live_progress ?? 0);
+    const existingRawScore = Number(currentResult?.live_score_raw ?? currentResult?.live_score ?? 0);
+    const hintPenaltyTotal = Number(currentResult?.hint_penalty_total ?? 0);
+    const liveScoreRaw = stage === "live"
+      ? Math.max(existingRawScore, normalizeScore(score))
+      : existingRawScore;
+    const liveScore = stage === "live"
+      ? getEffectiveMatchScore(liveScoreRaw, hintPenaltyTotal)
+      : Number(currentResult?.live_score ?? 0);
 
     const payload: Record<string, unknown> = {
       round_id: round.id,
@@ -71,11 +89,18 @@ Deno.serve(async (req) => {
       live_progress: liveProgress,
     };
 
+    if (stage === "live") {
+      payload.live_score_raw = liveScoreRaw;
+      payload.live_score = liveScore;
+      payload.hint_uses = Number(currentResult?.hint_uses ?? 0);
+      payload.hint_penalty_total = hintPenaltyTotal;
+      payload.next_hint_available_at = currentResult?.next_hint_available_at ?? null;
+    }
+
     if (stage === "live" && isRapidFirePuzzleType(round.puzzle_type)) {
       payload.current_live_seed = activeLiveSeed;
       payload.current_variant_started_at_ms = Number(currentResult?.current_variant_started_at_ms ?? 0);
       payload.live_completions = Number(currentResult?.live_completions ?? 0);
-      payload.live_score = Number(currentResult?.live_score ?? 0);
       payload.solved_at_ms = currentResult?.solved_at_ms ?? null;
     }
 
@@ -85,7 +110,7 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
     const snapshot = await advanceLobbyState(lobbyId) ?? await getLobbySnapshot(lobbyId);
-    return Response.json({ progress, ...snapshot }, { headers: corsHeaders });
+    return Response.json({ progress, liveScore, ...snapshot }, { headers: corsHeaders });
   } catch (error) {
     return Response.json(
       { message: error instanceof Error ? error.message : "Failed to submit progress." },

@@ -175,10 +175,17 @@ export function calculateMatchReward(input: {
   currentWinStreak: number;
   isFirstDailyWin: boolean;
   perfectSolve: boolean;
+  liveScore: number;
 }) {
   const table = getRewardTable(input.mode);
   const placement = Math.min(Math.max(input.placement, 1), 4) as 1 | 2 | 3 | 4;
   const reward = { ...table[placement] };
+  const liveScore = Math.max(0, Math.floor(input.liveScore));
+  const scoreBands = Math.min(12, Math.floor(liveScore / 250));
+
+  reward.xp += scoreBands * 8;
+  reward.coins += scoreBands * (placement === 1 ? 7 : 5);
+  reward.passXp += scoreBands * (placement <= 2 ? 9 : 6);
 
   if (input.perfectSolve) {
     reward.coins += 20;
@@ -188,6 +195,12 @@ export function calculateMatchReward(input: {
 
   if (placement === 1) {
     reward.coins += Math.min(Math.max(input.currentWinStreak, 0) * 10, 30);
+    if (liveScore >= 1500) {
+      reward.passXp += 35;
+      reward.coins += 20;
+    }
+  } else if (placement === 2 && liveScore >= 1000) {
+    reward.passXp += 20;
   }
 
   if (input.isFirstDailyWin && placement === 1) {
@@ -278,7 +291,7 @@ export function getQuestPeriodKey(
 ) {
   if (track === "daily") return getUtcDateKey(now);
   if (track === "weekly") return getIsoWeekKey(now);
-  return asString(metadata?.seasonKey) ?? "season-11";
+  return asString(metadata?.seasonKey) ?? "season-1";
 }
 
 export async function getActiveQuestDefinitions(admin: SupabaseClient) {
@@ -385,6 +398,8 @@ export async function grantQuestItems(
     await applyProductGrant(admin, userId, product, source);
   }
 }
+
+
 
 
 

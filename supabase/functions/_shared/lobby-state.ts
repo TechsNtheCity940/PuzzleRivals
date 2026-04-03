@@ -494,7 +494,11 @@ async function finalizeLiveRound(lobby: LobbyRow, activePlayers: PlayerRow[], ro
         liveProgress: Number(entry?.live_progress ?? 0),
         solvedAtMs: entry?.solved_at_ms ? Number(entry.solved_at_ms) : null,
         liveCompletions: Number(entry?.live_completions ?? (entry?.solved_at_ms ? 1 : 0)),
+        liveScoreRaw: Number(entry?.live_score_raw ?? entry?.live_score ?? (entry?.solved_at_ms ? 100 : 0)),
         liveScore: Number(entry?.live_score ?? (entry?.solved_at_ms ? 100 : 0)),
+        hintUses: Number(entry?.hint_uses ?? 0),
+        hintPenaltyTotal: Number(entry?.hint_penalty_total ?? 0),
+        nextHintAvailableAt: typeof entry?.next_hint_available_at === "string" ? String(entry.next_hint_available_at) : null,
       };
     })
     .sort((left, right) => {
@@ -533,6 +537,7 @@ async function finalizeLiveRound(lobby: LobbyRow, activePlayers: PlayerRow[], ro
         currentWinStreak: Number(stats.win_streak),
         isFirstDailyWin: dailyWinState.isFirstDailyWin,
         perfectSolve: entry.liveProgress >= 100 || entry.liveCompletions > 0,
+        liveScore: entry.liveScore,
       });
       const nextElo = Math.max(0, Number(profile.elo) + reward.elo);
       const nextRankPoints = Math.max(0, Number(profile.rank_points ?? 0) + reward.rankPoints);
@@ -559,7 +564,11 @@ async function finalizeLiveRound(lobby: LobbyRow, activePlayers: PlayerRow[], ro
         live_progress: entry.liveProgress,
         solved_at_ms: entry.solvedAtMs,
         live_completions: entry.liveCompletions,
+        live_score_raw: entry.liveScoreRaw,
         live_score: entry.liveScore,
+        hint_uses: entry.hintUses,
+        hint_penalty_total: entry.hintPenaltyTotal,
+        next_hint_available_at: entry.nextHintAvailableAt,
         placement: index + 1,
         xp_delta: reward.xp,
         coin_delta: reward.coins,
@@ -749,6 +758,9 @@ export async function advanceLobbyState(lobbyId: string) {
 
   return broadcastLobbySnapshot(lobbyId);
 }
+
+
+
 
 
 

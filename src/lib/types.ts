@@ -227,6 +227,11 @@ export interface StoreItem {
   isEquipped?: boolean;
   isFeatured?: boolean;
   collection?: string;
+  seasonId?: string;
+  hintAmount?: number;
+  bundlePassXp?: number;
+  bundleCoins?: number;
+  bundleGems?: number;
 }
 
 export type SeasonalContentCategory =
@@ -309,7 +314,7 @@ export interface SeasonTrack {
 }
 
 export interface SeasonReward {
-  type: "coins" | "gems" | "xp" | "shards" | "pass_xp" | "item" | "title";
+  type: "coins" | "gems" | "xp" | "shards" | "pass_xp" | "hints" | "item" | "title";
   amount?: number;
   itemId?: string;
   label: string;
@@ -443,5 +448,8 @@ export interface RoyaleMatch {
   status: "waiting" | "in_progress" | "completed";
   winnerId?: string;
 }
+
+
+
 
 
