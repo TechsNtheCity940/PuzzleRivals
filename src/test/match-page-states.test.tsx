@@ -163,9 +163,9 @@ function createLobby(status: BackendLobby["status"], overrides: Partial<BackendL
   };
 }
 
-function renderMatchPage() {
+function renderMatchPage(initialEntry = "/match?mode=ranked") {
   return render(
-    <MemoryRouter initialEntries={["/match?mode=ranked"]}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/match" element={<MatchPage />} />
         <Route path="/play" element={<div>Play Route</div>} />

@@ -53,9 +53,12 @@ import {
 } from "@/lib/supabase-client";
 import { cn } from "@/lib/utils";
 import { getRankedArenaModeForPuzzleType } from "../../shared/ranked-arena";
+import {
+  getHeadToHeadArenaModeForPuzzleType,
+  HEAD_TO_HEAD_LIVE_TARGET_SCORE,
+} from "../../shared/head-to-head-arena";
 import { getEffectiveMatchScore, getMatchHintPenalty } from "../../shared/match-hints";
 import { useAuth } from "@/providers/AuthProvider";
-
 
 function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -69,7 +72,10 @@ function formatSolveTime(timeMs: number | null) {
 }
 
 function formatMode(mode: MatchMode) {
-  return mode.charAt(0).toUpperCase() + mode.slice(1);
+  return mode
+    .split("_")
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
 }
 
 function formatPlacement(rank: number) {
@@ -79,18 +85,23 @@ function formatPlacement(rank: number) {
   return `${rank}th`;
 }
 
-function rankPlayers(players: BackendLobbyPlayer[], rapidFire: boolean) {
+function rankPlayers(players: BackendLobbyPlayer[], scoreRace: boolean) {
   return [...players].sort((left, right) => {
-    const leftSolved = left.solvedAtMs !== null || left.progress >= 100 || left.completions > 0;
-    const rightSolved = right.solvedAtMs !== null || right.progress >= 100 || right.completions > 0;
+    const leftSolved =
+      left.solvedAtMs !== null || left.progress >= 100 || left.completions > 0;
+    const rightSolved =
+      right.solvedAtMs !== null ||
+      right.progress >= 100 ||
+      right.completions > 0;
 
-    if (!rapidFire && leftSolved !== rightSolved) {
+    if (!scoreRace && leftSolved !== rightSolved) {
       return leftSolved ? -1 : 1;
     }
 
     if (right.score !== left.score) return right.score - left.score;
-    if (rapidFire && right.completions !== left.completions)
+    if (scoreRace && right.completions !== left.completions) {
       return right.completions - left.completions;
+    }
     if (right.progress !== left.progress) return right.progress - left.progress;
     if (left.solvedAtMs === null && right.solvedAtMs === null) return 0;
     if (left.solvedAtMs === null) return 1;
@@ -499,9 +510,11 @@ export default function MatchPage() {
   const selfPlayer =
     lobby?.players.find((player) => player.playerId === user?.id) ?? null;
   const selectionMeta = lobby?.selection?.meta ?? null;
+  const isHeadToHead = mode === "head_to_head";
   const rapidFire = lobby?.selection
     ? isRapidFirePuzzleType(lobby.selection.puzzleType)
     : false;
+  const scoreRace = rapidFire || isHeadToHead;
   const practiceTimeLeft = Math.max(
     0,
     Math.ceil(
@@ -529,12 +542,13 @@ export default function MatchPage() {
     ),
   );
   const standings = useMemo(
-    () => rankPlayers(lobby?.players ?? [], rapidFire),
-    [lobby?.players, rapidFire],
+    () => rankPlayers(lobby?.players ?? [], scoreRace),
+    [lobby?.players, scoreRace],
   );
   const resultsRapidFire = resultsSourceLobby?.selection
-    ? isRapidFirePuzzleType(resultsSourceLobby.selection.puzzleType)
-    : rapidFire;
+    ? isRapidFirePuzzleType(resultsSourceLobby.selection.puzzleType) ||
+      resultsSourceLobby.mode === "head_to_head"
+    : scoreRace;
   const resultsStandings = useMemo(
     () => rankPlayers(resultsSourceLobby?.players ?? [], resultsRapidFire),
     [resultsRapidFire, resultsSourceLobby?.players],
@@ -560,10 +574,11 @@ export default function MatchPage() {
     lobby?.status === "live"
       ? Number(selfPlayer?.currentSeed ?? lobby?.selection?.liveSeed ?? 0)
       : Number(lobby?.selection?.practiceSeed ?? 0);
-  const rankedArenaMode = lobby?.selection
-    ? getRankedArenaModeForPuzzleType(lobby.selection.puzzleType)
+  const liveArenaMode = lobby?.selection
+    ? isHeadToHead
+      ? getHeadToHeadArenaModeForPuzzleType(lobby.selection.puzzleType)
+      : getRankedArenaModeForPuzzleType(lobby.selection.puzzleType)
     : null;
-
   useEffect(() => {
     const nextPenaltyTotal = selfPlayer?.hintPenaltyTotal ?? 0;
     const nextHintUses = selfPlayer?.hintUses ?? 0;
@@ -605,7 +620,7 @@ export default function MatchPage() {
       stage: "practice" | "live",
       submission: PuzzleSubmission,
       progress: number,
-      score = 0,
+      score?: number,
     ) => {
       const currentLobby = lobbyRef.current;
       if (!currentLobby) return;
@@ -622,8 +637,9 @@ export default function MatchPage() {
         return;
       }
 
-      const normalizedScore = Math.max(0, Math.floor(score));
-      const submissionKey = `${currentLobby.id}:${stage}:${progress}:${normalizedScore}:${JSON.stringify(submission)}`;
+      const normalizedScore =
+        typeof score === "number" ? Math.max(0, Math.floor(score)) : 0;
+      const submissionKey = `${currentLobby.id}:${stage}:${progress}:${typeof score === "number" ? normalizedScore : "na"}:${JSON.stringify(submission)}`;
       if (progressSubmissionKeyRef.current === submissionKey) {
         return;
       }
@@ -654,7 +670,9 @@ export default function MatchPage() {
             latestLobby.id,
             stage,
             submission,
-            stage === "live" ? normalizedScore : undefined,
+            stage === "live" && typeof score === "number"
+              ? normalizedScore
+              : undefined,
           )
           .then((response) => {
             syncFailureCountRef.current = 0;
@@ -697,7 +715,7 @@ export default function MatchPage() {
         currentLobby.id,
         "live",
         currentSubmission,
-        arenaStateRef.current?.score ?? 0,
+        mode === "head_to_head" ? undefined : arenaStateRef.current?.score ?? 0,
       )
       .then((response) => setLobby(response.lobby))
       .catch((error) => {
@@ -711,9 +729,10 @@ export default function MatchPage() {
         setSolvePending(false);
         solvePendingRef.current = false;
       });
-  }, []);
+  }, [mode]);
 
   async function handleUseHint() {
+
     const currentLobby = lobbyRef.current;
     if (!currentLobby || !currentLobby.selection || !user || hintSaving) {
       return;
@@ -808,9 +827,9 @@ export default function MatchPage() {
       timeLeft <= 0 ||
       (isPractice
         ? practiceSolved
-        : solvePending || (!rapidFire && selfPlayer.solvedAtMs !== null));
+        : solvePending || (!scoreRace && selfPlayer.solvedAtMs !== null));
 
-    if (!rankedArenaMode) {
+    if (!liveArenaMode) {
       return (
         <div className="match-ranked-screen">
           <div className="match-ranked-shell">
@@ -819,7 +838,7 @@ export default function MatchPage() {
                 Arena board unavailable
               </p>
               <p className="max-w-xl text-sm text-muted-foreground">
-                {selectionMeta?.label ?? "This puzzle"} is not wired into the ranked Phaser arena yet.
+                {selectionMeta?.label ?? "This puzzle"} is not wired into the live Phaser arena yet.
               </p>
               <Button onClick={() => navigate("/play")} variant="outline" size="lg">
                 <Home size={16} />
@@ -833,15 +852,18 @@ export default function MatchPage() {
 
     const currentHintPenaltyTotal = selfPlayer.hintPenaltyTotal ?? hintPenaltyTotal;
     const displayedScore = isPractice
-      ? Math.max(0, Math.floor(arenaState?.score ?? selfPlayer.score ?? 0))
-      : getEffectiveMatchScore(
-          Math.max(
-            Number(selfPlayer.liveScoreRaw ?? selfPlayer.score ?? 0),
-            Math.floor(arenaState?.score ?? 0),
-          ),
-          currentHintPenaltyTotal,
-        );
+      ? Math.max(0, Math.floor(selfPlayer.score ?? 0))
+      : isHeadToHead
+        ? Math.max(0, Math.floor(selfPlayer.score ?? 0))
+        : getEffectiveMatchScore(
+            Math.max(
+              Number(selfPlayer.liveScoreRaw ?? selfPlayer.score ?? 0),
+              Math.floor(arenaState?.score ?? 0),
+            ),
+            currentHintPenaltyTotal,
+          );
     const hintCooldownSeconds =
+
       !isPractice && hintCooldownUntil && hintCooldownUntil > clockNow
         ? Math.max(1, Math.ceil((hintCooldownUntil - clockNow) / 1000))
         : 0;
@@ -898,14 +920,18 @@ export default function MatchPage() {
 
               <div className="match-ranked-stage">
                 <span className="match-ranked-stage-chip">
-                  {isPractice ? "Practice" : "Live"}
+                  {isPractice ? "Practice" : isHeadToHead ? "Duel" : "Live"}
                 </span>
                 <div className="match-ranked-stage-copy">
                   <p className="match-ranked-stage-title">
                     {selectionMeta?.label ?? "Random Puzzle"}
                   </p>
                   <p className="match-ranked-stage-subtitle">
-                    {isPractice ? "Warm-up round before the scored battle." : "Ranked battle in progress."}
+                    {isPractice
+                      ? "Warm-up round before the scored battle."
+                      : isHeadToHead
+                        ? `First to ${HEAD_TO_HEAD_LIVE_TARGET_SCORE} wins.`
+                        : "Ranked battle in progress."}
                   </p>
                 </div>
               </div>
@@ -930,7 +956,7 @@ export default function MatchPage() {
                 ) : null}
 
                 <div className="match-ranked-scorebox">
-                  <span className="match-ranked-scorebox-label">Live Score</span>
+                  <span className="match-ranked-scorebox-label">{isHeadToHead ? "Duel Score" : "Live Score"}</span>
                   <span className="match-ranked-scorebox-value">
                     {Math.round(displayedScore).toLocaleString()}
                   </span>
@@ -955,7 +981,7 @@ export default function MatchPage() {
                 <NeonRivalsGame
                   key={`${lobby.id}:${stage}:${activeSeed}`}
                   className="match-ranked-game"
-                  mode={rankedArenaMode}
+                  mode={liveArenaMode}
                   sessionSeed={activeSeed}
                   playerName={selfPlayer.username}
                   themeLabel="Neon Rivals Arena"
@@ -972,7 +998,7 @@ export default function MatchPage() {
                       stage,
                       submission,
                       state.objectiveProgressPercent,
-                      state.score,
+                      isHeadToHead ? undefined : state.score,
                     );
                   }}
                   onStateChange={(state) => {

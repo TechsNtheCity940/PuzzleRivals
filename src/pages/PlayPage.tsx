@@ -14,8 +14,6 @@ import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import { Button } from "@/components/ui/button";
-import type { HeadToHeadPresetId } from "@/game/head-to-head/types";
-import { HEAD_TO_HEAD_PRESETS } from "@/game/head-to-head/config";
 import {
   loadDiscoveryContent,
   type GameContentResolution,
@@ -134,7 +132,6 @@ export default function PlayPage() {
   const { lastArenaMode, lowBandwidthMode } = useAppPreferences();
   const accountNeedsSync = hasSession && !user;
   const [selectedMode, setSelectedMode] = useState<PlayMode>("ranked");
-  const [headToHeadPreset, setHeadToHeadPreset] = useState<HeadToHeadPresetId>("ranked");
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(
     null,
   );
@@ -209,11 +206,11 @@ export default function PlayPage() {
   const selectedConfig = useMemo(() => {
     if (selectedMode === "head_to_head") {
       return {
-        lobby: "1v1 Duel",
+        lobby: "2 Players",
         steps: [
-          "Both players race the same board family.",
-          "Strong solves charge attacks and defenses.",
-          `First to ${HEAD_TO_HEAD_PRESETS[headToHeadPreset].targetScore} wins.`,
+          "One random continuous Phaser puzzle family per round.",
+          "12s practice warm-up, then first to 100 wins.",
+          "No chess, checkers, or word-riddle boards in this queue.",
         ],
       };
     }
@@ -229,14 +226,11 @@ export default function PlayPage() {
           ]
         : ["Random ranked puzzle", "12s practice warm-up", "Fresh live board"],
     };
-  }, [headToHeadPreset, selectedMode]);
+  }, [selectedMode]);
 
   const selectedModeMeta = MODES.find((mode) => mode.id === selectedMode);
   const arenaHref = `/play/neon-rival?mode=${lastArenaMode}`;
-  const queueHref =
-    selectedMode === "head_to_head"
-      ? `/play/head-to-head?preset=${headToHeadPreset}`
-      : `/match?mode=${selectedMode}`;
+  const queueHref = `/match?mode=${selectedMode}`;
 
   return (
     <div className="page-screen">
@@ -270,7 +264,7 @@ export default function PlayPage() {
                 </h2>
                 <p className="hero-subtitle mt-3">
                   {selectedMode === "head_to_head"
-                    ? "Head 2 Head runs as a clean 1v1 Phaser duel. One random puzzle family is locked in, both players race to the preset score target, and strong solves power the pressure tools."
+                    ? "Head 2 Head now runs through the live queue. Two players load the same random continuous board family, get a short practice round, and race to 100 before the timer burns out."
                     : "Ranked uses a random lobby-selected Phaser board with a practice warm-up, then a live battle. Other queues keep the same fast-entry shell."}
                 </p>
               </div>
@@ -298,7 +292,7 @@ export default function PlayPage() {
                     ? "Sign Out To Retry"
                     : canSave
                       ? selectedMode === "head_to_head"
-                        ? "Enter Duel"
+                        ? "Join Duel"
                         : "Join Queue"
                       : "Sign Up To Compete"}
               </Button>
@@ -396,39 +390,6 @@ export default function PlayPage() {
               </Button>
             </section>
 
-            {selectedMode === "head_to_head" ? (
-              <section className="section-panel">
-                <div className="section-header">
-                  <div>
-                    <p className="section-kicker">Head 2 Head Preset</p>
-                    <h2 className="section-title">Pick the score target</h2>
-                  </div>
-                  <Zap size={18} className="text-primary" />
-                </div>
-                <div className="section-stack">
-                  {Object.values(HEAD_TO_HEAD_PRESETS).map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => setHeadToHeadPreset(preset.id)}
-                      className={`command-panel-soft p-4 text-left transition ${headToHeadPreset === preset.id ? "border-primary/40 bg-primary/10" : ""}`}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="section-kicker">{preset.label}</p>
-                          <p className="mt-2 text-lg font-black text-white">First to {preset.targetScore}</p>
-                        </div>
-                        <span className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">
-                          {headToHeadPreset === preset.id ? "Locked" : "Set"}
-                        </span>
-                      </div>
-                      <p className="mt-3 text-sm leading-6 text-muted-foreground">{preset.description}</p>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
             <section className="section-panel">
               <div className="section-header">
                 <div>
@@ -442,9 +403,9 @@ export default function PlayPage() {
               <div className="section-stack">
                 {(selectedMode === "head_to_head"
                   ? [
-                      "Both players race the same puzzle family at the same time.",
-                      "Strong solves charge short disruptive attacks and tactical defenses.",
-                      "First to the preset score wins the duel.",
+                      "Two players load the same random board family and solve in real time.",
+                      "The match opens with a short practice board before the live score race starts.",
+                      "First to 100 wins, and the pool avoids chess, checkers, and word-riddle lanes.",
                     ]
                   : selectedMode === "revenge"
                     ? [

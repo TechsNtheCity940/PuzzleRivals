@@ -135,7 +135,7 @@ export type MatchPhase = "lobby" | "announcement" | "practice" | "round" | "resu
 
 export interface MatchConfig {
   id: string;
-  mode: "ranked" | "casual" | "royale" | "revenge" | "challenge" | "daily";
+  mode: "ranked" | "head_to_head" | "casual" | "royale" | "revenge" | "challenge" | "daily";
   puzzleConfig: PuzzleConfig;
   players: MatchPlayer[];
   phase: MatchPhase;

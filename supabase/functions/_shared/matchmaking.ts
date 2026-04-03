@@ -1,6 +1,6 @@
 import { createAdminClient } from "./supabase.ts";
 import { getPuzzleMeta } from "./puzzle.ts";
-import { isRapidFirePuzzleType } from "./match-rules.ts";
+import { isLiveScoreRacePuzzle } from "./match-rules.ts";
 
 export async function getLobbySnapshot(lobbyId: string) {
   const admin = createAdminClient();
@@ -236,7 +236,7 @@ export async function getLobbySnapshot(lobbyId: string) {
                 reward: player.reward!,
                 isBot: botIds.has(player.playerId),
               })),
-            rapidFire: isRapidFirePuzzleType(activeRound.puzzle_type),
+            rapidFire: isLiveScoreRacePuzzle(lobby?.mode, activeRound.puzzle_type),
           }
         : null,
     },

@@ -1,5 +1,9 @@
 import { buildGeneratedQuizRounds } from "./match-quiz-content.ts";
 import { buildCrosswordMini, buildMatchingPairs, buildMaze, buildMemoryGrid, buildNumberGrid, buildPathfinder, buildPatternRounds, buildSpatialRounds, buildSudokuMini, buildTilePuzzle, buildWordScramble, buildWordSearch, buildWordle, getMazeProgress, normalizeSegment } from "./match-puzzle-contract.ts";
+import {
+  HEAD_TO_HEAD_ARENA_PUZZLE_TYPES,
+  isHeadToHeadArenaPuzzleType,
+} from "../../../shared/head-to-head-arena.ts";
 import { RANKED_ARENA_PUZZLE_TYPES, isRankedArenaPuzzleType } from "../../../shared/ranked-arena.ts";
 
 export type MatchPlayablePuzzleType =
@@ -289,7 +293,7 @@ export function getAdaptiveDifficulty(averageElo: number, mode: string): 1 | 2 |
   else if (averageElo >= 2600) difficulty = 4;
   else if (averageElo >= 1800) difficulty = 3;
   else if (averageElo >= 1000) difficulty = 2;
-  if (mode === "ranked" && difficulty < 5) difficulty += 1;
+  if ((mode === "ranked" || mode === "head_to_head") && difficulty < 5) difficulty += 1;
   if (mode === "casual" && difficulty > 1) difficulty -= 1;
   return difficulty as 1 | 2 | 3 | 4 | 5;
 }
@@ -306,15 +310,21 @@ export function createAuthoritativePuzzleSelection(
   const availablePuzzleTypes =
     mode === "ranked"
       ? (RANKED_ARENA_PUZZLE_TYPES as readonly MatchPlayablePuzzleType[])
-      : MATCH_PLAYABLE_PUZZLES;
+      : mode === "head_to_head"
+        ? (HEAD_TO_HEAD_ARENA_PUZZLE_TYPES as readonly MatchPlayablePuzzleType[])
+        : MATCH_PLAYABLE_PUZZLES;
   const normalizedPreferredPuzzleType =
     mode === "ranked"
       ? preferredPuzzleType && isRankedArenaPuzzleType(preferredPuzzleType)
         ? preferredPuzzleType
         : null
-      : preferredPuzzleType && MATCH_PLAYABLE_PUZZLES.includes(preferredPuzzleType)
-        ? preferredPuzzleType
-        : null;
+      : mode === "head_to_head"
+        ? preferredPuzzleType && isHeadToHeadArenaPuzzleType(preferredPuzzleType)
+          ? preferredPuzzleType
+          : null
+        : preferredPuzzleType && MATCH_PLAYABLE_PUZZLES.includes(preferredPuzzleType)
+          ? preferredPuzzleType
+          : null;
   const puzzleType =
     normalizedPreferredPuzzleType
       ? normalizedPreferredPuzzleType

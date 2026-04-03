@@ -6,7 +6,11 @@ import {
   type PuzzleGeneratorPlayerProfile,
 } from "./puzzle-generator.ts";
 import { fillLobbyWithEasyBots, hydrateBotRoundProgress } from "./bots.ts";
-import { isRapidFirePuzzleType } from "./match-rules.ts";
+import {
+  getLiveDurationMs,
+  getLiveTargetScore,
+  isLiveScoreRacePuzzle,
+} from "./match-rules.ts";
 import {
   calculateMatchReward,
   evaluateQuestProgress,
@@ -102,7 +106,6 @@ type HistoryParticipationRow = {
 };
 
 const PRACTICE_DURATION_MS = 12_000;
-const LIVE_DURATION_MS = 90_000;
 const INTERMISSION_DURATION_MS = 10_000;
 
 function buildPuzzleProfile(rows: PuzzleStatRow[]): Pick<PuzzleGeneratorPlayerProfile, "averageProgressByType" | "matchesPlayedByType"> {
@@ -461,7 +464,7 @@ async function startLive(lobby: LobbyRow) {
 
   const admin = createAdminClient();
   const now = new Date();
-  const liveEndsAt = new Date(now.getTime() + LIVE_DURATION_MS).toISOString();
+  const liveEndsAt = new Date(now.getTime() + getLiveDurationMs(lobby.mode)).toISOString();
   await admin.from("lobbies").update({
     status: "live",
     live_ends_at: liveEndsAt,
@@ -477,9 +480,14 @@ async function finalizeLiveRound(lobby: LobbyRow, activePlayers: PlayerRow[], ro
   if (!round || lobby.status !== "live") return false;
 
   const liveExpired = lobby.live_ends_at ? new Date(lobby.live_ends_at).getTime() <= Date.now() : false;
-  const repeatable = isRapidFirePuzzleType(round.puzzle_type);
+  const scoreRace = isLiveScoreRacePuzzle(lobby.mode, round.puzzle_type);
+  const targetScore = getLiveTargetScore(lobby.mode);
   const solvedPlayers = results.filter((result) => (result.live_progress as number | null) !== null && (result.live_progress as number) >= 100).length;
-  if ((!repeatable && !liveExpired && solvedPlayers < activePlayers.length) || (repeatable && !liveExpired)) {
+  const targetScoreReached =
+    scoreRace &&
+    targetScore !== null &&
+    results.some((result) => Number(result.live_score ?? result.live_score_raw ?? 0) >= targetScore);
+  if ((!scoreRace && !liveExpired && solvedPlayers < activePlayers.length) || (scoreRace && !liveExpired && !targetScoreReached)) {
     return false;
   }
 
@@ -502,8 +510,8 @@ async function finalizeLiveRound(lobby: LobbyRow, activePlayers: PlayerRow[], ro
       };
     })
     .sort((left, right) => {
-      if (repeatable && right.liveScore !== left.liveScore) return right.liveScore - left.liveScore;
-      if (repeatable && right.liveCompletions !== left.liveCompletions) return right.liveCompletions - left.liveCompletions;
+      if (scoreRace && right.liveScore !== left.liveScore) return right.liveScore - left.liveScore;
+      if (scoreRace && right.liveCompletions !== left.liveCompletions) return right.liveCompletions - left.liveCompletions;
       if (right.liveProgress !== left.liveProgress) return right.liveProgress - left.liveProgress;
       if (left.solvedAtMs === null && right.solvedAtMs === null) return 0;
       if (left.solvedAtMs === null) return 1;

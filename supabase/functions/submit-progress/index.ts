@@ -5,7 +5,7 @@ import { createAdminClient } from "../_shared/supabase.ts";
 import { advanceLobbyState } from "../_shared/lobby-state.ts";
 import { getLobbySnapshot } from "../_shared/matchmaking.ts";
 import { evaluatePuzzleSubmission, type PuzzleSubmission } from "../_shared/puzzle.ts";
-import { isRapidFirePuzzleType } from "../_shared/match-rules.ts";
+import { isLiveScoreRacePuzzle } from "../_shared/match-rules.ts";
 
 function normalizeScore(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -32,15 +32,19 @@ Deno.serve(async (req) => {
 
     await advanceLobbyState(lobbyId);
 
-    const { data: round, error: roundError } = await admin
-      .from("rounds")
-      .select("*")
-      .eq("lobby_id", lobbyId)
-      .order("round_no", { ascending: false })
-      .limit(1)
-      .single();
+    const [{ data: round, error: roundError }, { data: lobby, error: lobbyError }] = await Promise.all([
+      admin
+        .from("rounds")
+        .select("*")
+        .eq("lobby_id", lobbyId)
+        .order("round_no", { ascending: false })
+        .limit(1)
+        .single(),
+      admin.from("lobbies").select("mode").eq("id", lobbyId).single(),
+    ]);
 
     if (roundError) throw roundError;
+    if (lobbyError) throw lobbyError;
     if (stage === "practice" && round.status !== "practice") {
       throw new Error("Practice submissions are not accepted right now.");
     }
@@ -59,8 +63,9 @@ Deno.serve(async (req) => {
       throw resultError;
     }
 
+    const scoreRace = stage === "live" && isLiveScoreRacePuzzle(lobby.mode, round.puzzle_type);
     const activeLiveSeed =
-      stage === "live" && isRapidFirePuzzleType(round.puzzle_type)
+      stage === "live" && scoreRace
         ? Number(currentResult?.current_live_seed ?? round.live_seed)
         : Number(round.live_seed);
     const seed = stage === "practice" ? Number(round.practice_seed) : activeLiveSeed;
@@ -97,7 +102,7 @@ Deno.serve(async (req) => {
       payload.next_hint_available_at = currentResult?.next_hint_available_at ?? null;
     }
 
-    if (stage === "live" && isRapidFirePuzzleType(round.puzzle_type)) {
+    if (stage === "live" && scoreRace) {
       payload.current_live_seed = activeLiveSeed;
       payload.current_variant_started_at_ms = Number(currentResult?.current_variant_started_at_ms ?? 0);
       payload.live_completions = Number(currentResult?.live_completions ?? 0);

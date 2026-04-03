@@ -257,7 +257,7 @@ export class LobbyManager extends EventEmitter {
   }
 
   private createLobby(mode: MatchMode, now: string): LobbyRecord {
-    const maxPlayers = mode === "revenge" ? 2 : this.maxPlayers;
+    const maxPlayers = mode === "revenge" || mode === "head_to_head" ? 2 : this.maxPlayers;
     const lobby: LobbyRecord = {
       id: randomUUID(),
       mode,

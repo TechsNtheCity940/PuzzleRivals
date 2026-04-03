@@ -16,6 +16,16 @@ const MATCH_PLAYABLE_PUZZLES: MatchPlayablePuzzleType[] = [
   "checkers_tactic",
 ];
 
+const HEAD_TO_HEAD_PUZZLES: MatchPlayablePuzzleType[] = [
+  "rotate_pipes",
+  "number_grid",
+  "pattern_match",
+  "tile_slide",
+  "sudoku_mini",
+  "maze",
+  "memory_grid",
+];
+
 const PUZZLE_CATALOG: Record<MatchPlayablePuzzleType, PuzzleCatalogEntry> = {
   rotate_pipes: {
     type: "rotate_pipes",
@@ -109,14 +119,15 @@ export function getAdaptiveDifficulty(averageElo: number, mode: MatchMode): 1 | 
   else if (averageElo >= 1800) difficulty = 3;
   else if (averageElo >= 1000) difficulty = 2;
 
-  if (mode === "ranked" && difficulty < 5) difficulty += 1;
+  if ((mode === "ranked" || mode === "head_to_head") && difficulty < 5) difficulty += 1;
   if (mode === "casual" && difficulty > 1) difficulty -= 1;
 
   return difficulty as 1 | 2 | 3 | 4 | 5;
 }
 
 export function createAuthoritativePuzzleSelection(averageElo: number, mode: MatchMode): AuthoritativePuzzleSelection {
-  const puzzleType = MATCH_PLAYABLE_PUZZLES[randomInt(0, MATCH_PLAYABLE_PUZZLES.length)];
+  const availablePuzzleTypes = mode === "head_to_head" ? HEAD_TO_HEAD_PUZZLES : MATCH_PLAYABLE_PUZZLES;
+  const puzzleType = availablePuzzleTypes[randomInt(0, availablePuzzleTypes.length)];
   const practiceSeed = allocateSeed();
 
   return {

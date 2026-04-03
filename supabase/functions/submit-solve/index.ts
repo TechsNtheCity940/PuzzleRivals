@@ -8,8 +8,10 @@ import { getLobbySnapshot } from "../_shared/matchmaking.ts";
 import { isSolvedPuzzleSubmission, type PuzzleSubmission } from "../_shared/puzzle.ts";
 import {
   createVariantSeed,
+  getHeadToHeadSolveScore,
+  getLiveTargetScore,
   getSolveScore,
-  isRapidFirePuzzleType,
+  isLiveScoreRacePuzzle,
   RAPID_FIRE_CUTOFF_MS,
 } from "../_shared/match-rules.ts";
 
@@ -52,7 +54,7 @@ Deno.serve(async (req) => {
     }
 
     const [{ data: lobby, error: lobbyError }, { data: currentResult, error: resultError }] = await Promise.all([
-      admin.from("lobbies").select("live_ends_at").eq("id", lobbyId).single(),
+      admin.from("lobbies").select("mode, live_ends_at").eq("id", lobbyId).single(),
       admin
         .from("round_results")
         .select("live_progress, solved_at_ms, live_completions, live_score, live_score_raw, hint_uses, hint_penalty_total, next_hint_available_at, current_live_seed, current_variant_started_at_ms")
@@ -64,8 +66,10 @@ Deno.serve(async (req) => {
     if (lobbyError) throw lobbyError;
     if (resultError) throw resultError;
 
-    const repeatable = isRapidFirePuzzleType(round.puzzle_type);
-    const activeSeed = repeatable ? Number(currentResult?.current_live_seed ?? round.live_seed) : Number(round.live_seed);
+    const scoreRace = isLiveScoreRacePuzzle(lobby.mode, round.puzzle_type);
+    const activeSeed = scoreRace
+      ? Number(currentResult?.current_live_seed ?? round.live_seed)
+      : Number(round.live_seed);
     const solved = isSolvedPuzzleSubmission(round.puzzle_type, activeSeed, round.difficulty, submission);
     if (!solved) {
       throw new Error("Submitted puzzle state is not solved.");
@@ -78,23 +82,32 @@ Deno.serve(async (req) => {
     const nextBestSolveMs = currentBestSolveMs === null ? variantSolveMs : Math.min(currentBestSolveMs, variantSolveMs);
     const nextCompletionCount = Number(currentResult?.live_completions ?? 0) + 1;
     const liveEndsAtMs = lobby.live_ends_at ? new Date(lobby.live_ends_at).getTime() : Date.now();
-    const shouldRollVariant = repeatable && liveEndsAtMs - Date.now() > RAPID_FIRE_CUTOFF_MS;
+    const targetScore = getLiveTargetScore(lobby.mode);
     const existingRawScore = Number(currentResult?.live_score_raw ?? currentResult?.live_score ?? 0);
     const submittedScore = normalizeScore(score);
-    const liveScoreRaw = repeatable
-      ? Math.max(existingRawScore, submittedScore ?? existingRawScore + getSolveScore(variantSolveMs))
+    const liveScoreRaw = scoreRace
+      ? lobby.mode === "head_to_head"
+        ? existingRawScore + getHeadToHeadSolveScore({
+            solveMs: variantSolveMs,
+            currentCompletions: Number(currentResult?.live_completions ?? 0),
+            currentScore: existingRawScore,
+            targetScore: targetScore ?? undefined,
+          })
+        : Math.max(existingRawScore, submittedScore ?? existingRawScore + getSolveScore(variantSolveMs))
       : Math.max(existingRawScore, submittedScore ?? 100);
     const hintUses = Number(currentResult?.hint_uses ?? 0);
     const hintPenaltyTotal = Number(currentResult?.hint_penalty_total ?? 0);
     const liveScore = getEffectiveMatchScore(liveScoreRaw, hintPenaltyTotal);
+    const targetReached = targetScore !== null && liveScore >= targetScore;
+    const shouldRollVariant = scoreRace && liveEndsAtMs - Date.now() > RAPID_FIRE_CUTOFF_MS && !targetReached;
 
     const payload: Record<string, unknown> = {
       round_id: round.id,
       user_id: user.id,
       submission_hash: JSON.stringify(submission),
-      solved_at_ms: repeatable ? nextBestSolveMs : currentBestSolveMs ?? roundElapsedMs,
+      solved_at_ms: scoreRace ? nextBestSolveMs : currentBestSolveMs ?? roundElapsedMs,
       live_progress: shouldRollVariant ? 0 : 100,
-      live_completions: repeatable ? nextCompletionCount : Math.max(Number(currentResult?.live_completions ?? 0), 1),
+      live_completions: scoreRace ? nextCompletionCount : Math.max(Number(currentResult?.live_completions ?? 0), 1),
       live_score_raw: liveScoreRaw,
       live_score: liveScore,
       hint_uses: hintUses,

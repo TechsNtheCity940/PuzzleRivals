@@ -1,3 +1,4 @@
+import { HEAD_TO_HEAD_ARENA_PUZZLE_TYPES } from "../../../shared/head-to-head-arena.ts";
 import { RANKED_ARENA_PUZZLE_TYPES } from "../../../shared/ranked-arena.ts";
 import type { MatchPlayablePuzzleType } from "./puzzle.ts";
 
@@ -66,6 +67,7 @@ const ALL_PUZZLE_TYPES: MatchPlayablePuzzleType[] = [
 
 const MIN_WEIGHT = 0.05;
 const RANKED_ONLY_PUZZLE_TYPES = [...RANKED_ARENA_PUZZLE_TYPES] as MatchPlayablePuzzleType[];
+const HEAD_TO_HEAD_ONLY_PUZZLE_TYPES = [...HEAD_TO_HEAD_ARENA_PUZZLE_TYPES] as MatchPlayablePuzzleType[];
 
 class DeterministicRandom {
   private seed: number;
@@ -212,11 +214,15 @@ function applyModeCooldown(
   return nextWeights;
 }
 
-function buildBalancedWeights(context: PuzzleGeneratorContext) {
-  const baseWeights = createWeightMap(1, RANKED_ONLY_PUZZLE_TYPES);
-  const rationale = ["ranked mode balances variety across the live ranked arena puzzle pool"];
+function buildBalancedWeights(
+  context: PuzzleGeneratorContext,
+  eligibleTypes: MatchPlayablePuzzleType[] = RANKED_ONLY_PUZZLE_TYPES,
+  rationaleLabel = "ranked mode balances variety across the live ranked arena puzzle pool",
+) {
+  const baseWeights = createWeightMap(1, eligibleTypes);
+  const rationale = [rationaleLabel];
 
-  for (const type of RANKED_ONLY_PUZZLE_TYPES) {
+  for (const type of eligibleTypes) {
     const lobbyMatches = context.players.reduce(
       (sum, player) => sum + (player.matchesPlayedByType[type] ?? 0),
       0,
@@ -323,6 +329,25 @@ export function generatePuzzleTemplate(context: PuzzleGeneratorContext): Generat
         volatility: 0.35,
         logicLoad: clamp(0.4 + context.averageElo / 6000, 0.3, 0.9),
         memoryLoad: 0.65,
+      },
+    };
+  }
+
+  if (context.mode === "head_to_head") {
+    const balanced = buildBalancedWeights(
+      context,
+      HEAD_TO_HEAD_ONLY_PUZZLE_TYPES,
+      "head to head balances variety across the live duel arena puzzle pool",
+    );
+    return {
+      strategy: "balanced",
+      primaryType: weightedPick(balanced.weights, context.selectionSeed),
+      weights: balanced.weights,
+      rationale: balanced.rationale,
+      parameters: {
+        volatility: 0.5,
+        logicLoad: clamp(0.45 + context.averageElo / 5750, 0.35, 0.95),
+        memoryLoad: 0.55,
       },
     };
   }

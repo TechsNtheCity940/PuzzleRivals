@@ -1,8 +1,11 @@
 import { createAdminClient } from "./supabase.ts";
 import {
   createVariantSeed,
+  getHeadToHeadSolveScore,
+  getLiveDurationMs,
+  getLiveTargetScore,
   getSolveScore,
-  isRapidFirePuzzleType,
+  isLiveScoreRacePuzzle,
   RAPID_FIRE_CUTOFF_MS,
 } from "./match-rules.ts";
 
@@ -28,6 +31,7 @@ type BotRosterEntry = {
 
 type LobbyRow = {
   id: string;
+  mode: string;
   status: "filling" | "ready" | "practice" | "live" | "intermission" | "complete";
   max_players: number;
   live_ends_at?: string | null;
@@ -55,6 +59,7 @@ type RoundResultRow = {
   solved_at_ms: number | null;
   live_completions?: number | null;
   live_score?: number | null;
+  live_score_raw?: number | null;
   current_live_seed?: number | null;
   current_variant_started_at_ms?: number | null;
 };
@@ -257,7 +262,7 @@ export async function fillLobbyWithEasyBots(lobbyId: string) {
   const admin = createAdminClient();
   const { data: lobby, error: lobbyError } = await admin
     .from("lobbies")
-    .select("id, status, max_players")
+    .select("id, mode, status, max_players")
     .eq("id", lobbyId)
     .maybeSingle();
 
@@ -382,29 +387,67 @@ export async function hydrateBotRoundProgress(
     if (lobby.status === "live" && round.live_started_at) {
       const elapsedMs = Math.max(0, Date.now() - new Date(round.live_started_at).getTime());
       const current = resultMap.get(bot.user_id);
-      const repeatable = isRapidFirePuzzleType(round.puzzle_type ?? null);
+      const scoreRace = isLiveScoreRacePuzzle(lobby.mode, round.puzzle_type ?? null);
 
-      if (repeatable && typeof round.live_seed === "number") {
-        const repeatWindowMs = Math.max(0, 90000 - RAPID_FIRE_CUTOFF_MS);
-        const cycleMs = Math.round(7000 * clamp(Number(bot.pace_factor) + variance, 0.82, 1.12));
+      if (scoreRace && typeof round.live_seed === "number") {
+        const repeatWindowMs = Math.max(0, getLiveDurationMs(lobby.mode) - RAPID_FIRE_CUTOFF_MS);
+        const baseCycleMs = lobby.mode === "head_to_head" ? 14_500 : 7_000;
+        const cycleMs = Math.round(
+          baseCycleMs * clamp(Number(bot.pace_factor) + variance, 0.84, 1.14),
+        );
         const elapsedInsideWindow = Math.min(elapsedMs, repeatWindowMs);
-        const completedCycles = Math.floor(elapsedInsideWindow / cycleMs);
-        const variantStartedAtMs = Math.min(completedCycles * cycleMs, repeatWindowMs);
-        const cycleElapsedMs = Math.max(0, elapsedInsideWindow - variantStartedAtMs);
+        const targetScore = getLiveTargetScore(lobby.mode);
+        let completedCycles = 0;
+        let completionScore = 0;
+        let variantStartedAtMs = 0;
+        let cycleElapsedMs = elapsedInsideWindow;
+        let reachedTarget = false;
+
+        while (cycleElapsedMs >= cycleMs) {
+          const solveGain = lobby.mode === "head_to_head"
+            ? getHeadToHeadSolveScore({
+                solveMs: cycleMs,
+                currentCompletions: completedCycles,
+                currentScore: completionScore,
+                targetScore: targetScore ?? undefined,
+              })
+            : getSolveScore(cycleMs);
+          completionScore += solveGain;
+          completedCycles += 1;
+          variantStartedAtMs = completedCycles * cycleMs;
+          cycleElapsedMs = Math.max(0, elapsedInsideWindow - variantStartedAtMs);
+          if (targetScore !== null && completionScore >= targetScore) {
+            reachedTarget = true;
+            break;
+          }
+        }
+
         const currentProgress = Math.max(0, Number(current?.live_progress ?? 0));
-        const targetProgress = elapsedMs >= repeatWindowMs
-          ? currentProgress
-          : Math.round(clamp(cycleElapsedMs / cycleMs, 0, 1) * 100);
+        const currentVariantIndex = reachedTarget
+          ? Math.max(0, completedCycles - 1)
+          : completedCycles;
+        const currentSeed = createVariantSeed(
+          Number(round.live_seed),
+          bot.user_id,
+          currentVariantIndex,
+        );
+        const currentVariantStartedAtMs = reachedTarget
+          ? Math.max(0, variantStartedAtMs - cycleMs)
+          : variantStartedAtMs;
+        const targetProgress = reachedTarget
+          ? 100
+          : elapsedMs >= repeatWindowMs
+            ? currentProgress
+            : Math.round(clamp(cycleElapsedMs / cycleMs, 0, 1) * 100);
         const bestSolveMs = completedCycles > 0 ? cycleMs : null;
-        const completionScore = completedCycles * getSolveScore(cycleMs);
-        const currentSeed = createVariantSeed(Number(round.live_seed), bot.user_id, completedCycles);
 
         if (
           targetProgress !== currentProgress ||
           Number(current?.live_completions ?? 0) !== completedCycles ||
           Number(current?.live_score ?? 0) !== completionScore ||
+          Number(current?.live_score_raw ?? current?.live_score ?? 0) !== completionScore ||
           Number(current?.current_live_seed ?? 0) !== currentSeed ||
-          Number(current?.current_variant_started_at_ms ?? -1) !== variantStartedAtMs ||
+          Number(current?.current_variant_started_at_ms ?? -1) !== currentVariantStartedAtMs ||
           (bestSolveMs !== null && current?.solved_at_ms === null)
         ) {
           updates.push({
@@ -414,16 +457,17 @@ export async function hydrateBotRoundProgress(
             solved_at_ms: bestSolveMs,
             live_completions: completedCycles,
             live_score: completionScore,
+            live_score_raw: completionScore,
             current_live_seed: currentSeed,
-            current_variant_started_at_ms: variantStartedAtMs,
+            current_variant_started_at_ms: currentVariantStartedAtMs,
           });
         }
       } else {
-        const completionMs = Math.round(90000 * clamp(Number(bot.pace_factor) + variance, 0.84, 1.08));
-        const solvedAtMs = completionMs <= 90000 && elapsedMs >= completionMs ? completionMs : null;
+        const completionMs = Math.round(90_000 * clamp(Number(bot.pace_factor) + variance, 0.84, 1.08));
+        const solvedAtMs = completionMs <= 90_000 && elapsedMs >= completionMs ? completionMs : null;
         const targetProgress = solvedAtMs !== null
           ? 100
-          : Math.round(clamp(elapsedMs / 90000, 0, 1) * clamp(88 + variance * 100, 76, 96));
+          : Math.round(clamp(elapsedMs / 90_000, 0, 1) * clamp(88 + variance * 100, 76, 96));
         const currentProgress = Number(current?.live_progress ?? 0);
         const nextProgress = Math.max(currentProgress, targetProgress);
 
@@ -435,6 +479,7 @@ export async function hydrateBotRoundProgress(
             solved_at_ms: solvedAtMs,
             live_completions: solvedAtMs !== null ? 1 : 0,
             live_score: solvedAtMs !== null ? 100 : 0,
+            live_score_raw: solvedAtMs !== null ? 100 : 0,
             current_live_seed: Number(round.live_seed ?? 0),
             current_variant_started_at_ms: 0,
           });

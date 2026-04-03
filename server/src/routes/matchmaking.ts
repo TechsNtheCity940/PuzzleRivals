@@ -5,7 +5,7 @@ import type { LobbyManager } from "../services/lobby-manager.js";
 import { getPuzzleCatalog } from "../services/puzzle-seed-service.js";
 
 const joinMatchmakingSchema = z.object({
-  mode: z.enum(["ranked", "casual", "royale", "revenge", "challenge", "daily"]),
+  mode: z.enum(["ranked", "head_to_head", "casual", "royale", "revenge", "challenge", "daily"]),
 });
 
 const lobbyPlayerActionSchema = z.object({
