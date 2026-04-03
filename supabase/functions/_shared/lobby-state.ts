@@ -701,8 +701,24 @@ async function resolveIntermission(lobby: LobbyRow, activePlayers: PlayerRow[]) 
     left_at: new Date().toISOString(),
   }).eq("lobby_id", lobby.id).is("left_at", null).eq("next_round_vote", "exit");
 
-  const { data: remainingPlayers } = await admin.from("lobby_players").select("*").eq("lobby_id", lobby.id).is("left_at", null);
-  const activeCount = remainingPlayers?.length ?? 0;
+  await resetLobbyForRefill(lobby.id);
+  return true;
+}
+
+export async function resetLobbyForRefill(lobbyId: string) {
+  const { lobby, round } = await getLobbyState(lobbyId);
+  if (!lobby) return false;
+
+  const admin = createAdminClient();
+  const nowIso = new Date().toISOString();
+
+  if (round) {
+    await admin.from("rounds").update({
+      status: "complete",
+      finished_at: round.finished_at ?? nowIso,
+      intermission_ends_at: null,
+    }).eq("id", round.id);
+  }
 
   await admin.from("lobby_players").update({
     is_ready: false,

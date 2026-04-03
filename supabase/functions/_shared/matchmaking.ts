@@ -39,6 +39,9 @@ export async function getLobbySnapshot(lobbyId: string) {
   if (resultsError) throw resultsError;
 
   const resultMap = new Map((results ?? []).map((result) => [String(result.user_id), result]));
+  const activeRound = lobby && round && lobby.status !== "filling" && lobby.selected_puzzle_type
+    ? round
+    : null;
   const { data: botRows, error: botError } = playerIds.length > 0
     ? await admin.from("bot_profiles").select("user_id").in("user_id", playerIds)
     : { data: [], error: null };
@@ -178,7 +181,7 @@ export async function getLobbySnapshot(lobbyId: string) {
       hintUses: Number(result?.hint_uses ?? 0),
       hintPenaltyTotal: Number(result?.hint_penalty_total ?? 0),
       nextHintAvailableAt: typeof result?.next_hint_available_at === "string" ? String(result.next_hint_available_at) : null,
-      currentSeed: Number(result?.current_live_seed ?? round?.live_seed ?? 0),
+      currentSeed: Number(result?.current_live_seed ?? activeRound?.live_seed ?? 0),
       pace: 0,
       reward: result?.placement
         ? {
@@ -200,25 +203,25 @@ export async function getLobbySnapshot(lobbyId: string) {
       updatedAt: lobby?.updated_at,
       expiresAt: lobby?.updated_at,
       players: snapshotPlayers,
-      selection: round
+      selection: activeRound
         ? {
-            puzzleType: round.puzzle_type,
-            difficulty: round.difficulty,
-            practiceSeed: Number(round.practice_seed),
-            liveSeed: Number(round.live_seed),
-            selectedAt: round.created_at,
-            meta: getPuzzleMeta(round.puzzle_type),
+            puzzleType: activeRound.puzzle_type,
+            difficulty: activeRound.difficulty,
+            practiceSeed: Number(activeRound.practice_seed),
+            liveSeed: Number(activeRound.live_seed),
+            selectedAt: activeRound.created_at,
+            meta: getPuzzleMeta(activeRound.puzzle_type),
           }
         : null,
-      practiceStartsAt: round?.practice_started_at ?? null,
-      practiceEndsAt: lobby?.practice_ends_at ?? null,
-      liveStartsAt: round?.live_started_at ?? null,
-      liveEndsAt: lobby?.live_ends_at ?? null,
-      intermissionStartsAt: round?.finished_at ?? null,
-      intermissionEndsAt: lobby?.intermission_ends_at ?? null,
-      results: round && (round.status === "intermission" || round.status === "complete")
+      practiceStartsAt: activeRound?.practice_started_at ?? null,
+      practiceEndsAt: activeRound ? (lobby?.practice_ends_at ?? null) : null,
+      liveStartsAt: activeRound?.live_started_at ?? null,
+      liveEndsAt: activeRound ? (lobby?.live_ends_at ?? null) : null,
+      intermissionStartsAt: activeRound?.finished_at ?? null,
+      intermissionEndsAt: activeRound ? (lobby?.intermission_ends_at ?? null) : null,
+      results: activeRound && (activeRound.status === "intermission" || activeRound.status === "complete")
         ? {
-            completedAt: round.finished_at,
+            completedAt: activeRound.finished_at,
             standings: [...snapshotPlayers]
               .filter((player) => player.reward)
               .sort((left, right) => Number(resultMap.get(left.playerId)?.placement ?? 99) - Number(resultMap.get(right.playerId)?.placement ?? 99))
@@ -233,7 +236,7 @@ export async function getLobbySnapshot(lobbyId: string) {
                 reward: player.reward!,
                 isBot: botIds.has(player.playerId),
               })),
-            rapidFire: isRapidFirePuzzleType(round.puzzle_type),
+            rapidFire: isRapidFirePuzzleType(activeRound.puzzle_type),
           }
         : null,
     },

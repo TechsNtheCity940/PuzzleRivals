@@ -38,6 +38,9 @@ verify_jwt = false
 [functions.sync-lobby]
 verify_jwt = false
 
+[functions.leave-lobby]
+verify_jwt = false
+
 [functions.submit-progress]
 verify_jwt = false
 

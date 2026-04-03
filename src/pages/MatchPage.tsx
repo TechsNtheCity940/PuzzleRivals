@@ -22,6 +22,16 @@ import NeonRivalsGame from "@/components/game/NeonRivalsGame";
 import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
 import PageHeader from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/sonner";
 import { subscribeToLobby, supabaseApi } from "@/lib/api-client";
 import type { NeonRivalsGameState } from "@/game/types";
@@ -255,6 +265,7 @@ export default function MatchPage() {
   const [hintCooldownUntil, setHintCooldownUntil] = useState<number | null>(null);
   const [solvePending, setSolvePending] = useState(false);
   const [exitPending, setExitPending] = useState(false);
+  const [quitConfirmOpen, setQuitConfirmOpen] = useState(false);
   const [resultsSnapshot, setResultsSnapshot] = useState<BackendLobby | null>(
     null,
   );
@@ -756,6 +767,21 @@ export default function MatchPage() {
     }
   }
 
+  async function leaveMatch() {
+    if (!lobby || exitPending) return;
+    setExitPending(true);
+
+    try {
+      await supabaseApi.leaveLobby(lobby.id);
+    } catch (error) {
+      console.error("Failed to leave match", error);
+    } finally {
+      setQuitConfirmOpen(false);
+      setExitPending(false);
+      navigate("/");
+    }
+  }
+
   async function exitLobby() {
     if (!lobby || exitPending) return;
     setExitPending(true);
@@ -765,6 +791,7 @@ export default function MatchPage() {
     } catch (error) {
       console.error("Failed to exit lobby", error);
     } finally {
+      setExitPending(false);
       navigate("/");
     }
   }
@@ -830,122 +857,158 @@ export default function MatchPage() {
           : `Hint -${nextHintPenalty}`;
 
     return (
-      <div className="match-ranked-screen">
-        <div className="match-ranked-shell">
-          <div className="match-ranked-topbar">
-            <div className="match-ranked-stage">
-              <span className="match-ranked-stage-chip">
-                {isPractice ? "Practice" : "Live"}
-              </span>
-              <div className="match-ranked-stage-copy">
-                <p className="match-ranked-stage-title">
-                  {selectionMeta?.label ?? "Random Puzzle"}
-                </p>
-                <p className="match-ranked-stage-subtitle">
-                  {isPractice
-                    ? "Warm-up round before the scored battle."
-                    : "Ranked battle in progress."}
-                </p>
-              </div>
-            </div>
-
-            <div className="match-ranked-hudrail">
-              {!isPractice ? (
-                <Button
-                  onClick={() => void handleUseHint()}
-                  variant="outline"
-                  size="sm"
-                  disabled={
-                    hintSaving ||
-                    localHintBalance <= 0 ||
-                    hintCooldownSeconds > 0 ||
-                    disabled
-                  }
-                  className="match-ranked-hint-button"
-                >
-                  <Lightbulb size={14} />
-                  {hintButtonLabel}
-                </Button>
-              ) : null}
-
-              <div className="match-ranked-scorebox">
-                <span className="match-ranked-scorebox-label">Live Score</span>
-                <span className="match-ranked-scorebox-value">
-                  {Math.round(displayedScore).toLocaleString()}
-                </span>
-              </div>
-
-              <div
-                className={cn(
-                  "match-ranked-timer",
-                  lowTime && "match-ranked-timer--urgent",
-                )}
+      <>
+        <AlertDialog open={quitConfirmOpen} onOpenChange={setQuitConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Quit this match?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Leaving now removes you from the current round immediately. The match continues for the remaining players unless only one rival is left, in which case the room reloads with a fresh lobby and a new puzzle.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={exitPending}>No</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(event) => {
+                  event.preventDefault();
+                  void leaveMatch();
+                }}
+                disabled={exitPending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                <span className="match-ranked-timer-label">
-                  {isPractice ? "Practice" : "Match"} Timer
+                {exitPending ? "Leaving..." : "Yes, quit"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <div className="match-ranked-screen">
+          <div className="match-ranked-shell">
+            <div className="match-ranked-topbar">
+              <Button
+                onClick={() => setQuitConfirmOpen(true)}
+                variant="outline"
+                size="sm"
+                className="match-ranked-home-button"
+                disabled={exitPending}
+              >
+                <Home size={14} />
+                {exitPending ? "Leaving..." : "Home"}
+              </Button>
+
+              <div className="match-ranked-stage">
+                <span className="match-ranked-stage-chip">
+                  {isPractice ? "Practice" : "Live"}
                 </span>
-                <span className="match-ranked-timer-value">{formatTime(timeLeft)}</span>
+                <div className="match-ranked-stage-copy">
+                  <p className="match-ranked-stage-title">
+                    {selectionMeta?.label ?? "Random Puzzle"}
+                  </p>
+                  <p className="match-ranked-stage-subtitle">
+                    {isPractice ? "Warm-up round before the scored battle." : "Ranked battle in progress."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="match-ranked-hudrail">
+                {!isPractice ? (
+                  <Button
+                    onClick={() => void handleUseHint()}
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      hintSaving ||
+                      localHintBalance <= 0 ||
+                      hintCooldownSeconds > 0 ||
+                      disabled
+                    }
+                    className="match-ranked-hint-button"
+                  >
+                    <Lightbulb size={14} />
+                    {hintButtonLabel}
+                  </Button>
+                ) : null}
+
+                <div className="match-ranked-scorebox">
+                  <span className="match-ranked-scorebox-label">Live Score</span>
+                  <span className="match-ranked-scorebox-value">
+                    {Math.round(displayedScore).toLocaleString()}
+                  </span>
+                </div>
+
+                <div
+                  className={cn(
+                    "match-ranked-timer",
+                    lowTime && "match-ranked-timer--urgent",
+                  )}
+                >
+                  <span className="match-ranked-timer-label">
+                    {isPractice ? "Practice" : "Match"} Timer
+                  </span>
+                  <span className="match-ranked-timer-value">{formatTime(timeLeft)}</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="match-ranked-board-wrap">
-            <div className="match-ranked-board-shell">
-              <NeonRivalsGame
-                key={`${lobby.id}:${stage}:${activeSeed}`}
-                className="match-ranked-game"
-                mode={rankedArenaMode}
-                sessionSeed={activeSeed}
-                playerName={selfPlayer.username}
-                themeLabel="Neon Rivals Arena"
-                hudVariant="match"
-                matchContext={{
-                  puzzleType: lobby.selection.puzzleType,
-                  difficulty: lobby.selection.difficulty,
-                  stage,
-                }}
-                onSubmissionChange={(submission, state) => {
-                  lastSubmissionRef.current = submission;
-                  setArenaState(state);
-                  queueProgressSubmission(
+            <div className="match-ranked-board-wrap">
+              <div className="match-ranked-board-shell">
+                <NeonRivalsGame
+                  key={`${lobby.id}:${stage}:${activeSeed}`}
+                  className="match-ranked-game"
+                  mode={rankedArenaMode}
+                  sessionSeed={activeSeed}
+                  playerName={selfPlayer.username}
+                  themeLabel="Neon Rivals Arena"
+                  hudVariant="match"
+                  matchContext={{
+                    puzzleType: lobby.selection.puzzleType,
+                    difficulty: lobby.selection.difficulty,
                     stage,
-                    submission,
-                    state.objectiveProgressPercent,
-                    state.score,
-                  );
-                }}
-                onStateChange={(state) => {
-                  setArenaState(state);
+                  }}
+                  onSubmissionChange={(submission, state) => {
+                    lastSubmissionRef.current = submission;
+                    setArenaState(state);
+                    queueProgressSubmission(
+                      stage,
+                      submission,
+                      state.objectiveProgressPercent,
+                      state.score,
+                    );
+                  }}
+                  onStateChange={(state) => {
+                    setArenaState(state);
 
-                  if (isPractice && state.status === "complete") {
-                    setPracticeSolved(true);
-                    return;
-                  }
-
-                  if (!isPractice && state.status === "complete") {
-                    const solveStageKey = `${lobby.id}:${stage}:${lobby.selection?.selectedAt}:${activeSeed}`;
-                    if (liveSolveStageKeyRef.current !== solveStageKey) {
-                      liveSolveStageKeyRef.current = solveStageKey;
-                      handleLiveSolve();
+                    if (isPractice && state.status === "complete") {
+                      setPracticeSolved(true);
+                      return;
                     }
-                  }
-                }}
-              />
-              {disabled ? <div className="match-ranked-board-blocker" /> : null}
+
+                    if (!isPractice && state.status === "complete") {
+                      const solveStageKey = `${lobby.id}:${stage}:${lobby.selection?.selectedAt}:${activeSeed}`;
+                      if (liveSolveStageKeyRef.current !== solveStageKey) {
+                        liveSolveStageKeyRef.current = solveStageKey;
+                        handleLiveSolve();
+                      }
+                    }
+                  }}
+                />
+                {disabled ? <div className="match-ranked-board-blocker" /> : null}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
+
   if (!isSupabaseConfigured) {
     return (
       <div className="page-screen">
         <div className="page-stack">
           <PageHeader
             eyebrow="Arena Uplink"
-            title="Backend Required"
-            subtitle="This matchmaking route requires a live backend connection."
+            title="Match Service Offline"
+            subtitle="Ranked matching is temporarily unavailable."
           />
           <section className="command-panel flex flex-col gap-4 p-5">
             <div className="command-panel-soft flex items-start gap-3 p-4">

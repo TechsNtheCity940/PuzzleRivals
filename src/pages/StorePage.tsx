@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Crown, ShoppingBag } from "lucide-react";
+import { Crown, ShoppingBag } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
 import CosmeticPreview from "@/components/cosmetics/CosmeticPreview";
@@ -82,10 +82,6 @@ function romanNumeral(n: number): string {
   return ["", "I", "II", "III", "IV", "V", "VI"][n] || String(n);
 }
 
-function sourceLabel(source: GameContentSource) {
-  return source === "supabase" ? "Live" : "Offline";
-}
-
 function describeStoreResolution(resolution: GameContentResolution) {
   if (resolution === "empty") {
     return "Live store data is connected, but no catalog items are published right now.";
@@ -98,7 +94,6 @@ function describeStoreResolution(resolution: GameContentResolution) {
 
 export default function StorePage() {
   const [tab, setTab] = useState<Tab>("all");
-  const [page, setPage] = useState(0);
   const [snapshot, setSnapshot] = useState<StorefrontSnapshot>({
     items: [],
     vipProduct: null,
@@ -170,10 +165,6 @@ export default function StorePage() {
   }, []);
 
   useEffect(() => {
-    setPage(0);
-  }, [tab]);
-
-  useEffect(() => {
     const checkoutState = params.get("checkout");
     const purchaseId = params.get("purchase");
 
@@ -229,8 +220,7 @@ export default function StorePage() {
         : snapshot.items.filter((item) => item.category === tab),
     [snapshot.items, tab],
   );
-  const pageCount = Math.max(1, Math.ceil(items.length / 6));
-  const visibleItems = items.slice(page * 6, page * 6 + 6);
+  const visibleItems = items;
   const vip = snapshot.vipProduct;
   const commerceUnavailable =
     runtimeStatus.resolution === "live" && !runtimeStatus.commerceReady;
@@ -304,7 +294,7 @@ export default function StorePage() {
       ? "Live commerce is connected, but USD checkout is paused until PayPal credentials are complete."
       : canSave
         ? storefrontResolution === "live"
-          ? `${sourceLabel(storefrontSource)} purchases and account-bound items.`
+          ? "Shop cosmetics, hints, and season upgrades."
           : describeStoreResolution(storefrontResolution)
         : "Browse as guest. Purchases require sign-in.";
 
@@ -374,9 +364,9 @@ export default function StorePage() {
           <div className="hero-grid">
             {commerceUnavailable ? (
               <div className="command-panel-soft border border-amber-400/20 bg-amber-500/8 p-5 lg:col-span-2">
-                <p className="section-kicker text-amber-300">Commerce Status</p>
-                <p className="mt-2 text-lg font-black text-white">USD checkout is paused</p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">Live catalog data is present, but PayPal credentials are not fully configured yet. Coin, gem, complimentary, owner, and VIP access flows still render normally.</p>
+                <p className="section-kicker text-amber-300">Checkout</p>
+                <p className="mt-2 text-lg font-black text-white">Checkout is paused</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">You can still browse the store and view prices while checkout is offline.</p>
               </div>
             ) : null}
             <div className="command-panel-soft store-hero p-5">
@@ -430,9 +420,9 @@ export default function StorePage() {
             <div className="spotlight-panel store-callout flex flex-col justify-between gap-4">
               <div className="section-stack">
                 <div>
-                  <p className="section-kicker">Featured Drop</p>
+                  <p className="section-kicker">Current Loadout</p>
                   <h2 className="section-title">
-                    Season 1: Neon Rivals cosmetics are live
+                    Customize your profile and puzzle style
                   </h2>
                 </div>
                 <div className="store-preview-strip">
@@ -506,8 +496,8 @@ export default function StorePage() {
         <section className="section-panel">
           <div className="section-header">
             <div>
-              <p className="section-kicker">Filter Deck</p>
-              <h2 className="section-title">Browse without dead space</h2>
+              <p className="section-kicker">Browse Store</p>
+              <h2 className="section-title">Choose a category</h2>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -528,8 +518,8 @@ export default function StorePage() {
           <section className="section-panel lg:col-span-2">
             <div className="section-header">
               <div>
-                <p className="section-kicker">Inventory Feed</p>
-                <h2 className="section-title">Items worth clicking into</h2>
+                <p className="section-kicker">All Store Items</p>
+                <h2 className="section-title">Prices and unlocks</h2>
               </div>
             </div>
             <div className="deck-grid">
@@ -601,34 +591,10 @@ export default function StorePage() {
               )}
             </div>
 
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-white/10 bg-white/5 px-4 py-3">
+            <div className="mt-5 rounded-[24px] border border-white/10 bg-white/5 px-4 py-3">
               <p className="text-sm text-muted-foreground">
-                Showing {visibleItems.length ? page * 6 + 1 : 0}-
-                {Math.min((page + 1) * 6, items.length)} of {items.length}
+                Showing {visibleItems.length} item{visibleItems.length === 1 ? "" : "s"} in this category.
               </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page === 0}
-                  onClick={() => setPage((current) => Math.max(0, current - 1))}
-                >
-                  <ChevronLeft size={14} />
-                </Button>
-                <span className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">
-                  {page + 1}/{pageCount}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= pageCount - 1}
-                  onClick={() =>
-                    setPage((current) => Math.min(pageCount - 1, current + 1))
-                  }
-                >
-                  <ChevronRight size={14} />
-                </Button>
-              </div>
             </div>
           </section>
         </div>

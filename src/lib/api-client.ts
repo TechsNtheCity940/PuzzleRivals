@@ -91,6 +91,9 @@ export const supabaseApi = {
   syncLobby(lobbyId: string) {
     return invoke<{ lobby: BackendLobby }>("sync-lobby", { lobbyId });
   },
+  leaveLobby(lobbyId: string) {
+    return invoke<{ lobby: BackendLobby }>("leave-lobby", { lobbyId });
+  },
   submitProgress(
     lobbyId: string,
     stage: "practice" | "live",

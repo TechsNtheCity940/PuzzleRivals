@@ -51,10 +51,6 @@ type Tab = "stats" | "social" | "security" | "inbox";
 const DEFAULT_QUESTION_ONE = SECURITY_QUESTION_OPTIONS[0];
 const DEFAULT_QUESTION_TWO = SECURITY_QUESTION_OPTIONS[1];
 
-function sourceLabel(source: GameContentSource) {
-  return source === "supabase" ? "Live" : "Offline";
-}
-
 function activityIcon(eventType: ProfileActivityEvent["type"]) {
   if (eventType === "match") return Trophy;
   if (eventType === "purchase") return ShoppingBag;
@@ -190,7 +186,7 @@ export default function ProfilePage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "stats", label: "Stats" },
-    { id: "social", label: "Links" },
+    { id: "social", label: "Social" },
     { id: "security", label: "Security" },
     { id: "inbox", label: "Activity" },
   ];
@@ -271,7 +267,7 @@ export default function ProfilePage() {
     setProfileStatus(null);
     try {
       await saveProfile({
-        username: puzzleTag.trim() || "PuzzleTag",
+        username: puzzleTag.trim() || "Username",
         avatarId,
         socialLinks: {
           facebook: facebookHandle.trim() || undefined,
@@ -354,7 +350,7 @@ export default function ProfilePage() {
     <div className="page-screen">
       <div className="page-stack">
         <PageHeader
-          eyebrow="Identity Deck"
+          eyebrow="Profile"
           title={puzzleTag}
           subtitle={`${rankBand.label} - ELO ${user?.elo ?? 0}`}
           right={
@@ -383,7 +379,7 @@ export default function ProfilePage() {
               <div className="section-header">
                 <div>
                   <p className="section-kicker">Live Identity</p>
-                  <h2 className="section-title">Your command profile</h2>
+                  <h2 className="section-title">Your current loadout</h2>
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-[140px_1fr]">
@@ -415,7 +411,7 @@ export default function ProfilePage() {
                       <p className="stat-value">{user?.losses ?? 0}</p>
                     </div>
                     <div className="rich-stat">
-                      <p className="hud-label">Weak Spot</p>
+                      <p className="hud-label">Needs Work</p>
                       <p className="text-lg font-black text-primary">
                         {worstPuzzleLabel}
                       </p>
@@ -455,8 +451,8 @@ export default function ProfilePage() {
             <div className="spotlight-panel profile-spotlight">
               <div className="section-header">
                 <div>
-                  <p className="section-kicker">Control Surface</p>
-                  <h2 className="section-title">Everything reachable</h2>
+                  <p className="section-kicker">Overview</p>
+                  <h2 className="section-title">Progress and customization</h2>
                 </div>
               </div>
               <div className="metric-grid">
@@ -490,11 +486,9 @@ export default function ProfilePage() {
                 </div>
               </div>
               <div className="command-panel-soft p-4">
-                <p className="hud-label">Economy Readout</p>
+                <p className="hud-label">Account Summary</p>
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                  Coins and gems handle broad progression and premium cosmetics.
-                  Shards protect against duplicate frustration. Rank points and
-                  pass XP now separate season pressure from raw account growth.
+                  Track your currencies, streaks, and season progress in one place. Use coins in the store, save hints for tight matches, and keep climbing your season rank.
                 </p>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -518,13 +512,13 @@ export default function ProfilePage() {
             <div className="section-header">
               <div>
                 <p className="section-kicker">Customization</p>
-                <h2 className="section-title">Edit identity without digging</h2>
+                <h2 className="section-title">Customize your profile</h2>
               </div>
             </div>
             <div className="section-stack">
               <div className="command-panel-soft p-4">
                 <label className="hud-label" htmlFor="puzzleTag">
-                  PuzzleTag
+                  Username
                 </label>
                 <input
                   id="puzzleTag"
@@ -533,7 +527,7 @@ export default function ProfilePage() {
                     setPuzzleTag(event.target.value.slice(0, 24))
                   }
                   className="mt-3 h-12 w-full rounded-2xl border border-border bg-background/35 px-4 text-base font-semibold outline-none focus:border-primary"
-                  placeholder="PuzzleTag"
+                  placeholder="Username"
                 />
               </div>
 
@@ -595,9 +589,9 @@ export default function ProfilePage() {
               <>
                 <div className="section-header">
                   <div>
-                    <p className="section-kicker">Stats Board</p>
+                    <p className="section-kicker">Leaderboard</p>
                     <h2 className="section-title">
-                      {sourceLabel(leaderboardSource)} ladder pressure
+                      Top players
                     </h2>
                   </div>
                 </div>
@@ -643,9 +637,9 @@ export default function ProfilePage() {
               <>
                 <div className="section-header">
                   <div>
-                    <p className="section-kicker">Social Links</p>
+                    <p className="section-kicker">Social</p>
                     <h2 className="section-title">
-                      {sourceLabel(socialSource)} connected identities
+                      Find and manage player links
                     </h2>
                   </div>
                 </div>
@@ -735,7 +729,7 @@ export default function ProfilePage() {
                         className="w-full"
                         disabled={isWorking}
                       >
-                        Save Social Links
+                        Save Social
                       </Button>
                     </>
                   )}
@@ -866,9 +860,9 @@ export default function ProfilePage() {
               <>
                 <div className="section-header">
                   <div>
-                    <p className="section-kicker">Activity Feed</p>
+                    <p className="section-kicker">Recent Activity</p>
                     <h2 className="section-title">
-                      {sourceLabel(activitySource)} match, purchase, and social
+                      Matches, purchases, and account updates
                       signals
                     </h2>
                   </div>

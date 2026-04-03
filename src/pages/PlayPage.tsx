@@ -344,15 +344,13 @@ export default function PlayPage() {
             <section className="section-panel">
               <div className="section-header">
                 <div>
-                  <p className="section-kicker">Dedicated Game Route</p>
+                  <p className="section-kicker">Arena</p>
                   <h2 className="section-title">Open the Arena</h2>
                 </div>
                 <Sparkles size={18} className="text-primary" />
               </div>
               <p className="text-sm leading-6 text-muted-foreground">
-                Open the Phaser-powered Arena for the live animated board with
-                layered Season 1 art, live objectives, and a tighter route shell
-                that keeps the playfield above the fold.
+                Jump straight into the Arena and focus on the live animated board, the round timer, and the current challenge.
               </p>
               <Button
                 onClick={() => navigate(arenaHref)}
@@ -371,9 +369,9 @@ export default function PlayPage() {
             <section className="section-panel">
               <div className="section-header">
                 <div>
-                  <p className="section-kicker">Procedural Match AI</p>
+                  <p className="section-kicker">Game Modes</p>
                   <h2 className="section-title">
-                    Deterministic variety, live fairness
+                    Learn each battle format
                   </h2>
                 </div>
                 <Sparkles size={18} className="text-primary" />
@@ -381,14 +379,14 @@ export default function PlayPage() {
               <div className="section-stack">
                 {(selectedMode === "revenge"
                   ? [
-                      "Chooses between your worst puzzle type and your rival's best.",
-                      "Can replay the last puzzle category they used to beat you.",
-                      "Fresh practice/live seeds keep the duel fair.",
+                      "Face the rival who just beat you in a focused rematch.",
+                      "Battle through a fresh board with the same pressure.",
+                      "Win the rematch to swing momentum back your way.",
                     ]
                   : [
-                      "Difficulty tracks lobby skill bands.",
-                      "Puzzle type selection is weighted, not random spam.",
-                      "Practice and live always share category, never exact layout.",
+                      "Ranked matches drop you into fast four-player puzzle battles.",
+                      "Each round brings a new puzzle and a fresh leaderboard race.",
+                      "Climb faster with strong finishes, clean solves, and fewer mistakes.",
                     ]
                 ).map((item) => (
                   <div

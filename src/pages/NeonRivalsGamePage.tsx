@@ -584,9 +584,9 @@ export default function NeonRivalsGamePage() {
                   <Sparkles size={18} />
                 </div>
                 <div>
-                  <p className="text-base font-black text-white">Route Shell</p>
+                  <p className="text-base font-black text-white">Arena Status</p>
                   <p className="text-sm text-muted-foreground">
-                    {theme.name} shell art frames the Phaser board while live objectives, solve logic, and reward sync stay inside the Arena.
+                    {theme.name} art sets the stage while the Arena keeps your board, score, and current objective in view.
                   </p>
                 </div>
               </div>
@@ -594,14 +594,14 @@ export default function NeonRivalsGamePage() {
                 {activeMode.kicker} | {Math.round(gameState.durationMs / 1000)}s runtime
               </p>
               <p className="mt-2 text-xs uppercase tracking-[0.16em] text-primary">
-                Recent rotation memory: {safeRecentArenaHistory.slice(0, 4).map((entry) => boardFamilyLabel(entry.boardFamily)).join(" | ") || "fresh route"}
+                Recent boards: {safeRecentArenaHistory.slice(0, 4).map((entry) => boardFamilyLabel(entry.boardFamily)).join(" | ") || "fresh set"}
               </p>
               {gameState.targetColorLabel ? (
                 <p className="mt-2 text-xs uppercase tracking-[0.16em] text-[#ffe45d]">Target color: {gameState.targetColorLabel}</p>
               ) : null}
               {accountNeedsSync ? (
                 <p className="mt-2 text-xs uppercase tracking-[0.16em] text-destructive">
-                  Profile sync is required before reward banking can complete.
+                  Sign in again before this run ends to collect rewards.
                 </p>
               ) : null}
             </div>

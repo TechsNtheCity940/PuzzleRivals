@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { Crown, Gift, Lock, Sparkles, Trophy } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Crown, Gift, Lock } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import CosmeticPreview from "@/components/cosmetics/CosmeticPreview";
 import PageHeader from "@/components/layout/PageHeader";
-import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import StockAvatar from "@/components/profile/StockAvatar";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
@@ -11,27 +10,21 @@ import { getPassTierProgress } from "@/lib/economy";
 import {
   loadSeasonContent,
   type GameContentResolution,
-  type GameContentSource,
   type SeasonContentSnapshot,
 } from "@/lib/game-content";
 import {
   findSeasonalCosmetic,
-  NEON_RIVALS_BOARD_SHOWCASE,
-  NEON_RIVALS_COSMETICS,
-  NEON_RIVALS_ELITE_FRAMES,
-  NEON_RIVALS_PREMIUM_AVATAR_TIER,
-  NEON_RIVALS_RANKED_REWARDS,
-  NEON_RIVALS_SEASON_PASS_PRODUCT_ID,
-  NEON_RIVALS_TIER_SKIP_OFFERS,
   NEON_RIVALS_SECOND_AVATAR_ID,
+  NEON_RIVALS_SEASON_PASS_PRODUCT_ID,
   NEON_RIVALS_STRATEGIST_AVATAR_ID,
-  NEON_RIVALS_STRATEGIST_CLIP,
+  NEON_RIVALS_TIER_SKIP_OFFERS,
 } from "@/lib/season-content";
 import { capturePayPalCheckout, createPayPalCheckout } from "@/lib/storefront";
 import { FALLBACK_APP_RUNTIME_STATUS, loadAppRuntimeStatus } from "@/lib/app-status";
+import type { SeasonReward } from "@/lib/types";
 import { useAuth } from "@/providers/AuthProvider";
 
-type PreviewKind = "theme" | "frame" | "player_card" | "banner" | "emblem";
+type PreviewKind = "theme" | "frame" | "player_card" | "banner" | "emblem" | "title";
 
 function clearCheckoutParams(
   params: URLSearchParams,
@@ -44,141 +37,120 @@ function clearCheckoutParams(
   setParams(next, { replace: true });
 }
 
-function sourceLabel(source: GameContentSource) {
-  return source === "supabase" ? "Live" : "Offline";
-}
-
-function avatarIdForReward(itemId: string) {
-  if (itemId === "avatar_season1_neon_strategist")
-    return NEON_RIVALS_STRATEGIST_AVATAR_ID;
-  return NEON_RIVALS_SECOND_AVATAR_ID;
-}
-
 function previewKindForCategory(category: string): PreviewKind | null {
-  if (category === "puzzle_theme") return "theme";
   if (
+    category === "theme" ||
     category === "frame" ||
     category === "player_card" ||
     category === "banner" ||
-    category === "emblem"
+    category === "emblem" ||
+    category === "title"
   ) {
     return category;
   }
+  if (category === "puzzle_theme") return "theme";
   return null;
 }
 
-function rewardLaneLabel(
-  itemId: string,
-  season: SeasonContentSnapshot["season"] | null,
-) {
-  if (!season) return "Season reward";
-  const premiumTrack = season.tracks.find(
-    (track) => track.premiumReward?.itemId === itemId,
-  );
-  if (premiumTrack) return `Premium Tier ${premiumTrack.tier}`;
-  const freeTrack = season.tracks.find(
-    (track) => track.freeReward?.itemId === itemId,
-  );
-  if (freeTrack) return `Free Tier ${freeTrack.tier}`;
-  if (itemId === "emblem_voltage") return "Season milestone";
-  if (
-    itemId === "banner_season1_neon_rivals" ||
-    itemId === "ranked_card_season1_highrank"
-  )
-    return "Ranked reward";
-  return "Season reward";
+function avatarIdForReward(itemId: string) {
+  return itemId === "avatar_season1_neon_strategist"
+    ? NEON_RIVALS_STRATEGIST_AVATAR_ID
+    : NEON_RIVALS_SECOND_AVATAR_ID;
 }
 
-function formatFallbackRewardLabel(itemId: string) {
-  return itemId
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (match) => match.toUpperCase());
+function describeSeasonResolution(resolution: GameContentResolution | undefined) {
+  if (resolution === "fallback") return "Season pass data is unavailable here.";
+  if (resolution === "unavailable") return "Season pass data is unavailable right now.";
+  if (resolution === "empty") return "No active season pass is published right now.";
+  return null;
 }
 
-function describeQuestReward(
-  reward: {
-    coins?: number;
-    gems?: number;
-    shards?: number;
-    passXp?: number;
-    itemId?: string;
-  },
-  season: SeasonContentSnapshot["season"] | null,
-) {
-  if (reward.itemId) {
-    const cosmetic = findSeasonalCosmetic(reward.itemId);
-    const previewKind = cosmetic
-      ? previewKindForCategory(cosmetic.category)
-      : null;
+function rewardMeta(reward?: SeasonReward) {
+  if (!reward) {
     return {
-      label: cosmetic?.name ?? formatFallbackRewardLabel(reward.itemId),
-      eyebrow: cosmetic ? rewardLaneLabel(cosmetic.id, season) : "Season reward",
-      previewKind,
-      previewId: cosmetic?.id ?? null,
+      label: "No reward",
+      detail: "",
+      media: null as ReactNode,
     };
   }
 
-  if (reward.gems)
-    return {
-      label: `${reward.gems} Gems`,
-      eyebrow: "Currency reward",
-      previewKind: null,
-      previewId: null,
-    };
-  if (reward.shards)
-    return {
-      label: `${reward.shards} Shards`,
-      eyebrow: "Currency reward",
-      previewKind: null,
-      previewId: null,
-    };
-  if (reward.passXp)
-    return {
-      label: `${reward.passXp} Pass XP`,
-      eyebrow: "Progress reward",
-      previewKind: null,
-      previewId: null,
-    };
-  if (reward.coins)
-    return {
-      label: `${reward.coins} Coins`,
-      eyebrow: "Currency reward",
-      previewKind: null,
-      previewId: null,
-    };
+  if (reward.itemId) {
+    const cosmetic = findSeasonalCosmetic(reward.itemId);
+    const previewKind = cosmetic ? previewKindForCategory(cosmetic.category) : null;
+
+    if (cosmetic && previewKind) {
+      return {
+        label: reward.label,
+        detail: cosmetic.category.replaceAll("_", " "),
+        media: (
+          <CosmeticPreview
+            kind={previewKind}
+            productId={cosmetic.id}
+            label={reward.label}
+            className="min-h-[96px]"
+          />
+        ),
+      };
+    }
+
+    if (reward.itemId.startsWith("avatar_")) {
+      return {
+        label: reward.label,
+        detail: "avatar",
+        media: <StockAvatar avatarId={avatarIdForReward(reward.itemId)} size="md" className="mx-auto" />,
+      };
+    }
+  }
 
   return {
-    label: "Season reward",
-    eyebrow: "Reward",
-    previewKind: null,
-    previewId: null,
+    label: reward.label,
+    detail: reward.type.replaceAll("_", " "),
+    media: (
+      <div className="flex min-h-[96px] items-center justify-center rounded-[20px] border border-white/10 bg-white/5 px-4 text-center text-sm font-black text-white">
+        {reward.label}
+      </div>
+    ),
   };
 }
 
-function describeSeasonResolution(
-  resolution: GameContentResolution | undefined,
-) {
-  if (resolution === "fallback") {
-    return "Season data is unavailable in this environment.";
-  }
-  if (resolution === "unavailable") {
-    return "Live season metadata is currently unavailable.";
-  }
-  if (resolution === "empty") {
-    return "The live season feed is connected, but no active season is published right now.";
-  }
-  return null;
+function RewardLaneCard({
+  label,
+  reward,
+  locked,
+}: {
+  label: string;
+  reward?: SeasonReward;
+  locked: boolean;
+}) {
+  const meta = rewardMeta(reward);
+
+  return (
+    <div className="rounded-[24px] border border-white/10 bg-slate-950/70 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="font-hud text-[10px] uppercase tracking-[0.18em] text-primary">
+          {label}
+        </p>
+        {locked ? <Lock size={14} className="text-white/45" /> : <Gift size={14} className="text-primary" />}
+      </div>
+      {meta.media}
+      <p className="mt-3 text-sm font-black text-white">{meta.label}</p>
+      {meta.detail ? (
+        <p className="mt-1 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+          {meta.detail}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export default function SeasonPage() {
-  const [seasonContent, setSeasonContent] =
-    useState<SeasonContentSnapshot | null>(null);
+  const [seasonContent, setSeasonContent] = useState<SeasonContentSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [runtimeStatus, setRuntimeStatus] = useState(FALLBACK_APP_RUNTIME_STATUS);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [params, setParams] = useSearchParams();
-  const { user, canSave, hasSession, refreshUser, signOut } = useAuth();
+  const { user, canSave, hasSession, refreshUser } = useAuth();
   const accountNeedsSync = hasSession && !user;
 
   useEffect(() => {
@@ -194,16 +166,9 @@ export default function SeasonPage() {
         }
       } catch (error) {
         if (active) {
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : "Failed to load season pass.",
-          );
-          toast.error(
-            error instanceof Error
-              ? error.message
-              : "Failed to load season pass.",
-          );
+          const message = error instanceof Error ? error.message : "Failed to load season pass.";
+          setLoadError(message);
+          toast.error(message);
         }
       } finally {
         if (active) {
@@ -217,6 +182,7 @@ export default function SeasonPage() {
       active = false;
     };
   }, [user]);
+
   useEffect(() => {
     let active = true;
     void loadAppRuntimeStatus().then((status) => {
@@ -238,14 +204,13 @@ export default function SeasonPage() {
       clearCheckoutParams(params, setParams);
       return;
     }
-    if (checkoutState !== "paypal" || !purchaseId) return;
+
+    if (checkoutState !== "paypal" || !purchaseId) {
+      return;
+    }
 
     let active = true;
     async function capture() {
-      if (commerceUnavailable) {
-        toast.error("Season pass checkout is paused until live PayPal credentials are configured.");
-        return;
-      }
       setIsPurchasing(true);
       try {
         await capturePayPalCheckout(purchaseId);
@@ -268,6 +233,7 @@ export default function SeasonPage() {
         }
       }
     }
+
     void capture();
     return () => {
       active = false;
@@ -276,29 +242,16 @@ export default function SeasonPage() {
 
   const season = seasonContent?.season ?? null;
   const commerceUnavailable = runtimeStatus.resolution === "live" && !runtimeStatus.commerceReady;
-  const seasonResolution = seasonContent?.resolutions.season;
-  const questsResolution = seasonContent?.resolutions.quests;
   const { currentTier, nextTierXp, progressWithinTier } = useMemo(
     () => getPassTierProgress(user?.passXp ?? 0, season?.maxTier ?? 40),
     [season?.maxTier, user?.passXp],
   );
-  const focusedTracks = useMemo(() => {
-    if (!season) {
-      return [];
-    }
-
-    const start = Math.max(0, currentTier - 2);
-    return season.tracks.slice(start, start + 6).map((track) => ({
-      ...track,
-      isUnlocked: track.tier <= currentTier,
-    }));
+  const activeTrack = useMemo(() => {
+    if (!season) return null;
+    return season.tracks.find((track) => track.tier === Math.min(currentTier + 1, season.maxTier)) ?? season.tracks[season.tracks.length - 1] ?? null;
   }, [currentTier, season]);
 
-  async function startSeasonCheckout(
-    productId: string,
-    itemLabel: string,
-    requiresSeasonPass = false,
-  ) {
+  async function startSeasonCheckout(productId: string, itemLabel: string, requiresSeasonPass = false) {
     if (accountNeedsSync) {
       toast.error("Profile sync is required before unlocking season rewards.");
       return;
@@ -308,11 +261,11 @@ export default function SeasonPage() {
       return;
     }
     if (commerceUnavailable) {
-      toast.error("Season pass checkout is paused until live PayPal credentials are configured.");
+      toast.error("Season pass checkout is paused right now.");
       return;
     }
     if (requiresSeasonPass && !seasonContent?.hasSeasonPass) {
-      toast.error("Unlock the season pass before buying tier skips.");
+      toast.error("Buy the season pass before using tier skips.");
       return;
     }
 
@@ -322,628 +275,188 @@ export default function SeasonPage() {
       window.location.assign(response.approvalUrl);
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : `Failed to start checkout for ${itemLabel}.`,
+        error instanceof Error ? error.message : `Failed to start checkout for ${itemLabel}.`,
       );
       setIsPurchasing(false);
     }
   }
 
-  async function unlockPremiumTrack() {
-    await startSeasonCheckout(
-      NEON_RIVALS_SEASON_PASS_PRODUCT_ID,
-      "the season pass",
-    );
-  }
   const subtitle = loadError
     ? loadError
     : accountNeedsSync
-      ? "You are signed in, but the live season profile payload is unavailable. Sign out and retry before claiming rewards."
+      ? "Your season pass data is unavailable for this signed-in account."
       : commerceUnavailable
-        ? "Live season data is connected, but premium checkout is paused until PayPal credentials are complete."
+        ? "Season rewards are live. Checkout is temporarily paused."
         : isLoading
-          ? "Loading Neon Rivals season lane..."
-          : (describeSeasonResolution(seasonResolution) ??
-            `Season pass live | Free lane + premium lane | ${sourceLabel(seasonContent?.sources.season ?? "supabase")} rewards`);
+          ? "Loading season pass..."
+          : describeSeasonResolution(seasonContent?.resolutions.season) ?? "Track your rank and unlock season rewards.";
 
   return (
     <div className="page-screen">
       <div className="page-stack">
         <PageHeader
-          eyebrow="Season 1 Live Event"
-          title={
-            season
-              ? `Season ${season.seasonNumber}: ${season.name}`
-              : "Season 1: Neon Rivals"
-          }
+          eyebrow="Season Pass"
+          title={season ? `Season ${season.seasonNumber}: ${season.name}` : "Season 1 Pass"}
           subtitle={subtitle}
           right={
-            accountNeedsSync ? (
-              <div className="spotlight-panel flex min-w-[260px] flex-col gap-3">
-                <div>
-                  <p className="section-kicker">Season Sync</p>
-                  <p className="mt-2 text-lg font-black">Profile unavailable</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    The season lane is live, but your account payload did not
-                    load. Sign out to retry.
-                  </p>
-                </div>
-                <Button
-                  onClick={() => void signOut()}
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                >
-                  Sign Out To Retry
-                </Button>
+            <div className="spotlight-panel min-w-[280px]">
+              <p className="section-kicker">Current Rank</p>
+              <p className="mt-2 text-3xl font-black">Rank {currentTier}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {progressWithinTier}% to the next reward
+              </p>
+              <div className="mt-4 h-3 rounded-full border border-white/10 bg-white/5 p-[2px]">
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-300"
+                  style={{ width: `${progressWithinTier}%` }}
+                />
               </div>
-            ) : (
-              <div className="spotlight-panel">
-                <p className="section-kicker">Neon Rivals</p>
-                <p className="mt-2 text-3xl font-black">
-                  Tier {currentTier}/{season?.maxTier ?? 40}
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {progressWithinTier}% toward the next unlock.
-                </p>
+              <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+                <span>{user?.passXp ?? 0} XP</span>
+                <span>{nextTierXp} XP to next rank</span>
               </div>
-            )
+            </div>
           }
         />
 
-        <section className="hero-panel">
-          <div className="hero-grid">
+        <section className="section-panel">
+          <div className="grid gap-4 lg:grid-cols-[1.3fr_0.9fr]">
             <div className="command-panel-soft p-5">
-              <div className="section-header">
-                <div>
-                  <p className="section-kicker">Season Theme</p>
-                  <h2 className="section-title">Neon Rivals is live</h2>
-                </div>
-                <Sparkles size={18} className="text-primary" />
-              </div>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Electric blue, cyan, magenta, and violet pressure the arena,
-                with a neon-gold strategist reward sitting at premium tier{" "}
-                {NEON_RIVALS_PREMIUM_AVATAR_TIER}. The whole lane is built
-                around clean sci-fi contrast instead of noisy effects.
+              <p className="section-kicker">Current Reward Target</p>
+              <h2 className="section-title mt-2">
+                {activeTrack ? `Rank ${activeTrack.tier}` : "Season rewards"}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Free players unlock coins and hints. Season Pass players unlock every premium cosmetic reward on the track as they rank up.
               </p>
-              <div className="mt-5 season-reward-grid">
-                <div className="season-cosmetic-card season-cosmetic-card-animated">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="section-kicker">Featured Avatar</p>
-                      <p className="mt-2 text-lg font-black">Neon Strategist</p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Premium tier {NEON_RIVALS_PREMIUM_AVATAR_TIER} exclusive
-                      </p>
-                    </div>
-                    <StockAvatar
-                      avatarId={NEON_RIVALS_STRATEGIST_AVATAR_ID}
-                      size="md"
-                    />
-                  </div>
-                </div>
-                <div className="season-cosmetic-card">
-                  <p className="section-kicker">Signature Theme</p>
-                  <CosmeticPreview
-                    kind="theme"
-                    productId="puzzle_theme_electric"
-                    className="mt-4 min-h-[110px]"
+              {activeTrack ? (
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <RewardLaneCard
+                    label="Free Reward"
+                    reward={activeTrack.freeReward}
+                    locked={activeTrack.tier > currentTier}
                   />
+                  <RewardLaneCard
+                    label="Season Pass Reward"
+                    reward={activeTrack.premiumReward}
+                    locked={!seasonContent?.hasSeasonPass || activeTrack.tier > currentTier}
+                  />
+                </div>
+              ) : (
+                <div className="mt-5 rounded-[24px] border border-white/10 bg-white/5 p-6 text-sm text-muted-foreground">
+                  No season pass is available right now.
+                </div>
+              )}
+            </div>
+
+            <div className="spotlight-panel flex flex-col gap-4">
+              <div>
+                <p className="section-kicker">Access</p>
+                <p className="mt-2 text-3xl font-black">
+                  {seasonContent?.hasSeasonPass ? "Season Pass Active" : "Unlock Premium Track"}
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {seasonContent?.hasSeasonPass
+                    ? "Premium rewards unlock as you rank up."
+                    : "Buy the pass to unlock every premium reward on the season track."}
+                </p>
+              </div>
+
+              <Button
+                variant="prestige"
+                size="xl"
+                className="w-full"
+                disabled={isLoading || isPurchasing || accountNeedsSync || commerceUnavailable || Boolean(seasonContent?.hasSeasonPass)}
+                onClick={() => void startSeasonCheckout(NEON_RIVALS_SEASON_PASS_PRODUCT_ID, "the season pass")}
+              >
+                <Crown size={14} />
+                {seasonContent?.hasSeasonPass
+                  ? "Season Pass Active"
+                  : isPurchasing
+                    ? "Opening..."
+                    : commerceUnavailable
+                      ? "Checkout Paused"
+                      : "Buy Season Pass"}
+              </Button>
+
+              <div className="rounded-[24px] border border-white/10 bg-slate-950/70 p-4">
+                <p className="section-kicker">Tier Skips</p>
+                <div className="mt-4 grid gap-3">
+                  {NEON_RIVALS_TIER_SKIP_OFFERS.map((offer) => (
+                    <Button
+                      key={offer.id}
+                      variant="outline"
+                      size="lg"
+                      className="w-full justify-between"
+                      disabled={isLoading || isPurchasing || accountNeedsSync || commerceUnavailable || !seasonContent?.hasSeasonPass}
+                      onClick={() => void startSeasonCheckout(offer.id, offer.name, true)}
+                    >
+                      <span>{offer.name}</span>
+                      <span>${offer.priceUsd?.toFixed(2) ?? "0.00"}</span>
+                    </Button>
+                  ))}
                 </div>
               </div>
             </div>
+          </div>
+        </section>
 
-            {!seasonContent?.hasSeasonPass ? (
-              <div className="spotlight-panel flex flex-col justify-between gap-4">
-              {commerceUnavailable ? (
-                <div className="rounded-[22px] border border-amber-400/20 bg-amber-500/8 px-4 py-3 text-sm text-muted-foreground">
-                  Season pass checkout is paused until live PayPal credentials are complete. The season lane, rewards, and previews remain visible.
-                </div>
-              ) : null}
-                <div>
-                  <p className="section-kicker">Season Pass</p>
-                  <p className="mt-2 text-3xl font-black">
-                    Unlock every Season 1 premium reward
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Strategist avatar, pulse frame, Neon Circuit card, and the
-                    full premium reward cadence.
-                  </p>
-                </div>
-                <Button
-                  variant="prestige"
-                  size="xl"
-                  className="w-full"
-                  disabled={isLoading || isPurchasing || accountNeedsSync || commerceUnavailable}
-                  onClick={() => void unlockPremiumTrack()}
+        <section className="section-panel">
+          <div className="section-header">
+            <div>
+              <p className="section-kicker">Reward Track</p>
+              <h2 className="section-title">Free and Season Pass rewards by rank</h2>
+            </div>
+          </div>
+
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {season?.tracks.map((track) => {
+              const isCurrent = track.tier === currentTier;
+              const isUnlocked = track.tier <= currentTier;
+              return (
+                <article
+                  key={track.tier}
+                  className={`min-w-[260px] rounded-[28px] border p-4 ${
+                    isCurrent
+                      ? "border-primary bg-primary/10"
+                      : isUnlocked
+                        ? "border-white/12 bg-slate-950/75"
+                        : "border-white/8 bg-slate-950/55"
+                  }`}
                 >
-                  <Crown size={14} />
-                  {accountNeedsSync
-                    ? "Profile Sync Required"
-                    : commerceUnavailable
-                      ? "Checkout Paused"
-                      : isPurchasing
-                        ? "Opening..."
-                      : "Buy Season Pass"}
-                </Button>
-              </div>
-            ) : (
-              <div className="spotlight-panel flex flex-col justify-between gap-4 text-center">
-                <div>
-                  <p className="section-kicker">Premium Active</p>
-                  <p className="mt-2 text-3xl font-black text-primary">
-                    Rewards live
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Strategist unlock status:{" "}
-                    {currentTier >= NEON_RIVALS_PREMIUM_AVATAR_TIER
-                      ? "ready to equip"
-                      : `reach tier ${NEON_RIVALS_PREMIUM_AVATAR_TIER}`}
-                  </p>
-                </div>
-                <StockAvatar
-                  avatarId={NEON_RIVALS_STRATEGIST_AVATAR_ID}
-                  size="lg"
-                  className="mx-auto"
-                />
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-hud text-[10px] uppercase tracking-[0.18em] text-primary">
+                        Rank {track.tier}
+                      </p>
+                      <p className="mt-2 text-lg font-black text-white">
+                        {isCurrent ? "Current Rank" : isUnlocked ? "Unlocked" : "Locked"}
+                      </p>
+                    </div>
+                    {isCurrent ? <Crown size={18} className="text-primary" /> : null}
+                  </div>
+                  <div className="mt-4 space-y-4">
+                    <RewardLaneCard
+                      label="Free"
+                      reward={track.freeReward}
+                      locked={!isUnlocked}
+                    />
+                    <RewardLaneCard
+                      label="Season Pass"
+                      reward={track.premiumReward}
+                      locked={!seasonContent?.hasSeasonPass || !isUnlocked}
+                    />
+                  </div>
+                </article>
+              );
+            }) ?? (
+              <div className="rounded-[24px] border border-white/10 bg-white/5 p-6 text-sm text-muted-foreground">
+                No season rewards are available right now.
               </div>
             )}
           </div>
         </section>
-
-        <section className="section-panel overflow-hidden">
-          <div className="section-header">
-            <div>
-              <p className="section-kicker">Season Broadcast</p>
-              <h2 className="section-title">Live Neon Rivals media pack</h2>
-            </div>
-            <Sparkles size={18} className="text-primary" />
-          </div>
-          <div className="grid gap-4 xl:grid-cols-[1.45fr_1fr]">
-            <div className="command-panel-soft overflow-hidden border border-white/10 bg-slate-950/65 p-4">
-              <p className="section-kicker">Season Banner</p>
-              <img
-                src="/cosmetics/banners/neon-rivals-season-banner.svg"
-                alt="Season 1 Neon Rivals banner"
-                className="mt-4 w-full rounded-[24px] border border-white/10 bg-slate-950/80 object-cover shadow-[0_18px_48px_rgba(8,12,24,0.38)]"
-                loading="lazy"
-              />
-            </div>
-            <div className="command-panel-soft overflow-hidden border border-primary/20 bg-slate-950/65 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="section-kicker">Strategist Motion</p>
-                  <h3 className="mt-2 text-lg font-black">
-                    Season reward preview
-                  </h3>
-                </div>
-                <StockAvatar
-                  avatarId={NEON_RIVALS_STRATEGIST_AVATAR_ID}
-                  size="sm"
-                />
-              </div>
-              <video
-                className="mt-4 aspect-[4/5] w-full rounded-[24px] border border-yellow-300/20 bg-black/80 object-cover shadow-[0_20px_54px_rgba(250,204,21,0.16)]"
-                src={NEON_RIVALS_STRATEGIST_CLIP}
-                poster="/avatars/season1-neon-strategist.svg"
-                autoPlay
-                loop
-                muted
-                playsInline
-                controls
-                preload="metadata"
-              />
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                Neon-yellow strategist motion clip used to spotlight the premium
-                tier {NEON_RIVALS_PREMIUM_AVATAR_TIER} reward without adding a
-                heavy new animation system.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="section-panel">
-          <div className="section-header">
-            <div>
-              <p className="section-kicker">Puzzle Board Showcase</p>
-              <h2 className="section-title">Electric arena board skins</h2>
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            {NEON_RIVALS_BOARD_SHOWCASE.map((board) => (
-              <article
-                key={board.id}
-                className="command-panel-soft overflow-hidden border border-white/10 bg-slate-950/65 p-3"
-              >
-                <img
-                  src={board.assetRef}
-                  alt={board.label}
-                  className="aspect-[4/3] w-full rounded-[20px] border border-white/10 bg-slate-950/80 object-cover"
-                  loading="lazy"
-                />
-                <div className="mt-3">
-                  <p className="text-sm font-black text-white">{board.label}</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {board.summary}
-                  </p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <div className="page-grid">
-          <section className="section-panel">
-            <div className="section-header">
-              <div>
-                <p className="section-kicker">Season Snapshot</p>
-                <h2 className="section-title">Track state at a glance</h2>
-              </div>
-            </div>
-            <div className="metric-grid">
-              <div className="rich-stat">
-                <p className="hud-label">Pass XP</p>
-                <p className="stat-value">{user?.passXp ?? 0}</p>
-              </div>
-              <div className="rich-stat">
-                <p className="hud-label">Next Tier</p>
-                <p className="stat-value text-primary">{nextTierXp} XP</p>
-              </div>
-              <div className="rich-stat">
-                <p className="hud-label">Season Access</p>
-                <p className="stat-value">
-                  {seasonContent?.hasSeasonPass ? "Premium" : "Free"}
-                </p>
-              </div>
-              <div className="rich-stat">
-                <p className="hud-label">Rank Points</p>
-                <p className="stat-value text-gradient-prestige">
-                  {user?.rankPoints ?? 0}
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="section-panel">
-            <div className="section-header">
-              <div>
-                <p className="section-kicker">Free + Premium Lane</p>
-                <h2 className="section-title">Rank-up reward track</h2>
-              </div>
-            </div>
-            <div className="section-stack">
-              {focusedTracks.length > 0 ? (
-                focusedTracks.map((track) => (
-                  <PuzzleTileButton
-                    key={track.tier}
-                    icon={track.isUnlocked ? Gift : Lock}
-                    title={`Tier ${track.tier}`}
-                    description={`Free: ${track.freeReward?.label ?? "No reward"}`}
-                    active={track.tier === currentTier}
-                    right={
-                      <div>
-                        <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                          Premium
-                        </p>
-                        <p
-                          className={`mt-1 text-xs font-black ${seasonContent?.hasSeasonPass ? "text-primary" : "text-muted-foreground"}`}
-                        >
-                          {track.premiumReward?.label ?? "-"}
-                        </p>
-                      </div>
-                    }
-                  />
-                ))
-              ) : (
-                <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-                  {isLoading
-                    ? "Loading season rewards..."
-                    : (describeSeasonResolution(seasonResolution) ??
-                      "No reward lane is available yet.")}
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
-
-        <section className="section-panel">
-          <div className="section-header">
-            <div>
-              <p className="section-kicker">Tier Boosts</p>
-              <h2 className="section-title">Season tier skips</h2>
-            </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {NEON_RIVALS_TIER_SKIP_OFFERS.map((offer) => (
-              <div
-                key={offer.id}
-                className="command-panel-soft flex flex-col gap-4 border border-white/10 bg-slate-950/65 p-5"
-              >
-                <div>
-                  <p className="section-kicker">{Math.round((offer.bundlePassXp ?? 0) / 500)} tier boost</p>
-                  <h3 className="mt-2 text-lg font-black">{offer.name}</h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {offer.description}
-                  </p>
-                </div>
-                <div className="rounded-[20px] border border-white/10 bg-white/5 px-4 py-3 text-sm text-muted-foreground">
-                  Requires an active season pass. This only advances cosmetic rewards and pass payouts. It does not change live puzzle power.
-                </div>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full"
-                  disabled={
-                    isLoading ||
-                    isPurchasing ||
-                    accountNeedsSync ||
-                    commerceUnavailable ||
-                    !seasonContent?.hasSeasonPass
-                  }
-                  onClick={() =>
-                    void startSeasonCheckout(offer.id, offer.name, true)
-                  }
-                >
-                  {accountNeedsSync
-                    ? "Profile Sync Required"
-                    : !seasonContent?.hasSeasonPass
-                      ? "Season Pass Required"
-                      : isPurchasing
-                        ? "Opening..."
-                        : `Buy for $${offer.priceUsd?.toFixed(2) ?? "0.00"}`}
-                </Button>
-              </div>
-            ))}
-          </div>
-        </section>
-        <section className="section-panel">
-          <div className="section-header">
-            <div>
-              <p className="section-kicker">Season Reward Catalog</p>
-              <h2 className="section-title">Everything inside Neon Rivals</h2>
-            </div>
-          </div>
-          <div className="season-reward-grid">
-            {NEON_RIVALS_COSMETICS.map((reward) => {
-              const previewKind = previewKindForCategory(reward.category);
-              return (
-                <div
-                  key={reward.id}
-                  className={`season-cosmetic-card ${reward.isAnimated ? "season-cosmetic-card-animated" : ""}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="section-kicker">
-                        {rewardLaneLabel(reward.id, season)}
-                      </p>
-                      <h3 className="mt-2 text-lg font-black">{reward.name}</h3>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        {reward.themeTags.join(" | ")}
-                      </p>
-                    </div>
-                    {reward.category === "avatar" ? (
-                      <StockAvatar
-                        avatarId={avatarIdForReward(reward.id)}
-                        size="sm"
-                      />
-                    ) : null}
-                  </div>
-                  {previewKind ? (
-                    <CosmeticPreview
-                      kind={previewKind}
-                      productId={reward.id}
-                      className="mt-4 min-h-[112px]"
-                    />
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="section-panel">
-          <div className="section-header">
-            <div>
-              <p className="section-kicker">Ranked Rewards</p>
-              <h2 className="section-title">
-                Neon badge tiers and elite finishers
-              </h2>
-            </div>
-            <Trophy size={18} className="text-primary" />
-          </div>
-          <div className="season-ranked-grid">
-            {NEON_RIVALS_RANKED_REWARDS.map((reward) => (
-              <div key={reward.tier} className="ranked-reward-card">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="section-kicker">{reward.tier}</p>
-                    <h3 className="mt-2 text-lg font-black">
-                      {reward.badgeLabel}
-                    </h3>
-                  </div>
-                  {reward.badgeAssetRef ? (
-                    <div className="flex flex-col items-end gap-2">
-                      <img
-                        src={reward.badgeAssetRef}
-                        alt={`${reward.badgeLabel} badge`}
-                        className="h-16 w-16 rounded-2xl object-contain drop-shadow-[0_0_20px_rgba(106,222,255,0.28)]"
-                        loading="lazy"
-                      />
-                      <span
-                        className={`season-rank-badge ${reward.accentClassName ?? ""}`}
-                      >
-                        {reward.tier}
-                      </span>
-                    </div>
-                  ) : (
-                    <span
-                      className={`season-rank-badge ${reward.accentClassName ?? ""}`}
-                    >
-                      {reward.tier}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                  {reward.summary}
-                </p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {reward.frameId ? (
-                    <CosmeticPreview
-                      kind="frame"
-                      productId={reward.frameId}
-                      className="min-h-[92px]"
-                    />
-                  ) : null}
-                  {reward.bannerId ? (
-                    <CosmeticPreview
-                      kind="banner"
-                      productId={reward.bannerId}
-                      className="min-h-[92px]"
-                    />
-                  ) : null}
-                  {reward.playerCardId ? (
-                    <CosmeticPreview
-                      kind="player_card"
-                      productId={reward.playerCardId}
-                      className="min-h-[92px] sm:col-span-2"
-                    />
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-5 season-reward-grid">
-            {NEON_RIVALS_ELITE_FRAMES.map((frame) => (
-              <div key={frame.id} className="season-cosmetic-card">
-                <p className="section-kicker">Elite Frame Color</p>
-                <h3 className="mt-2 text-lg font-black">{frame.name}</h3>
-                <div className="mt-4 overflow-hidden rounded-[22px] border border-white/10 bg-slate-950/70 p-3">
-                  <img
-                    src={frame.assetRef}
-                    alt={`${frame.name} frame`}
-                    className="mx-auto aspect-square w-full max-w-[180px] object-contain"
-                    loading="lazy"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <div className="page-grid">
-          <section className="section-panel">
-            <div className="section-header">
-              <div>
-                <p className="section-kicker">Daily + Weekly</p>
-                <h2 className="section-title">Mission cadence</h2>
-              </div>
-            </div>
-            <div className="section-stack">
-              {(seasonContent
-                ? [
-                    ...seasonContent.quests.daily,
-                    ...seasonContent.quests.weekly,
-                  ].slice(0, 4)
-                : []
-              ).length > 0 ? (
-                [
-                  ...(seasonContent?.quests.daily ?? []),
-                  ...(seasonContent?.quests.weekly ?? []),
-                ]
-                  .slice(0, 4)
-                  .map((quest) => (
-                    <PuzzleTileButton
-                      key={quest.id}
-                      icon={Gift}
-                      title={quest.title}
-                      description={`${quest.description} ${quest.progress}/${quest.target}`}
-                      right={
-                        <div className="text-right">
-                          <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                            {quest.track}
-                          </p>
-                          <p className="mt-1 text-xs font-black text-primary">
-                            +{quest.reward.passXp ?? 0} XP / +
-                            {quest.reward.coins ?? 0}C
-                          </p>
-                        </div>
-                      }
-                    />
-                  ))
-              ) : (
-                <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-                  {isLoading
-                    ? "Loading mission cadence..."
-                    : questsResolution === "unavailable"
-                      ? "Live mission data is currently unavailable."
-                      : "No daily or weekly quests are available right now."}
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="section-panel">
-            <div className="section-header">
-              <div>
-                <p className="section-kicker">Season Chase</p>
-                <h2 className="section-title">Prestige objectives</h2>
-              </div>
-            </div>
-            <div className="section-stack">
-              {(seasonContent?.quests.seasonal ?? []).length > 0 ? (
-                seasonContent?.quests.seasonal.map((quest) => {
-                  const rewardDisplay = describeQuestReward(quest.reward, season);
-                  return (
-                    <PuzzleTileButton
-                      key={quest.id}
-                      icon={Lock}
-                      media={
-                        rewardDisplay.previewKind && rewardDisplay.previewId ? (
-                          <CosmeticPreview
-                            kind={rewardDisplay.previewKind}
-                            productId={rewardDisplay.previewId}
-                            className="h-[72px] w-[72px] rounded-[20px]"
-                          />
-                        ) : undefined
-                      }
-                      title={quest.title}
-                      description={`${quest.description} ${quest.progress}/${quest.target}`}
-                      right={
-                        <div className="text-right">
-                          <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                            {rewardDisplay.eyebrow}
-                          </p>
-                          <p className="mt-1 text-xs font-black text-primary">
-                            {rewardDisplay.label}
-                          </p>
-                        </div>
-                      }
-                    />
-                  );
-                })
-              ) : (
-                <div className="command-panel-soft flex min-h-[180px] items-center justify-center p-6 text-sm text-muted-foreground">
-                  {isLoading
-                    ? "Loading prestige objectives..."
-                    : questsResolution === "unavailable"
-                      ? "Live seasonal objectives are currently unavailable."
-                      : "No seasonal objectives are available right now."}
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
       </div>
     </div>
   );
 }
-
-
-
-
-
-
-
-

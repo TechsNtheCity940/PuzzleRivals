@@ -207,7 +207,7 @@ describe("MatchPage states", () => {
 
     renderMatchPage();
 
-    expect(await screen.findByText("Backend Required")).toBeInTheDocument();
+    expect(await screen.findByText("Match Service Offline")).toBeInTheDocument();
     expect(screen.getByText(/Supabase missing/i)).toBeInTheDocument();
   });
 
