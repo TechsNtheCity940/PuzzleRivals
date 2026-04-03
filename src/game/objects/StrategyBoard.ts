@@ -267,6 +267,44 @@ function getCandidateSquaresForPiece(kind: StrategyPieceKind, row: number, col: 
   return candidates;
 }
 
+function getPathSquares(
+  fromSquare: number,
+  toSquare: number,
+  kind: StrategyPieceKind,
+  size: number,
+) {
+  const path: number[] = [];
+  const fromRow = Math.floor(fromSquare / size);
+  const fromCol = fromSquare % size;
+  const toRow = Math.floor(toSquare / size);
+  const toCol = toSquare % size;
+  const dr = toRow - fromRow;
+  const dc = toCol - fromCol;
+
+  if (kind === "knight") {
+    const stepRow = fromRow + (Math.abs(dr) === 2 ? Math.sign(dr) : 0);
+    const stepCol = fromCol + (Math.abs(dc) === 2 ? Math.sign(dc) : 0);
+    if (stepRow !== fromRow || stepCol !== fromCol) {
+      path.push(stepRow * size + stepCol);
+    }
+    path.push(toSquare);
+    return path;
+  }
+
+  const rowStep = dr === 0 ? 0 : dr / Math.abs(dr);
+  const colStep = dc === 0 ? 0 : dc / Math.abs(dc);
+  let row = fromRow + rowStep;
+  let col = fromCol + colStep;
+  while (row !== toRow || col !== toCol) {
+    path.push(row * size + col);
+    row += rowStep;
+    col += colStep;
+  }
+
+  path.push(toSquare);
+  return path;
+}
+
 export default class StrategyBoard {
   private scene: Phaser.Scene;
   private bridge?: NeonRivalsGameBridge;
@@ -625,14 +663,51 @@ export default class StrategyBoard {
     this.hoverTargetIndex = optionIndex;
     const candidate = this.candidateVisuals[optionIndex];
     const palette = boardPalette(this.mode);
-    candidate.glow.setFillStyle(palette.candidate, 0.2);
-    candidate.frame.setStrokeStyle(2, palette.edge, 0.88);
+    const pathSquares = new Set(
+      getPathSquares(
+        this.currentLayout.activeSquare,
+        candidate.squareIndex,
+        this.currentLayout.activePiece.kind,
+        this.size,
+      ),
+    );
+
+    this.boardSquares.forEach((square, index) => {
+      const isActive = this.currentLayout?.activeSquare === index;
+      const isCandidate = this.currentLayout?.candidateSquares.includes(index) ?? false;
+      const onPath = pathSquares.has(index);
+      square.glow.setFillStyle(
+        isActive ? palette.edge : onPath ? palette.candidate : palette.candidate,
+        isActive ? 0.18 : onPath ? 0.14 : isCandidate ? 0.06 : 0,
+      );
+      square.base.setStrokeStyle(
+        isActive || onPath ? 2.25 : 1,
+        isActive ? palette.edge : onPath ? palette.candidate : palette.edge,
+        isActive ? 0.46 : onPath ? 0.28 : 0.12,
+      );
+    });
+
+    this.candidateVisuals.forEach((entry) => {
+      const active = entry.optionIndex === optionIndex;
+      entry.glow.setFillStyle(palette.candidate, active ? 0.2 : 0.12);
+      entry.frame.setStrokeStyle(2, active ? palette.edge : palette.candidate, active ? 0.9 : 0.72);
+    });
+
+    const points = [
+      this.getSquareCenter(this.currentLayout.activeSquare),
+      ...Array.from(pathSquares).map((squareIndex) => this.getSquareCenter(squareIndex)),
+    ];
     this.hoverBeam?.clear();
-    this.hoverBeam?.lineStyle(5, palette.edge, 0.24);
+    this.hoverBeam?.lineStyle(6, palette.edge, 0.34);
     this.hoverBeam?.beginPath();
-    this.hoverBeam?.moveTo(this.activePiece.container.x, this.activePiece.container.y);
-    this.hoverBeam?.lineTo(candidate.glow.x, candidate.glow.y);
+    this.hoverBeam?.moveTo(points[0].x, points[0].y);
+    for (let index = 1; index < points.length; index += 1) {
+      this.hoverBeam?.lineTo(points[index].x, points[index].y);
+    }
     this.hoverBeam?.strokePath();
+    const target = points[points.length - 1];
+    this.hoverBeam?.fillStyle(palette.edge, 0.42);
+    this.hoverBeam?.fillCircle(target.x, target.y, Math.max(7, Math.round(this.cellSize * 0.1)));
   }
 
   private clearHover() {
@@ -643,6 +718,7 @@ export default class StrategyBoard {
       candidate.glow.setFillStyle(palette.candidate, 0.12);
       candidate.frame.setStrokeStyle(2, palette.candidate, 0.72);
     });
+    this.highlightBoardFocus();
   }
 
   private async handleSelection(optionIndex: number) {
@@ -652,6 +728,7 @@ export default class StrategyBoard {
 
     this.inputLocked = true;
     this.movesLeft = Math.max(0, this.movesLeft - 1);
+    this.answers.push(optionIndex);
     const round = this.rounds[this.roundIndex];
     const selected = this.candidateVisuals[optionIndex];
     const palette = boardPalette(this.mode);
@@ -844,8 +921,4 @@ export default class StrategyBoard {
     });
   }
 }
-
-
-
-
 
