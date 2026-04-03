@@ -1,7 +1,11 @@
 import Phaser from "phaser";
 import BootScene from "@/game/scenes/BootScene";
 import BoardScene from "@/game/scenes/BoardScene";
-import type { NeonRivalsGameBridge, NeonRivalsRunMode } from "@/game/types";
+import type {
+  NeonRivalsGameBridge,
+  NeonRivalsMatchContext,
+  NeonRivalsRunMode,
+} from "@/game/types";
 import { GAME_HEIGHT, GAME_WIDTH } from "@/game/utils/constants";
 
 interface CreateNeonRivalsGameOptions {
@@ -11,6 +15,8 @@ interface CreateNeonRivalsGameOptions {
   sessionSeed: number;
   themeLabel?: string;
   mode: NeonRivalsRunMode;
+  hudVariant?: "standalone" | "match";
+  matchContext?: NeonRivalsMatchContext | null;
 }
 
 export function createNeonRivalsGame({
@@ -20,6 +26,8 @@ export function createNeonRivalsGame({
   sessionSeed,
   themeLabel,
   mode,
+  hudVariant = "standalone",
+  matchContext = null,
 }: CreateNeonRivalsGameOptions) {
   return new Phaser.Game({
     type: Phaser.AUTO,
@@ -47,6 +55,8 @@ export function createNeonRivalsGame({
           sessionSeed,
           themeLabel,
           mode,
+          hudVariant,
+          matchContext,
         });
       },
     },

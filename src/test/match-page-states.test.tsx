@@ -68,8 +68,8 @@ vi.mock("@/lib/api-client", () => ({
   },
 }));
 
-vi.mock("@/components/match/MatchPuzzleBoard", () => ({
-  default: () => <div data-testid="mock-match-board">Mock Board</div>,
+vi.mock("@/components/game/NeonRivalsGame", () => ({
+  default: () => <div data-testid="mock-neon-rivals-game">Mock Arena Board</div>,
 }));
 
 function createPlayer(overrides: Partial<BackendLobbyPlayer> = {}): BackendLobbyPlayer {
@@ -111,16 +111,16 @@ function createLobby(status: BackendLobby["status"], overrides: Partial<BackendL
     selection: status === "filling"
       ? null
       : {
-          puzzleType: "pattern_match",
+          puzzleType: "chess_tactic",
           difficulty: 3,
           practiceSeed: 12,
           liveSeed: 34,
           selectedAt: "2026-03-13T00:00:00.000Z",
           meta: {
-            type: "pattern_match",
-            label: "Pattern Match",
-            icon: "◆",
-            description: "Read the pattern grid and identify the missing tile.",
+            type: "chess_tactic",
+            label: "Chess Tactic",
+            icon: "CH",
+            description: "Read the tactical position and find the strongest move.",
           },
         },
     practiceStartsAt: "2026-03-13T00:00:00.000Z",
@@ -244,7 +244,7 @@ describe("MatchPage states", () => {
     renderMatchPage();
 
     expect(await screen.findByText("Puzzle Lock")).toBeInTheDocument();
-    expect(screen.getByText("Pattern Match")).toBeInTheDocument();
+    expect(screen.getByText("Chess Tactic")).toBeInTheDocument();
   });
 
   it("renders practice state", async () => {
@@ -253,8 +253,8 @@ describe("MatchPage states", () => {
     renderMatchPage();
 
     expect(await screen.findByText("Practice Timer")).toBeInTheDocument();
-    expect(screen.getByText("Practice Arena")).toBeInTheDocument();
-    expect(await screen.findByTestId("mock-match-board")).toBeInTheDocument();
+    expect(screen.getByText("Practice Warm-Up")).toBeInTheDocument();
+    expect(await screen.findByTestId("mock-neon-rivals-game")).toBeInTheDocument();
   });
 
   it("renders live state", async () => {
@@ -263,8 +263,8 @@ describe("MatchPage states", () => {
     renderMatchPage();
 
     expect(await screen.findByText("Match Timer")).toBeInTheDocument();
-    expect(screen.getByText(/Live Arena - Rapid Fire/i)).toBeInTheDocument();
-    expect(screen.getByText(/Score 0 \| Clears 0/i)).toBeInTheDocument();
+    expect(screen.getByText(/Live Battle/i)).toBeInTheDocument();
+    expect(await screen.findByTestId("mock-neon-rivals-game")).toBeInTheDocument();
   });
 
   it("renders intermission state", async () => {
@@ -304,7 +304,9 @@ describe("MatchPage states", () => {
     });
 
     expect(screen.getByText("Match Leaderboard")).toBeInTheDocument();
-    expect(screen.queryByText("Practice Arena")).not.toBeInTheDocument();
+    expect(screen.queryByText("Practice Warm-Up")).not.toBeInTheDocument();
   });
 });
+
+
 

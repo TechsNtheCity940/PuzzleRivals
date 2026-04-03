@@ -1,4 +1,5 @@
 import type { TileTextureKey } from "@/game/utils/constants";
+import type { MatchPlayablePuzzleType, PuzzleSubmission } from "@/lib/backend";
 
 export type NeonRivalsGameStatus = "booting" | "running" | "complete" | "failed";
 
@@ -80,6 +81,12 @@ export interface NeonRivalsRunSubmission {
   durationMs: number;
 }
 
+export interface NeonRivalsMatchContext {
+  puzzleType: MatchPlayablePuzzleType;
+  difficulty: 1 | 2 | 3 | 4 | 5;
+  stage: "practice" | "live";
+}
+
 export interface NeonRivalsGameState {
   status: NeonRivalsGameStatus;
   mode: NeonRivalsRunMode;
@@ -107,6 +114,11 @@ export interface NeonRivalsGameState {
 export interface NeonRivalsGameBridge {
   onReady?: () => void;
   onStateChange?: (state: NeonRivalsGameState) => void;
+  onSubmissionChange?: (
+    submission: PuzzleSubmission,
+    state: NeonRivalsGameState,
+  ) => void;
   onComplete?: (state: NeonRivalsGameState) => void;
   onFailed?: (state: NeonRivalsGameState) => void;
 }
+

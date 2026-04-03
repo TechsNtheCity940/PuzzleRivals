@@ -4,6 +4,7 @@ import type {
   NeonRivalsBoardFamily,
   NeonRivalsGameBridge,
   NeonRivalsGameState,
+  NeonRivalsMatchContext,
   NeonRivalsRunMode,
 } from "@/game/types";
 import MemoryBoard from "@/game/objects/MemoryBoard";
@@ -15,7 +16,11 @@ import QuizBoard from "@/game/objects/QuizBoard";
 import SpatialBoard from "@/game/objects/SpatialBoard";
 import StrategyBoard from "@/game/objects/StrategyBoard";
 import TileBoard from "@/game/objects/TileBoard";
-import { BOARD_VIEWPORT_CENTER_Y, GAME_HEIGHT, GAME_WIDTH } from "@/game/utils/constants";
+import {
+  BOARD_VIEWPORT_CENTER_Y,
+  GAME_HEIGHT,
+  GAME_WIDTH,
+} from "@/game/utils/constants";
 
 interface NeonRivalsSessionConfig {
   bridge?: NeonRivalsGameBridge;
@@ -23,6 +28,16 @@ interface NeonRivalsSessionConfig {
   sessionSeed: number;
   themeLabel?: string;
   mode: NeonRivalsRunMode;
+  hudVariant?: "standalone" | "match";
+  matchContext?: NeonRivalsMatchContext | null;
+}
+
+interface ArenaBoardOptions {
+  bridge?: NeonRivalsGameBridge;
+  seed: number;
+  mode: NeonRivalsRunMode;
+  difficulty?: 1 | 2 | 3 | 4 | 5;
+  puzzleType?: NeonRivalsMatchContext["puzzleType"];
 }
 
 type ArenaBoardInstance =
@@ -105,13 +120,22 @@ export default class BoardScene extends Phaser.Scene {
     this.createBackground();
     this.createBoardArt(objective.boardFamily);
     this.createAmbientParticles();
-    this.createHud(
-      session.playerName ?? "Rival",
-      session.themeLabel ?? "Neon Rivals",
-      objective,
-    );
 
-    this.board = this.createBoardForFamily(objective.boardFamily, session);
+    if (session.hudVariant !== "match") {
+      this.createHud(
+        session.playerName ?? "Rival",
+        session.themeLabel ?? "Neon Rivals",
+        objective,
+      );
+    }
+
+    this.board = this.createBoardForFamily(objective.boardFamily, {
+      bridge: session.bridge,
+      seed: session.sessionSeed,
+      mode: session.mode,
+      difficulty: session.matchContext?.difficulty,
+      puzzleType: session.matchContext?.puzzleType,
+    });
     this.board.create();
 
     this.events.on("board-combo", this.pulseBoardCombo, this);
@@ -123,14 +147,8 @@ export default class BoardScene extends Phaser.Scene {
 
   private createBoardForFamily(
     boardFamily: NeonRivalsBoardFamily,
-    session: NeonRivalsSessionConfig,
+    boardOptions: ArenaBoardOptions,
   ): ArenaBoardInstance {
-    const boardOptions = {
-      bridge: session.bridge,
-      seed: session.sessionSeed,
-      mode: session.mode,
-    };
-
     if (boardFamily === "maze") {
       return new MazeBoard(this, boardOptions);
     }
@@ -187,9 +205,21 @@ export default class BoardScene extends Phaser.Scene {
   }
 
   private createBoardArt(boardFamily: NeonRivalsBoardFamily) {
-    const frameBase = this.add.image(GAME_WIDTH / 2, BOARD_VIEWPORT_CENTER_Y + 20, "board_frame_base");
-    const frameGlow = this.add.image(GAME_WIDTH / 2, BOARD_VIEWPORT_CENTER_Y + 20, "board_frame_glow");
-    const gridBase = this.add.image(GAME_WIDTH / 2, BOARD_VIEWPORT_CENTER_Y - 18, "board_grid_base");
+    const frameBase = this.add.image(
+      GAME_WIDTH / 2,
+      BOARD_VIEWPORT_CENTER_Y + 20,
+      "board_frame_base",
+    );
+    const frameGlow = this.add.image(
+      GAME_WIDTH / 2,
+      BOARD_VIEWPORT_CENTER_Y + 20,
+      "board_frame_glow",
+    );
+    const gridBase = this.add.image(
+      GAME_WIDTH / 2,
+      BOARD_VIEWPORT_CENTER_Y - 18,
+      "board_grid_base",
+    );
 
     frameBase.setAlpha(0.96);
     frameGlow.setAlpha(0.72);
@@ -254,11 +284,16 @@ export default class BoardScene extends Phaser.Scene {
       color: "#ffffff",
     });
 
-    this.comboText = this.add.text(24, 84, objective.boardFamily === "match3" ? "Combo x0" : "Board metric 0", {
-      fontFamily: "Chakra Petch, Arial",
-      fontSize: "12px",
-      color: "#5fe2ff",
-    });
+    this.comboText = this.add.text(
+      24,
+      84,
+      objective.boardFamily === "match3" ? "Combo x0" : "Board metric 0",
+      {
+        fontFamily: "Chakra Petch, Arial",
+        fontSize: "12px",
+        color: "#5fe2ff",
+      },
+    );
 
     this.objectiveText = this.add.text(24, 102, objective.description, {
       fontFamily: "Chakra Petch, Arial",

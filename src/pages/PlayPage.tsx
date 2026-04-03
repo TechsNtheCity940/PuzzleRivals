@@ -204,12 +204,13 @@ export default function PlayPage() {
             "Weights their strongest category",
             "Can repeat last loss puzzle",
           ]
-        : ["Weighted puzzle pick", "12s practice warm-up", "Fresh live seed"],
+        : ["Random ranked puzzle", "12s practice warm-up", "Fresh live board"],
     };
   }, [selectedMode]);
 
   const selectedModeMeta = MODES.find((mode) => mode.id === selectedMode);
   const arenaHref = `/play/neon-rival?mode=${lastArenaMode}`;
+  const queueHref = `/match?mode=${selectedMode}`;
 
   return (
     <div className="page-screen">
@@ -242,9 +243,7 @@ export default function PlayPage() {
                   {selectedModeMeta?.label} mode locked in
                 </h2>
                 <p className="hero-subtitle mt-3">
-                  Clean, readable match cards with one dominant action. Choose a
-                  mode, scan the rule set, then launch without hunting through
-                  stacked panels.
+                  Ranked uses a random lobby-selected Phaser board with a practice warm-up, then a live battle. Other queues keep the same fast-entry shell.
                 </p>
               </div>
               <Button
@@ -254,7 +253,7 @@ export default function PlayPage() {
                     return;
                   }
                   if (canSave) {
-                    navigate(arenaHref);
+                    navigate(queueHref);
                     return;
                   }
                   openSignUp();
@@ -270,7 +269,7 @@ export default function PlayPage() {
                   : accountNeedsSync
                     ? "Sign Out To Retry"
                     : canSave
-                      ? "Launch Arena"
+                      ? "Join Queue"
                       : "Sign Up To Compete"}
               </Button>
             </div>
@@ -300,8 +299,8 @@ export default function PlayPage() {
                 ))}
                 <div className="command-panel-soft px-4 py-3 text-sm leading-6 text-muted-foreground">
                   {lowBandwidthMode
-                    ? "Low-bandwidth mode is active. The Arena route will only pull the heavier Phaser bundle when you explicitly open it."
-                    : "Arena route priming stays enabled so the Phaser bundle and board shell are warm before launch."}
+                    ? "Low-bandwidth mode is active. The Phaser bundle will only load when you explicitly open the Arena route."
+                    : "Ranked queue priming stays enabled so the Phaser board is warm before the match route loads."}
                 </div>
               </div>
             </div>

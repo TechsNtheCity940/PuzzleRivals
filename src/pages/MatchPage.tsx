@@ -20,10 +20,12 @@ import {
   WifiOff,
 } from "lucide-react";
 import { useAuthDialog } from "@/components/auth/AuthDialogContext";
+import NeonRivalsGame from "@/components/game/NeonRivalsGame";
 import IdentityLoadoutCard from "@/components/cosmetics/IdentityLoadoutCard";
 import PageHeader from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { subscribeToLobby, supabaseApi } from "@/lib/api-client";
+import type { NeonRivalsGameState } from "@/game/types";
 import type {
   BackendLobby,
   BackendLobbyPlayer,
@@ -43,6 +45,7 @@ import {
   supabaseConfigErrorMessage,
 } from "@/lib/supabase-client";
 import { cn } from "@/lib/utils";
+import { getRankedArenaModeForPuzzleType } from "../../shared/ranked-arena";
 import { useAuth } from "@/providers/AuthProvider";
 
 const MatchPuzzleBoard = lazy(
@@ -253,12 +256,14 @@ export default function MatchPage() {
   const [resultsSnapshot, setResultsSnapshot] = useState<BackendLobby | null>(
     null,
   );
+  const [arenaState, setArenaState] = useState<NeonRivalsGameState | null>(null);
 
   const readyTimeoutRef = useRef<number | null>(null);
   const progressTimeoutRef = useRef<number | null>(null);
   const lastSubmissionRef = useRef<PuzzleSubmission | null>(null);
   const readySentLobbyIdRef = useRef<string | null>(null);
   const completedRoundRef = useRef<string | null>(null);
+  const liveSolveStageKeyRef = useRef<string | null>(null);
   const progressSubmissionKeyRef = useRef<string | null>(null);
   const rejectedStageRef = useRef<"practice" | "live" | null>(null);
   const syncInFlightRef = useRef(false);
@@ -427,11 +432,15 @@ export default function MatchPage() {
 
   useEffect(() => {
     setHintUnlocked(false);
+    setArenaState(null);
+    liveSolveStageKeyRef.current = null;
     progressSubmissionKeyRef.current = null;
     rejectedStageRef.current = null;
   }, [lobby?.selection?.selectedAt]);
 
   useEffect(() => {
+    setArenaState(null);
+    liveSolveStageKeyRef.current = null;
     progressSubmissionKeyRef.current = null;
     rejectedStageRef.current = null;
   }, [lobby?.status]);
@@ -531,12 +540,9 @@ export default function MatchPage() {
     lobby?.status === "live"
       ? Number(selfPlayer?.currentSeed ?? lobby?.selection?.liveSeed ?? 0)
       : Number(lobby?.selection?.practiceSeed ?? 0);
-  const helpText = lobby?.selection
-    ? getPuzzleHelpText(lobby.selection.puzzleType)
-    : "";
-  const hintText = lobby?.selection
-    ? getPuzzleHintText(lobby.selection.puzzleType)
-    : "";
+  const rankedArenaMode = lobby?.selection
+    ? getRankedArenaModeForPuzzleType(lobby.selection.puzzleType)
+    : null;
 
   useEffect(() => {
     lobbyRef.current = lobby;
@@ -698,117 +704,174 @@ export default function MatchPage() {
     const isPractice = stage === "practice";
     const timeLeft = isPractice ? practiceTimeLeft : liveTimeLeft;
     const lowTime = isPractice ? timeLeft <= 3 : timeLeft <= 10;
-    const boardCategory = getNeonPuzzleThemeCategory(
-      lobby.selection.puzzleType,
-    );
     const disabled =
       timeLeft <= 0 ||
-      (!isPractice &&
-        (solvePending || (!rapidFire && selfPlayer.solvedAtMs !== null)));
-    const liveScoreLine = rapidFire
-      ? `Score ${selfPlayer.score} | Clears ${selfPlayer.completions} | New personal boards stop rolling at 0:05.`
-      : selfPlayer.solvedAtMs !== null
-        ? `Solve locked at ${formatSolveTime(selfPlayer.solvedAtMs)}.`
-        : `First full solve wins tiebreaks.`;
+      (isPractice
+        ? practiceSolved
+        : solvePending || (!rapidFire && selfPlayer.solvedAtMs !== null));
+
+    if (!rankedArenaMode) {
+      return (
+        <div className="match-ranked-screen">
+          <div className="match-ranked-shell">
+            <div className="command-panel-soft flex flex-col items-center justify-center gap-3 p-6 text-center">
+              <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-destructive">
+                Arena board unavailable
+              </p>
+              <p className="max-w-xl text-sm text-muted-foreground">
+                {selectionMeta?.label ?? "This puzzle"} is not wired into the ranked Phaser arena yet.
+              </p>
+              <Button onClick={() => navigate("/play")} variant="outline" size="lg">
+                <Home size={16} />
+                Back to Play
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const resolveNumericValue = (player: BackendLobbyPlayer) => {
+      if (player.playerId === user?.id && arenaState) {
+        return rapidFire ? arenaState.score : arenaState.objectiveProgressPercent;
+      }
+
+      if (isPractice) {
+        return player.practiceProgress;
+      }
+
+      return rapidFire ? player.score : player.progress;
+    };
+
+    const rankedPlayers = [...lobby.players]
+      .sort((left, right) => {
+        if (!isPractice && !rapidFire) {
+          const leftSolved = left.solvedAtMs !== null;
+          const rightSolved = right.solvedAtMs !== null;
+          if (leftSolved !== rightSolved) {
+            return leftSolved ? -1 : 1;
+          }
+          if (leftSolved && rightSolved) {
+            return (left.solvedAtMs ?? Number.MAX_SAFE_INTEGER) -
+              (right.solvedAtMs ?? Number.MAX_SAFE_INTEGER);
+          }
+        }
+
+        return resolveNumericValue(right) - resolveNumericValue(left);
+      })
+      .slice(0, 4);
 
     return (
-      <div className="match-immersive-screen">
-        <div
-          className={cn(
-            "match-immersive-shell",
-            `match-immersive-shell--${boardCategory}`,
-            lowTime && "match-immersive-shell--low-time",
-          )}
-        >
-          <div className="match-immersive-top">
-            <div className="match-immersive-copy">
-              <p className="font-hud text-[11px] uppercase tracking-[0.24em] text-primary">
-                {isPractice
-                  ? "Practice Arena"
-                  : rapidFire
-                    ? "Live Arena - Rapid Fire"
-                    : "Live Arena"}
-              </p>
-              <h1 className="match-immersive-title">{selectionMeta?.label}</h1>
-              <p className="match-immersive-help">{helpText}</p>
-              <p className="match-immersive-rule">
+      <div className="match-ranked-screen">
+        <div className="match-ranked-shell">
+          <div className="match-ranked-topbar">
+            <div className="match-ranked-stage">
+              <span className="match-ranked-stage-chip">
                 {isPractice
                   ? practiceSolved
-                    ? "Practice clear recorded. Stay sharp for the live seed."
-                    : "Use practice to learn the rule. The live match uses the same type with a fresh layout."
-                  : liveScoreLine}
-              </p>
+                    ? "Practice Clear"
+                    : "Practice Warm-Up"
+                  : "Live Battle"}
+              </span>
+              <span className="match-ranked-stage-chip">
+                {selectionMeta?.label ?? "Random Puzzle"}
+              </span>
             </div>
-            <CountdownCard
-              label={isPractice ? "Practice Timer" : "Match Timer"}
-              value={formatTime(timeLeft)}
-              urgent={lowTime}
-              category={boardCategory}
-            />
+            <div
+              className={cn(
+                "match-ranked-timer",
+                lowTime && "match-ranked-timer--urgent",
+              )}
+            >
+              <span className="match-ranked-timer-label">
+                {isPractice ? "Practice" : "Match"} Timer
+              </span>
+              <span className="match-ranked-timer-value">{formatTime(timeLeft)}</span>
+            </div>
           </div>
 
-          <div className="match-immersive-utility">
-            {localHintBalance > 0 ? (
-              <button
-                type="button"
-                onClick={() => void handleHintUnlock()}
-                disabled={hintUnlocked || hintSaving}
-                className={cn(
-                  "match-hint-button",
-                  hintUnlocked && "match-hint-button-active",
-                )}
-              >
-                <Lightbulb size={18} />
-                <span>
-                  {hintUnlocked
-                    ? "Hint Unlocked"
-                    : `Use Hint (${localHintBalance})`}
-                </span>
-              </button>
-            ) : null}
-            {hintUnlocked ? (
-              <div className="match-hint-panel">{hintText}</div>
-            ) : null}
-          </div>
+          <div className="match-ranked-scorestrip">
+            {rankedPlayers.map((player, index) => {
+              const numericValue = resolveNumericValue(player);
+              const valueLabel =
+                !isPractice && !rapidFire && player.solvedAtMs !== null
+                  ? formatSolveTime(player.solvedAtMs)
+                  : rapidFire
+                    ? `${Math.round(numericValue)} pts`
+                    : `${Math.round(numericValue)}%`;
 
-          <div className="match-immersive-board">
-            <Suspense
-              fallback={
-                <div className="match-board-loading-shell">
-                  <LoaderCircle
-                    size={22}
-                    className="animate-spin text-primary"
-                  />
-                  <div>
-                    <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-primary/80">
-                      Board uplink
+              return (
+                <div
+                  key={player.playerId}
+                  className={cn(
+                    "match-ranked-player",
+                    player.playerId === user?.id && "match-ranked-player--self",
+                  )}
+                >
+                  <span className="match-ranked-player-rank">#{index + 1}</span>
+                  <div className="match-ranked-player-copy">
+                    <p className="match-ranked-player-name">
+                      {player.username}
+                      {player.playerId === user?.id ? " (You)" : ""}
                     </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Streaming the active puzzle shell.
+                    <p className="match-ranked-player-meta">
+                      {player.isBot ? "Training rival" : "Live rival"}
                     </p>
                   </div>
+                  <span className="match-ranked-player-value">{valueLabel}</span>
                 </div>
-              }
-            >
-              <MatchPuzzleBoard
-                key={`${stage}-${activeSeed}`}
-                puzzleType={lobby.selection.puzzleType}
-                seed={activeSeed}
-                difficulty={lobby.selection.difficulty}
-                isPractice={isPractice}
-                disabled={disabled}
-                isLowTime={lowTime}
-                onProgress={handleBoardProgress}
-                onStateChange={queueProgressSubmission}
-                onSolve={isPractice ? handlePracticeSolve : handleLiveSolve}
+              );
+            })}
+          </div>
+
+          <div className="match-ranked-board-wrap">
+            <div className="match-ranked-board-shell">
+              <NeonRivalsGame
+                key={`${lobby.id}:${stage}:${activeSeed}`}
+                className="match-ranked-game"
+                mode={rankedArenaMode}
+                sessionSeed={activeSeed}
+                playerName={selfPlayer.username}
+                themeLabel="Neon Rivals Arena"
+                hudVariant="match"
+                matchContext={{
+                  puzzleType: lobby.selection.puzzleType,
+                  difficulty: lobby.selection.difficulty,
+                  stage,
+                }}
+                onSubmissionChange={(submission, state) => {
+                  lastSubmissionRef.current = submission;
+                  setArenaState(state);
+                  queueProgressSubmission(
+                    stage,
+                    submission,
+                    state.objectiveProgressPercent,
+                  );
+                }}
+                onStateChange={(state) => {
+                  setArenaState(state);
+
+                  if (isPractice && state.status === "complete") {
+                    setPracticeSolved(true);
+                    return;
+                  }
+
+                  if (!isPractice && state.status === "complete") {
+                    const solveStageKey = `${lobby.id}:${stage}:${lobby.selection?.selectedAt}:${activeSeed}`;
+                    if (liveSolveStageKeyRef.current !== solveStageKey) {
+                      liveSolveStageKeyRef.current = solveStageKey;
+                      handleLiveSolve();
+                    }
+                  }
+                }}
               />
-            </Suspense>
+              {disabled ? <div className="match-ranked-board-blocker" /> : null}
+            </div>
           </div>
         </div>
       </div>
     );
   }
-
   if (!isSupabaseConfigured) {
     return (
       <div className="page-screen">
@@ -1132,3 +1195,9 @@ export default function MatchPage() {
     </div>
   );
 }
+
+
+
+
+
+

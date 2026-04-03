@@ -7,6 +7,7 @@ import type {
   NeonRivalsGameStatus,
   NeonRivalsRunMode,
 } from "@/game/types";
+import type { PuzzleSubmission } from "@/lib/backend";
 import {
   BOARD_VIEWPORT_CENTER_X,
   BOARD_VIEWPORT_CENTER_Y,
@@ -20,6 +21,7 @@ interface PipeBoardOptions {
   bridge?: NeonRivalsGameBridge;
   seed: number;
   mode: NeonRivalsRunMode;
+  difficulty?: 1 | 2 | 3 | 4 | 5;
 }
 
 interface PipeVisual {
@@ -42,6 +44,7 @@ export default class PipeBoard {
   private bridge?: NeonRivalsGameBridge;
   private sessionSeed: number;
   private mode: NeonRivalsRunMode;
+  private difficulty: 1 | 2 | 3 | 4 | 5;
   private objective = buildNeonRivalsObjective("pipe_rush", 1);
   private status: NeonRivalsGameStatus = "booting";
   private inputLocked = false;
@@ -69,8 +72,9 @@ export default class PipeBoard {
     this.bridge = options.bridge;
     this.sessionSeed = Math.max(1, options.seed >>> 0);
     this.mode = options.mode;
+    this.difficulty = options.difficulty ?? 4;
     this.objective = buildNeonRivalsObjective(this.mode, this.sessionSeed);
-    this.size = this.sessionSeed % 2 === 0 ? 5 : 4;
+    this.size = this.difficulty >= 4 ? 5 : 4;
     this.grid = checkPipeConnections(generatePipePuzzle(this.sessionSeed, this.size));
   }
 
@@ -340,6 +344,13 @@ export default class PipeBoard {
     }
   }
 
+  private buildSubmission(): PuzzleSubmission {
+    return {
+      kind: "rotate_pipes",
+      rotations: this.grid.flat().map((cell) => cell.rotation),
+    };
+  }
+
   private snapshotState(): NeonRivalsGameState {
     const objectiveValue = this.getProgressPercent();
     return {
@@ -368,6 +379,7 @@ export default class PipeBoard {
   private emitState() {
     const snapshot = this.snapshotState();
     this.scene.events.emit("board-state", snapshot);
+    this.bridge?.onSubmissionChange?.(this.buildSubmission(), snapshot);
     this.bridge?.onStateChange?.(snapshot);
   }
 

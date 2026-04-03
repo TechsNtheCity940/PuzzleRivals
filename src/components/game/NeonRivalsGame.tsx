@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { primeNeonRivalsExperience } from "@/game/config/preloadNeonRivals";
-import type { NeonRivalsGameBridge, NeonRivalsGameState, NeonRivalsRunMode } from "@/game/types";
+import type {
+  NeonRivalsGameBridge,
+  NeonRivalsGameState,
+  NeonRivalsMatchContext,
+  NeonRivalsRunMode,
+} from "@/game/types";
+import type { PuzzleSubmission } from "@/lib/backend";
 import { cn } from "@/lib/utils";
 
 interface NeonRivalsGameProps {
@@ -9,7 +15,13 @@ interface NeonRivalsGameProps {
   sessionSeed: number;
   themeLabel?: string;
   mode: NeonRivalsRunMode;
+  hudVariant?: "standalone" | "match";
+  matchContext?: NeonRivalsMatchContext | null;
   onStateChange?: (state: NeonRivalsGameState) => void;
+  onSubmissionChange?: (
+    submission: PuzzleSubmission,
+    state: NeonRivalsGameState,
+  ) => void;
 }
 
 export { primeNeonRivalsExperience };
@@ -20,10 +32,15 @@ export default function NeonRivalsGame({
   sessionSeed,
   themeLabel = "Season 1: Neon Rivals",
   mode,
+  hudVariant = "standalone",
+  matchContext = null,
   onStateChange,
+  onSubmissionChange,
 }: NeonRivalsGameProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const gameRef = useRef<{ destroy: (removeCanvas?: boolean) => void } | null>(null);
+  const gameRef = useRef<{ destroy: (removeCanvas?: boolean) => void } | null>(
+    null,
+  );
   const bridgeRef = useRef<NeonRivalsGameBridge>({});
   const [isBooting, setIsBooting] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -32,10 +49,11 @@ export default function NeonRivalsGame({
     bridgeRef.current = {
       onReady: () => setIsBooting(false),
       onStateChange,
+      onSubmissionChange,
       onComplete: onStateChange,
       onFailed: onStateChange,
     };
-  }, [onStateChange]);
+  }, [onStateChange, onSubmissionChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +77,8 @@ export default function NeonRivalsGame({
           bridge: {
             onReady: () => bridgeRef.current.onReady?.(),
             onStateChange: (state) => bridgeRef.current.onStateChange?.(state),
+            onSubmissionChange: (submission, state) =>
+              bridgeRef.current.onSubmissionChange?.(submission, state),
             onComplete: (state) => bridgeRef.current.onComplete?.(state),
             onFailed: (state) => bridgeRef.current.onFailed?.(state),
           },
@@ -66,11 +86,17 @@ export default function NeonRivalsGame({
           sessionSeed,
           themeLabel,
           mode,
+          hudVariant,
+          matchContext,
         });
       } catch (error) {
         if (!cancelled) {
           setIsBooting(false);
-          setLoadError(error instanceof Error ? error.message : "Failed to boot Arena board.");
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : "Failed to boot Arena board.",
+          );
         }
       }
     }
@@ -82,7 +108,7 @@ export default function NeonRivalsGame({
       gameRef.current?.destroy(true);
       gameRef.current = null;
     };
-  }, [mode, playerName, sessionSeed, themeLabel]);
+  }, [hudVariant, matchContext, mode, playerName, sessionSeed, themeLabel]);
 
   return (
     <div className={cn("neon-rivals-game-root", className)}>
@@ -92,15 +118,22 @@ export default function NeonRivalsGame({
       {isBooting && !loadError ? (
         <div className="neon-rivals-game-overlay">
           <div className="neon-rivals-game-status-card">
-            <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-primary">Booting Arena board</p>
-            <p className="mt-2 text-sm text-muted-foreground">Loading Neon Rivals board layers, tile systems, and live objective rules.</p>
+            <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-primary">
+              Booting Arena board
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Loading Neon Rivals board layers, tile systems, and live objective
+              rules.
+            </p>
           </div>
         </div>
       ) : null}
       {loadError ? (
         <div className="neon-rivals-game-overlay">
           <div className="neon-rivals-game-status-card neon-rivals-game-status-card--error">
-            <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-destructive">Board failed to boot</p>
+            <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-destructive">
+              Board failed to boot
+            </p>
             <p className="mt-2 text-sm text-muted-foreground">{loadError}</p>
           </div>
         </div>

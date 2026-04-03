@@ -14,6 +14,7 @@ import type {
   NeonRivalsGameStatus,
   NeonRivalsRunMode,
 } from "@/game/types";
+import type { PuzzleSubmission } from "@/lib/backend";
 import {
   BOARD_VIEWPORT_CENTER_X,
   BOARD_VIEWPORT_CENTER_Y,
@@ -27,6 +28,7 @@ interface QuizBoardOptions {
   bridge?: NeonRivalsGameBridge;
   seed: number;
   mode: NeonRivalsRunMode;
+  difficulty?: 1 | 2 | 3 | 4 | 5;
 }
 
 interface OptionPanelVisual {
@@ -89,6 +91,7 @@ export default class QuizBoard {
   private bridge?: NeonRivalsGameBridge;
   private sessionSeed: number;
   private mode: NeonRivalsRunMode;
+  private difficulty: 1 | 2 | 3 | 4 | 5;
   private objective: ReturnType<typeof buildNeonRivalsObjective>;
   private rounds: GeneratedQuizRound[] = [];
   private status: NeonRivalsGameStatus = "booting";
@@ -101,6 +104,7 @@ export default class QuizBoard {
   private targetScore = 1680;
   private runStartedAtMs = 0;
   private roundIndex = 0;
+  private answers: number[] = [];
   private boardShadow?: Phaser.GameObjects.Rectangle;
   private boardFrame?: Phaser.GameObjects.Rectangle;
   private scanLine?: Phaser.GameObjects.Rectangle;
@@ -115,8 +119,9 @@ export default class QuizBoard {
     this.bridge = options.bridge;
     this.sessionSeed = Math.max(1, options.seed >>> 0);
     this.mode = options.mode;
+    this.difficulty = options.difficulty ?? 4;
     this.objective = buildNeonRivalsObjective(this.mode, this.sessionSeed);
-    this.rounds = buildGeneratedQuizRounds(getQuizKind(this.mode), this.sessionSeed, 4);
+    this.rounds = buildGeneratedQuizRounds(getQuizKind(this.mode), this.sessionSeed, this.difficulty);
   }
 
   create() {
@@ -128,6 +133,7 @@ export default class QuizBoard {
     this.maxCombo = 0;
     this.matchedTiles = 0;
     this.roundIndex = 0;
+    this.answers = [];
     this.buildBoardSurface();
     this.renderRound();
     this.status = "running";
@@ -353,6 +359,7 @@ export default class QuizBoard {
 
     const round = this.rounds[this.roundIndex];
     const panel = this.optionPanels[optionIndex];
+    this.answers[this.roundIndex] = optionIndex;
     const palette = getQuizPalette(this.mode);
     this.inputLocked = true;
     this.movesLeft = Math.max(0, this.movesLeft - 1);
@@ -475,6 +482,13 @@ export default class QuizBoard {
     return Math.max(0, Math.min(100, Math.round((this.matchedTiles / Math.max(this.rounds.length, 1)) * 100)));
   }
 
+  private buildSubmission(): PuzzleSubmission {
+    return {
+      kind: getQuizKind(this.mode),
+      answers: this.answers.slice(),
+    };
+  }
+
   private snapshotState(): NeonRivalsGameState {
     const objectiveValue = this.getProgressPercent();
     return {
@@ -503,6 +517,7 @@ export default class QuizBoard {
   private emitState() {
     const snapshot = this.snapshotState();
     this.scene.events.emit("board-state", snapshot);
+    this.bridge?.onSubmissionChange?.(this.buildSubmission(), snapshot);
     this.bridge?.onStateChange?.(snapshot);
   }
 

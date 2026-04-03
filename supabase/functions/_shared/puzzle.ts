@@ -1,5 +1,6 @@
 import { buildGeneratedQuizRounds } from "./match-quiz-content.ts";
 import { buildCrosswordMini, buildMatchingPairs, buildMaze, buildMemoryGrid, buildNumberGrid, buildPathfinder, buildPatternRounds, buildSpatialRounds, buildSudokuMini, buildTilePuzzle, buildWordScramble, buildWordSearch, buildWordle, getMazeProgress, normalizeSegment } from "./match-puzzle-contract.ts";
+import { RANKED_ARENA_PUZZLE_TYPES, isRankedArenaPuzzleType } from "../../../shared/ranked-arena.ts";
 
 export type MatchPlayablePuzzleType =
   | "rotate_pipes"
@@ -302,10 +303,22 @@ export function createAuthoritativePuzzleSelection(
   const nextRandom = selectionKey
     ? createSeededRandom(hashSelectionKey(`${selectionKey}:selection`))
     : () => Math.random();
+  const availablePuzzleTypes =
+    mode === "ranked"
+      ? (RANKED_ARENA_PUZZLE_TYPES as readonly MatchPlayablePuzzleType[])
+      : MATCH_PLAYABLE_PUZZLES;
+  const normalizedPreferredPuzzleType =
+    mode === "ranked"
+      ? preferredPuzzleType && isRankedArenaPuzzleType(preferredPuzzleType)
+        ? preferredPuzzleType
+        : null
+      : preferredPuzzleType && MATCH_PLAYABLE_PUZZLES.includes(preferredPuzzleType)
+        ? preferredPuzzleType
+        : null;
   const puzzleType =
-    preferredPuzzleType && MATCH_PLAYABLE_PUZZLES.includes(preferredPuzzleType)
-      ? preferredPuzzleType
-      : MATCH_PLAYABLE_PUZZLES[Math.floor(nextRandom() * MATCH_PLAYABLE_PUZZLES.length)];
+    normalizedPreferredPuzzleType
+      ? normalizedPreferredPuzzleType
+      : availablePuzzleTypes[Math.floor(nextRandom() * availablePuzzleTypes.length)];
   const practiceSeed = randomSeed(nextRandom);
   let liveSeed = randomSeed(nextRandom);
   while (liveSeed === practiceSeed) liveSeed = randomSeed(nextRandom);

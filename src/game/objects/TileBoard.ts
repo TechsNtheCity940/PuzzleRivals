@@ -7,6 +7,7 @@ import type {
   NeonRivalsGameStatus,
   NeonRivalsRunMode,
 } from "@/game/types";
+import type { PuzzleSubmission } from "@/lib/backend";
 import {
   BOARD_VIEWPORT_CENTER_X,
   BOARD_VIEWPORT_CENTER_Y,
@@ -20,6 +21,7 @@ interface TileBoardOptions {
   bridge?: NeonRivalsGameBridge;
   seed: number;
   mode: NeonRivalsRunMode;
+  difficulty?: 1 | 2 | 3 | 4 | 5;
 }
 
 interface TileVisual {
@@ -41,6 +43,7 @@ export default class TileBoard {
   private bridge?: NeonRivalsGameBridge;
   private sessionSeed: number;
   private mode: NeonRivalsRunMode;
+  private difficulty: 1 | 2 | 3 | 4 | 5;
   private objective = buildNeonRivalsObjective("tile_shift", 1);
   private status: NeonRivalsGameStatus = "booting";
   private inputLocked = false;
@@ -69,8 +72,9 @@ export default class TileBoard {
     this.bridge = options.bridge;
     this.sessionSeed = Math.max(1, options.seed >>> 0);
     this.mode = options.mode;
+    this.difficulty = options.difficulty ?? 4;
     this.objective = buildNeonRivalsObjective(this.mode, this.sessionSeed);
-    const puzzle = buildTilePuzzle(this.sessionSeed, 4);
+    const puzzle = buildTilePuzzle(this.sessionSeed, this.difficulty);
     this.size = puzzle.size;
     this.tiles = [...puzzle.tiles];
   }
@@ -380,6 +384,13 @@ export default class TileBoard {
     }
   }
 
+  private buildSubmission(): PuzzleSubmission {
+    return {
+      kind: "tile_slide",
+      tiles: [...this.tiles],
+    };
+  }
+
   private snapshotState(): NeonRivalsGameState {
     const objectiveValue = this.getProgressPercent();
     return {
@@ -408,6 +419,7 @@ export default class TileBoard {
   private emitState() {
     const snapshot = this.snapshotState();
     this.scene.events.emit("board-state", snapshot);
+    this.bridge?.onSubmissionChange?.(this.buildSubmission(), snapshot);
     this.bridge?.onStateChange?.(snapshot);
   }
 

@@ -304,7 +304,7 @@ export default function HomePage() {
                         return;
                       }
                       if (canSave) {
-                        navigate("/play/neon-rival");
+                        navigate("/match?mode=ranked");
                         return;
                       }
                       openSignUp();
@@ -325,7 +325,7 @@ export default function HomePage() {
                         return;
                       }
                       if (canSave) {
-                        navigate("/play/neon-rival");
+                        navigate("/match?mode=ranked");
                         return;
                       }
                       openSignUp();

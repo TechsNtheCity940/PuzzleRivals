@@ -7,6 +7,7 @@ import type {
   NeonRivalsGameStatus,
   NeonRivalsRunMode,
 } from "@/game/types";
+import type { PuzzleSubmission } from "@/lib/backend";
 import {
   BOARD_VIEWPORT_CENTER_X,
   BOARD_VIEWPORT_CENTER_Y,
@@ -20,6 +21,7 @@ interface MazeBoardOptions {
   bridge?: NeonRivalsGameBridge;
   seed: number;
   mode: NeonRivalsRunMode;
+  difficulty?: 1 | 2 | 3 | 4 | 5;
 }
 
 type CellSprite = {
@@ -40,6 +42,7 @@ export default class MazeBoard {
   private bridge?: NeonRivalsGameBridge;
   private sessionSeed: number;
   private mode: NeonRivalsRunMode;
+  private difficulty: 1 | 2 | 3 | 4 | 5;
   private objective = buildNeonRivalsObjective("maze_rush", 1);
   private maze: MazePuzzle;
   private status: NeonRivalsGameStatus = "booting";
@@ -78,9 +81,9 @@ export default class MazeBoard {
     this.bridge = options.bridge;
     this.sessionSeed = Math.max(1, options.seed >>> 0);
     this.mode = options.mode;
+    this.difficulty = options.difficulty ?? 4;
     this.objective = buildNeonRivalsObjective(this.mode, this.sessionSeed);
-    const difficulty = 3 + (this.sessionSeed % 2);
-    this.maze = buildMaze(this.sessionSeed, difficulty);
+    this.maze = buildMaze(this.sessionSeed, this.difficulty);
   }
 
   create() {
@@ -554,6 +557,13 @@ export default class MazeBoard {
     };
   }
 
+  private buildSubmission(): PuzzleSubmission {
+    return {
+      kind: "maze",
+      position: this.currentIndex,
+    };
+  }
+
   private snapshotState(): NeonRivalsGameState {
     const objectiveValue = this.currentIndex === this.maze.goalIndex
       ? 100
@@ -585,6 +595,7 @@ export default class MazeBoard {
   private emitState() {
     const snapshot = this.snapshotState();
     this.scene.events.emit("board-state", snapshot);
+    this.bridge?.onSubmissionChange?.(this.buildSubmission(), snapshot);
     this.bridge?.onStateChange?.(snapshot);
   }
 

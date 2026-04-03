@@ -7,6 +7,7 @@ import type {
   NeonRivalsGameStatus,
   NeonRivalsRunMode,
 } from "@/game/types";
+import type { PuzzleSubmission } from "@/lib/backend";
 import {
   BOARD_VIEWPORT_CENTER_X,
   BOARD_VIEWPORT_CENTER_Y,
@@ -20,6 +21,7 @@ interface StrategyBoardOptions {
   bridge?: NeonRivalsGameBridge;
   seed: number;
   mode: NeonRivalsRunMode;
+  difficulty?: 1 | 2 | 3 | 4 | 5;
 }
 
 interface SquareVisual {
@@ -270,6 +272,7 @@ export default class StrategyBoard {
   private bridge?: NeonRivalsGameBridge;
   private sessionSeed: number;
   private mode: NeonRivalsRunMode;
+  private difficulty: 1 | 2 | 3 | 4 | 5;
   private objective = buildNeonRivalsObjective("chess_shot", 1);
   private rounds: GeneratedQuizRound[] = [];
   private status: NeonRivalsGameStatus = "booting";
@@ -282,6 +285,7 @@ export default class StrategyBoard {
   private targetScore = 1780;
   private runStartedAtMs = 0;
   private roundIndex = 0;
+  private answers: number[] = [];
   private size = 8;
   private cellSize = 70;
   private boardLeft = 0;
@@ -307,8 +311,9 @@ export default class StrategyBoard {
     this.bridge = options.bridge;
     this.sessionSeed = Math.max(1, options.seed >>> 0);
     this.mode = options.mode;
+    this.difficulty = options.difficulty ?? 4;
     this.objective = buildNeonRivalsObjective(this.mode, this.sessionSeed);
-    this.rounds = buildGeneratedQuizRounds(getQuizKind(this.mode), this.sessionSeed, 4);
+    this.rounds = buildGeneratedQuizRounds(getQuizKind(this.mode), this.sessionSeed, this.difficulty);
   }
 
   create() {
@@ -320,6 +325,7 @@ export default class StrategyBoard {
     this.maxCombo = 0;
     this.matchedTiles = 0;
     this.roundIndex = 0;
+    this.answers = [];
     this.buildBoardSurface();
     this.renderRound();
     this.status = "running";
@@ -773,6 +779,13 @@ export default class StrategyBoard {
     return Math.max(0, Math.min(100, Math.round((this.matchedTiles / Math.max(this.rounds.length, 1)) * 100)));
   }
 
+  private buildSubmission(): PuzzleSubmission {
+    return {
+      kind: getQuizKind(this.mode),
+      answers: this.answers.slice(),
+    };
+  }
+
   private snapshotState(): NeonRivalsGameState {
     const objectiveValue = this.getProgressPercent();
     return {
@@ -801,6 +814,7 @@ export default class StrategyBoard {
   private emitState() {
     const snapshot = this.snapshotState();
     this.scene.events.emit("board-state", snapshot);
+    this.bridge?.onSubmissionChange?.(this.buildSubmission(), snapshot);
     this.bridge?.onStateChange?.(snapshot);
   }
 

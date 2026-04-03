@@ -12,6 +12,7 @@ import { AppPreferencesProvider } from "./providers/AppPreferencesProvider";
 const queryClient = new QueryClient();
 const HomePage = lazy(() => import("./pages/HomePage"));
 const PlayPage = lazy(() => import("./pages/PlayPage"));
+const MatchPage = lazy(() => import("./pages/MatchPage"));
 const NeonRivalsGamePage = lazy(() => import("./pages/NeonRivalsGamePage"));
 const TournamentsPage = lazy(() => import("./pages/TournamentsPage"));
 const StorePage = lazy(() => import("./pages/StorePage"));
@@ -61,7 +62,7 @@ const App = () => (
                     <Route path="/play" element={<PlayPage />} />
                     <Route path="/play/neon-rival" element={<NeonRivalsGamePage />} />
                     <Route path="/play/neon-rivals" element={<NeonRivalsGamePage />} />
-                    <Route path="/match" element={<Navigate to="/play/neon-rival" replace />} />
+                    <Route path="/match" element={<MatchPage />} />
                     <Route path="/tournaments" element={<TournamentsPage />} />
                     <Route path="/store" element={<StorePage />} />
                     <Route path="/season" element={<SeasonPage />} />

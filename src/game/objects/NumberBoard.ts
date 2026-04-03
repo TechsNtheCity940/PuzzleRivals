@@ -7,6 +7,7 @@ import type {
   NeonRivalsGameStatus,
   NeonRivalsRunMode,
 } from "@/game/types";
+import type { PuzzleSubmission } from "@/lib/backend";
 import {
   BOARD_VIEWPORT_CENTER_X,
   BOARD_VIEWPORT_CENTER_Y,
@@ -20,6 +21,7 @@ interface NumberBoardOptions {
   bridge?: NeonRivalsGameBridge;
   seed: number;
   mode: NeonRivalsRunMode;
+  difficulty?: 1 | 2 | 3 | 4 | 5;
 }
 
 interface NumberCellVisual {
@@ -49,6 +51,7 @@ export default class NumberBoard {
   private bridge?: NeonRivalsGameBridge;
   private sessionSeed: number;
   private mode: NeonRivalsRunMode;
+  private difficulty: 1 | 2 | 3 | 4 | 5;
   private objective = buildNeonRivalsObjective("number_crunch", 1);
   private puzzle: NumberGridPuzzle;
   private status: NeonRivalsGameStatus = "booting";
@@ -82,8 +85,9 @@ export default class NumberBoard {
     this.bridge = options.bridge;
     this.sessionSeed = Math.max(1, options.seed >>> 0);
     this.mode = options.mode;
+    this.difficulty = options.difficulty ?? 4;
     this.objective = buildNeonRivalsObjective(this.mode, this.sessionSeed);
-    this.puzzle = buildNumberGrid(this.sessionSeed, 4);
+    this.puzzle = buildNumberGrid(this.sessionSeed, this.difficulty);
     this.size = this.puzzle.size;
     this.values = [...this.puzzle.grid];
     this.blankIndices = this.puzzle.grid.reduce<number[]>((accumulator, value, index) => {
@@ -484,6 +488,13 @@ export default class NumberBoard {
     return Math.max(0, Math.min(100, Math.round((this.countCorrectBlanks(this.values) / this.blankIndices.length) * 100)));
   }
 
+  private buildSubmission(): PuzzleSubmission {
+    return {
+      kind: "number_grid",
+      values: [...this.values],
+    };
+  }
+
   private snapshotState(): NeonRivalsGameState {
     const objectiveValue = this.getProgressPercent();
     return {
@@ -512,6 +523,7 @@ export default class NumberBoard {
   private emitState() {
     const snapshot = this.snapshotState();
     this.scene.events.emit("board-state", snapshot);
+    this.bridge?.onSubmissionChange?.(this.buildSubmission(), snapshot);
     this.bridge?.onStateChange?.(snapshot);
   }
 

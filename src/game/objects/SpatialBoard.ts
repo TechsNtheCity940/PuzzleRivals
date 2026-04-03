@@ -7,6 +7,7 @@ import type {
   NeonRivalsGameStatus,
   NeonRivalsRunMode,
 } from "@/game/types";
+import type { PuzzleSubmission } from "@/lib/backend";
 import {
   BOARD_VIEWPORT_CENTER_X,
   BOARD_VIEWPORT_CENTER_Y,
@@ -20,6 +21,7 @@ interface SpatialBoardOptions {
   bridge?: NeonRivalsGameBridge;
   seed: number;
   mode: NeonRivalsRunMode;
+  difficulty?: 1 | 2 | 3 | 4 | 5;
 }
 
 interface ShapePanelVisual {
@@ -43,6 +45,7 @@ export default class SpatialBoard {
   private bridge?: NeonRivalsGameBridge;
   private sessionSeed: number;
   private mode: NeonRivalsRunMode;
+  private difficulty: 1 | 2 | 3 | 4 | 5;
   private objective = buildNeonRivalsObjective("spatial_spin", 1);
   private rounds: SpatialRound[] = [];
   private status: NeonRivalsGameStatus = "booting";
@@ -55,6 +58,7 @@ export default class SpatialBoard {
   private targetScore = 1680;
   private runStartedAtMs = 0;
   private roundIndex = 0;
+  private answers: number[] = [];
   private boardShadow?: Phaser.GameObjects.Rectangle;
   private boardFrame?: Phaser.GameObjects.Rectangle;
   private scanLine?: Phaser.GameObjects.Rectangle;
@@ -69,8 +73,9 @@ export default class SpatialBoard {
     this.bridge = options.bridge;
     this.sessionSeed = Math.max(1, options.seed >>> 0);
     this.mode = options.mode;
+    this.difficulty = options.difficulty ?? 4;
     this.objective = buildNeonRivalsObjective(this.mode, this.sessionSeed);
-    this.rounds = buildSpatialRounds(this.sessionSeed, 4);
+    this.rounds = buildSpatialRounds(this.sessionSeed, this.difficulty);
   }
 
   create() {
@@ -82,6 +87,7 @@ export default class SpatialBoard {
     this.maxCombo = 0;
     this.matchedTiles = 0;
     this.roundIndex = 0;
+    this.answers = [];
     this.buildBoardSurface();
     this.renderRound();
     this.status = "running";
@@ -296,6 +302,7 @@ export default class SpatialBoard {
 
     const round = this.rounds[this.roundIndex];
     const panel = this.optionPanels[optionIndex];
+    this.answers[this.roundIndex] = optionIndex;
     this.inputLocked = true;
     this.movesLeft = Math.max(0, this.movesLeft - 1);
 
@@ -427,6 +434,13 @@ export default class SpatialBoard {
     return Math.max(0, Math.min(100, Math.round((this.matchedTiles / Math.max(this.rounds.length, 1)) * 100)));
   }
 
+  private buildSubmission(): PuzzleSubmission {
+    return {
+      kind: "spatial_reasoning",
+      answers: this.answers.slice(),
+    };
+  }
+
   private snapshotState(): NeonRivalsGameState {
     const objectiveValue = this.getProgressPercent();
     return {
@@ -455,6 +469,7 @@ export default class SpatialBoard {
   private emitState() {
     const snapshot = this.snapshotState();
     this.scene.events.emit("board-state", snapshot);
+    this.bridge?.onSubmissionChange?.(this.buildSubmission(), snapshot);
     this.bridge?.onStateChange?.(snapshot);
   }
 
