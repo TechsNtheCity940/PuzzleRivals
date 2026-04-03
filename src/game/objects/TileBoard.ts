@@ -1,6 +1,12 @@
 import Phaser from "phaser";
-import { buildTilePuzzle, isTilePuzzleSolved } from "../../../shared/match-puzzle-contract";
-import { buildNeonRivalsObjective, getObjectiveProgressPercent } from "@/game/config/runModes";
+import {
+  buildTilePuzzle,
+  isTilePuzzleSolved,
+} from "../../../shared/match-puzzle-contract";
+import {
+  buildNeonRivalsObjective,
+  getObjectiveProgressPercent,
+} from "@/game/config/runModes";
 import type {
   NeonRivalsGameBridge,
   NeonRivalsGameState,
@@ -29,6 +35,7 @@ interface TileVisual {
   glow: Phaser.GameObjects.Rectangle;
   plate: Phaser.GameObjects.Rectangle;
   label: Phaser.GameObjects.Text;
+  inputZone: Phaser.GameObjects.Rectangle;
 }
 
 function emptyColorProgress() {
@@ -61,6 +68,7 @@ export default class TileBoard {
   private tiles: number[] = [];
   private selectedTileValue: number | null = null;
   private cellBackgrounds: Phaser.GameObjects.Rectangle[] = [];
+  private rowLockRails: Phaser.GameObjects.Rectangle[] = [];
   private blankSlot?: Phaser.GameObjects.Rectangle;
   private tileVisuals = new Map<number, TileVisual>();
   private boardShadow?: Phaser.GameObjects.Rectangle;
@@ -87,6 +95,7 @@ export default class TileBoard {
     this.combo = 0;
     this.maxCombo = 0;
     this.selectedTileValue = null;
+    this.matchedTiles = this.countAlignedTiles(this.tiles);
     this.buildBoardSurface();
     this.refreshTileVisuals();
     this.status = "running";
@@ -95,8 +104,12 @@ export default class TileBoard {
 
   destroy() {
     this.cellBackgrounds.forEach((cell) => cell.destroy());
+    this.rowLockRails.forEach((rail) => rail.destroy());
     this.blankSlot?.destroy();
-    this.tileVisuals.forEach((visual) => visual.container.destroy());
+    this.tileVisuals.forEach((visual) => {
+      visual.inputZone.destroy();
+      visual.container.destroy();
+    });
     this.tileVisuals.clear();
     this.boardShadow?.destroy();
     this.boardFrame?.destroy();
@@ -105,10 +118,12 @@ export default class TileBoard {
 
   private buildBoardSurface() {
     const padding = 42;
-    this.cellSize = Math.floor(Math.min(
-      (BOARD_VIEWPORT_WIDTH - padding * 2) / this.size,
-      (BOARD_VIEWPORT_HEIGHT - padding * 2) / this.size,
-    ));
+    this.cellSize = Math.floor(
+      Math.min(
+        (BOARD_VIEWPORT_WIDTH - padding * 2) / this.size,
+        (BOARD_VIEWPORT_HEIGHT - padding * 2) / this.size,
+      ),
+    );
     const boardPixelWidth = this.size * this.cellSize;
     const boardPixelHeight = this.size * this.cellSize;
     this.gridLeft = Math.round(BOARD_VIEWPORT_CENTER_X - boardPixelWidth / 2);
@@ -154,18 +169,47 @@ export default class TileBoard {
       ease: "Sine.easeInOut",
     });
 
+    this.rowLockRails = [];
+    for (let row = 0; row < this.size; row += 1) {
+      const rail = this.scene.add.rectangle(
+        BOARD_VIEWPORT_CENTER_X,
+        this.gridTop + row * this.cellSize + this.cellSize / 2,
+        boardPixelWidth + 14,
+        this.cellSize - 10,
+        0xc8ff4d,
+        0,
+      );
+      rail.setStrokeStyle(2, 0xe6ff9a, 0);
+      rail.setDepth(21.5);
+      this.rowLockRails.push(rail);
+    }
+
     this.cellBackgrounds = [];
     for (let row = 0; row < this.size; row += 1) {
       for (let col = 0; col < this.size; col += 1) {
         const center = this.getCellCenter(row, col);
-        const cell = this.scene.add.rectangle(center.x, center.y, this.cellSize - 14, this.cellSize - 14, 0x101e34, 0.78);
+        const cell = this.scene.add.rectangle(
+          center.x,
+          center.y,
+          this.cellSize - 14,
+          this.cellSize - 14,
+          0x101e34,
+          0.78,
+        );
         cell.setStrokeStyle(2, 0x2d4d79, 0.36);
         cell.setDepth(22);
         this.cellBackgrounds.push(cell);
       }
     }
 
-    this.blankSlot = this.scene.add.rectangle(0, 0, this.cellSize - 20, this.cellSize - 20, 0x0a1630, 0.28);
+    this.blankSlot = this.scene.add.rectangle(
+      0,
+      0,
+      this.cellSize - 20,
+      this.cellSize - 20,
+      0x0a1630,
+      0.28,
+    );
     this.blankSlot.setStrokeStyle(3, 0x5fe2ff, 0.2);
     this.blankSlot.setDepth(23);
     this.blankSlot.setInteractive({ useHandCursor: true });
@@ -175,22 +219,48 @@ export default class TileBoard {
 
     for (let value = 1; value < this.size * this.size; value += 1) {
       const container = this.scene.add.container(0, 0);
-      const glow = this.scene.add.rectangle(0, 0, this.cellSize - 18, this.cellSize - 18, 0x65f2ff, 0.06);
-      const plate = this.scene.add.rectangle(0, 0, this.cellSize - 24, this.cellSize - 24, 0x18274a, 0.94);
+      const glow = this.scene.add.rectangle(
+        0,
+        0,
+        this.cellSize - 18,
+        this.cellSize - 18,
+        0x65f2ff,
+        0.06,
+      );
+      const plate = this.scene.add.rectangle(
+        0,
+        0,
+        this.cellSize - 24,
+        this.cellSize - 24,
+        0x18274a,
+        0.94,
+      );
       plate.setStrokeStyle(2, 0x59dfff, 0.42);
       const label = this.scene.add.text(0, 0, String(value), {
         fontFamily: "Arial Black, Arial",
         fontSize: `${Math.max(44, Math.round(this.cellSize * 0.28))}px`,
         color: "#ffffff",
-      }).setOrigin(0.5);
+      });
+      label.setOrigin(0.5);
       container.add([glow, plate, label]);
       container.setSize(this.cellSize, this.cellSize);
       container.setDepth(30);
-      container.setInteractive(new Phaser.Geom.Rectangle(-this.cellSize / 2, -this.cellSize / 2, this.cellSize, this.cellSize), Phaser.Geom.Rectangle.Contains);
-      container.on("pointerdown", () => {
+
+      const inputZone = this.scene.add.rectangle(
+        0,
+        0,
+        this.cellSize + 10,
+        this.cellSize + 10,
+        0xffffff,
+        0.001,
+      );
+      inputZone.setDepth(34);
+      inputZone.setInteractive({ useHandCursor: true });
+      inputZone.on("pointerdown", () => {
         void this.handleTileTap(value);
       });
-      this.tileVisuals.set(value, { container, glow, plate, label });
+
+      this.tileVisuals.set(value, { container, glow, plate, label, inputZone });
     }
   }
 
@@ -230,13 +300,16 @@ export default class TileBoard {
 
     this.inputLocked = true;
     this.movesLeft = Math.max(0, this.movesLeft - 1);
+    const movedValue = this.selectedTileValue;
     const beforeCorrect = this.countCorrectTiles(this.tiles);
+    const beforeLockedRows = new Set(this.getLockedRows(this.tiles));
+    const start = this.getCellCenterFromIndex(tileIndex);
+    const target = this.getCellCenterFromIndex(emptyIndex);
 
-    this.tiles[emptyIndex] = this.selectedTileValue;
+    this.tiles[emptyIndex] = movedValue;
     this.tiles[tileIndex] = 0;
 
-    const visual = this.tileVisuals.get(this.selectedTileValue);
-    const target = this.getCellCenterFromIndex(emptyIndex);
+    const visual = this.tileVisuals.get(movedValue);
     const ring = this.scene.add.image(target.x, target.y, "impact_ring");
     ring.setTint(0xff4ed0);
     ring.setDepth(40);
@@ -250,6 +323,12 @@ export default class TileBoard {
         duration: 170,
         ease: "Cubic.easeOut",
       }),
+      this.tweenPromise(visual?.inputZone, {
+        x: target.x,
+        y: target.y,
+        duration: 170,
+        ease: "Cubic.easeOut",
+      }),
       this.tweenPromise(ring, {
         alpha: 0,
         scaleX: 1.14,
@@ -257,18 +336,35 @@ export default class TileBoard {
         duration: 220,
         ease: "Cubic.easeOut",
       }),
+      this.playSlideTrail(start, target),
     ]);
     ring.destroy();
 
     this.selectedTileValue = null;
     const afterCorrect = this.countCorrectTiles(this.tiles);
-    this.matchedTiles = Math.max(0, afterCorrect - (this.tiles[this.tiles.length - 1] === 0 ? 1 : 0));
-    this.score += 60 + Math.max(0, afterCorrect - beforeCorrect) * 120;
+    const deltaCorrect = Math.max(0, afterCorrect - beforeCorrect);
+    const lockedRows = this.getLockedRows(this.tiles);
+    const newLocks = lockedRows.filter((row) => !beforeLockedRows.has(row));
+    this.matchedTiles = this.countAlignedTiles(this.tiles);
+
+    if (deltaCorrect > 0 || newLocks.length > 0) {
+      this.combo += 1;
+      this.maxCombo = Math.max(this.maxCombo, this.combo);
+      this.score += 55 + deltaCorrect * 115 + newLocks.length * 180 + this.combo * 16;
+    } else {
+      this.combo = 0;
+      this.score += 14;
+    }
+
     this.refreshTileVisuals();
+    if (newLocks.length > 0) {
+      await Promise.all(newLocks.map((row) => this.playRowLock(row)));
+    }
     this.emitState();
 
     if (isTilePuzzleSolved(this.tiles)) {
       this.status = "complete";
+      this.score += 260 + this.movesLeft * 18;
       await this.playCompletion();
       this.emitState();
       this.bridge?.onComplete?.(this.snapshotState());
@@ -291,34 +387,102 @@ export default class TileBoard {
   private refreshTileVisuals() {
     const emptyIndex = this.tiles.indexOf(0);
     const blankCenter = this.getCellCenterFromIndex(emptyIndex);
-    this.blankSlot?.setPosition(blankCenter.x, blankCenter.y);
+    const movableValues = this.getMovableTileValues(this.tiles);
+    const lockedRows = new Set(this.getLockedRows(this.tiles));
 
-    const selectedIndex = this.selectedTileValue === null ? -1 : this.tiles.indexOf(this.selectedTileValue);
+    this.blankSlot?.setPosition(blankCenter.x, blankCenter.y);
+    const selectedIndex =
+      this.selectedTileValue === null ? -1 : this.tiles.indexOf(this.selectedTileValue);
     const selectedCanMove = selectedIndex >= 0 && this.areAdjacent(selectedIndex, emptyIndex);
-    this.blankSlot?.setFillStyle(selectedCanMove ? 0x143a5f : 0x0a1630, selectedCanMove ? 0.44 : 0.28);
-    this.blankSlot?.setStrokeStyle(3, selectedCanMove ? 0xffe86b : 0x5fe2ff, selectedCanMove ? 0.62 : 0.2);
+    this.blankSlot?.setFillStyle(selectedCanMove ? 0x173f62 : 0x0a1630, selectedCanMove ? 0.48 : 0.3);
+    this.blankSlot?.setStrokeStyle(
+      3,
+      selectedCanMove ? 0xffe86b : 0x5fe2ff,
+      selectedCanMove ? 0.68 : 0.24,
+    );
+
+    for (let row = 0; row < this.size; row += 1) {
+      const rail = this.rowLockRails[row];
+      const locked = lockedRows.has(row);
+      rail.setFillStyle(0xc8ff4d, locked ? 0.08 : 0);
+      rail.setStrokeStyle(2, 0xeaffa0, locked ? 0.22 : 0);
+    }
+
+    for (let index = 0; index < this.tiles.length; index += 1) {
+      const row = Math.floor(index / this.size);
+      const isBlank = this.tiles[index] === 0;
+      const cell = this.cellBackgrounds[index];
+      const rowLocked = lockedRows.has(row);
+      const movableCell = !isBlank && movableValues.has(this.tiles[index]);
+
+      cell.setFillStyle(
+        rowLocked ? 0x132713 : movableCell ? 0x13283f : isBlank ? 0x0b1324 : 0x101e34,
+        rowLocked ? 0.82 : movableCell ? 0.84 : isBlank ? 0.42 : 0.78,
+      );
+      cell.setStrokeStyle(
+        2,
+        rowLocked ? 0xc8ff4d : movableCell ? 0x65f2ff : isBlank ? 0xffe86b : 0x2d4d79,
+        rowLocked ? 0.42 : movableCell ? 0.4 : isBlank ? 0.18 : 0.36,
+      );
+    }
 
     for (let index = 0; index < this.tiles.length; index += 1) {
       const value = this.tiles[index];
-      if (value === 0) continue;
+      if (value === 0) {
+        continue;
+      }
+
       const visual = this.tileVisuals.get(value);
-      if (!visual) continue;
+      if (!visual) {
+        continue;
+      }
+
       const center = this.getCellCenterFromIndex(index);
-      visual.container.setPosition(center.x, center.y);
+      const row = Math.floor(index / this.size);
       const isLocked = value === index + 1;
       const isSelected = value === this.selectedTileValue;
-      visual.plate.setFillStyle(isLocked ? 0x213b1d : isSelected ? 0x2b2354 : 0x18274a, 0.96);
-      visual.plate.setStrokeStyle(2, isLocked ? 0xc8ff4d : isSelected ? 0xffe86b : 0x59dfff, isLocked ? 0.82 : isSelected ? 0.84 : 0.42);
-      visual.glow.setFillStyle(isLocked ? 0xc8ff4d : isSelected ? 0xffe86b : 0x65f2ff, isLocked ? 0.16 : isSelected ? 0.2 : 0.05);
-      visual.label.setColor(isLocked ? "#f6ffcf" : isSelected ? "#fff7cc" : "#ffffff");
+      const isMovable = movableValues.has(value);
+      const rowLocked = lockedRows.has(row);
+
+      visual.container.setPosition(center.x, center.y);
+      visual.inputZone.setPosition(center.x, center.y);
+      visual.container.setScale(isSelected ? 1.04 : isMovable ? 1.015 : 1);
+      visual.plate.setFillStyle(
+        rowLocked ? 0x1f391a : isLocked ? 0x213b1d : isSelected ? 0x2b2354 : isMovable ? 0x1b3051 : 0x18274a,
+        0.96,
+      );
+      visual.plate.setStrokeStyle(
+        2,
+        rowLocked ? 0xdfff8a : isLocked ? 0xc8ff4d : isSelected ? 0xffe86b : isMovable ? 0x92f7ff : 0x59dfff,
+        rowLocked ? 0.9 : isLocked ? 0.82 : isSelected ? 0.84 : isMovable ? 0.62 : 0.42,
+      );
+      visual.glow.setFillStyle(
+        rowLocked ? 0xc8ff4d : isLocked ? 0xc8ff4d : isSelected ? 0xffe86b : isMovable ? 0x65f2ff : 0x65f2ff,
+        rowLocked ? 0.22 : isLocked ? 0.16 : isSelected ? 0.2 : isMovable ? 0.14 : 0.05,
+      );
+      visual.label.setColor(
+        rowLocked ? "#f6ffcf" : isLocked ? "#f6ffcf" : isSelected ? "#fff7cc" : isMovable ? "#dffcff" : "#ffffff",
+      );
     }
+  }
+
+  private countAlignedTiles(tiles: number[]) {
+    let aligned = 0;
+    for (let index = 0; index < tiles.length - 1; index += 1) {
+      if (tiles[index] === index + 1) {
+        aligned += 1;
+      }
+    }
+    return aligned;
   }
 
   private countCorrectTiles(tiles: number[]) {
     let correct = 0;
     for (let index = 0; index < tiles.length; index += 1) {
       if (index === tiles.length - 1) {
-        if (tiles[index] === 0) correct += 1;
+        if (tiles[index] === 0) {
+          correct += 1;
+        }
         continue;
       }
       if (tiles[index] === index + 1) {
@@ -328,8 +492,52 @@ export default class TileBoard {
     return correct;
   }
 
+  private getLockedRows(tiles: number[]) {
+    const rows: number[] = [];
+    for (let row = 0; row < this.size; row += 1) {
+      let rowSolved = true;
+      for (let col = 0; col < this.size; col += 1) {
+        const index = row * this.size + col;
+        const expected = index === tiles.length - 1 ? 0 : index + 1;
+        if (tiles[index] !== expected) {
+          rowSolved = false;
+          break;
+        }
+      }
+      if (rowSolved) {
+        rows.push(row);
+      }
+    }
+    return rows;
+  }
+
+  private getAdjacentIndices(index: number) {
+    const row = Math.floor(index / this.size);
+    const col = index % this.size;
+    const neighbors: number[] = [];
+
+    if (row > 0) neighbors.push(index - this.size);
+    if (row < this.size - 1) neighbors.push(index + this.size);
+    if (col > 0) neighbors.push(index - 1);
+    if (col < this.size - 1) neighbors.push(index + 1);
+
+    return neighbors;
+  }
+
+  private getMovableTileValues(tiles: number[]) {
+    const emptyIndex = tiles.indexOf(0);
+    return new Set(
+      this.getAdjacentIndices(emptyIndex)
+        .map((index) => tiles[index])
+        .filter((value) => value !== 0),
+    );
+  }
+
   private getProgressPercent() {
-    return Math.max(0, Math.min(100, Math.round((this.countCorrectTiles(this.tiles) / this.tiles.length) * 100)));
+    return Math.max(
+      0,
+      Math.min(100, Math.round((this.countCorrectTiles(this.tiles) / this.tiles.length) * 100)),
+    );
   }
 
   private async playInvalidMove(tileIndex: number) {
@@ -356,8 +564,68 @@ export default class TileBoard {
     this.inputLocked = false;
   }
 
+  private async playSlideTrail(
+    start: { x: number; y: number },
+    target: { x: number; y: number },
+  ) {
+    const trail = this.scene.add.graphics();
+    trail.setDepth(39);
+    trail.lineStyle(Math.max(10, Math.round(this.cellSize * 0.14)), 0x8ff7ff, 0.34);
+    trail.beginPath();
+    trail.moveTo(start.x, start.y);
+    trail.lineTo(target.x, target.y);
+    trail.strokePath();
+
+    const head = this.scene.add.circle(
+      start.x,
+      start.y,
+      Math.max(6, Math.round(this.cellSize * 0.09)),
+      0xe8ffff,
+      0.88,
+    );
+    head.setDepth(40);
+
+    await Promise.all([
+      this.tweenPromise(trail, {
+        alpha: 0,
+        duration: 220,
+        ease: "Quad.easeOut",
+      }),
+      this.tweenPromise(head, {
+        x: target.x,
+        y: target.y,
+        alpha: 0,
+        scaleX: 1.45,
+        scaleY: 1.45,
+        duration: 190,
+        ease: "Cubic.easeOut",
+      }),
+    ]);
+
+    trail.destroy();
+    head.destroy();
+  }
+
+  private async playRowLock(row: number) {
+    const rail = this.rowLockRails[row];
+    if (!rail) {
+      return;
+    }
+
+    await this.tweenPromise(rail, {
+      alpha: { from: 0.28, to: 0.08 },
+      duration: 300,
+      yoyo: true,
+      ease: "Sine.easeInOut",
+    });
+  }
+
   private async playCompletion() {
-    const burst = this.scene.add.image(BOARD_VIEWPORT_CENTER_X, BOARD_VIEWPORT_CENTER_Y, "combo_burst");
+    const burst = this.scene.add.image(
+      BOARD_VIEWPORT_CENTER_X,
+      BOARD_VIEWPORT_CENTER_Y,
+      "combo_burst",
+    );
     burst.setTint(0xff4ed0);
     burst.setDepth(42);
     burst.setAlpha(0.66);
@@ -409,7 +677,10 @@ export default class TileBoard {
       objectiveDescription: this.objective.description,
       objectiveValue,
       objectiveTarget: this.objective.targetValue,
-      objectiveProgressPercent: getObjectiveProgressPercent(objectiveValue, this.objective.targetValue),
+      objectiveProgressPercent: getObjectiveProgressPercent(
+        objectiveValue,
+        this.objective.targetValue,
+      ),
       clearedByColor: emptyColorProgress(),
       durationMs: Math.max(0, Math.round(this.scene.time.now - this.runStartedAtMs)),
       seed: this.sessionSeed,
@@ -459,4 +730,3 @@ export default class TileBoard {
     });
   }
 }
-
