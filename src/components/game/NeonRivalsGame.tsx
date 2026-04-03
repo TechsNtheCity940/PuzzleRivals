@@ -44,6 +44,9 @@ export default function NeonRivalsGame({
   const bridgeRef = useRef<NeonRivalsGameBridge>({});
   const [isBooting, setIsBooting] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const matchPuzzleType = matchContext?.puzzleType ?? null;
+  const matchDifficulty = matchContext?.difficulty ?? null;
+  const matchStage = matchContext?.stage ?? null;
 
   useEffect(() => {
     bridgeRef.current = {
@@ -72,6 +75,15 @@ export default function NeonRivalsGame({
           return;
         }
 
+        const resolvedMatchContext =
+          matchPuzzleType && matchDifficulty && matchStage
+            ? {
+                puzzleType: matchPuzzleType,
+                difficulty: matchDifficulty,
+                stage: matchStage,
+              }
+            : null;
+
         gameRef.current = createNeonRivalsGame({
           parent: hostRef.current,
           bridge: {
@@ -87,7 +99,7 @@ export default function NeonRivalsGame({
           themeLabel,
           mode,
           hudVariant,
-          matchContext,
+          matchContext: resolvedMatchContext,
         });
       } catch (error) {
         if (!cancelled) {
@@ -108,7 +120,16 @@ export default function NeonRivalsGame({
       gameRef.current?.destroy(true);
       gameRef.current = null;
     };
-  }, [hudVariant, matchContext, mode, playerName, sessionSeed, themeLabel]);
+  }, [
+    hudVariant,
+    matchDifficulty,
+    matchPuzzleType,
+    matchStage,
+    mode,
+    playerName,
+    sessionSeed,
+    themeLabel,
+  ]);
 
   return (
     <div className={cn("neon-rivals-game-root", className)}>
@@ -116,17 +137,23 @@ export default function NeonRivalsGame({
         <div ref={hostRef} className="neon-rivals-game-stage" />
       </div>
       {isBooting && !loadError ? (
-        <div className="neon-rivals-game-overlay">
-          <div className="neon-rivals-game-status-card">
-            <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-primary">
-              Booting Arena board
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Loading Neon Rivals board layers, tile systems, and live objective
-              rules.
-            </p>
+        hudVariant === "match" ? (
+          <div className="neon-rivals-game-overlay neon-rivals-game-overlay--match">
+            <div className="neon-rivals-game-boot-pill">Booting board...</div>
           </div>
-        </div>
+        ) : (
+          <div className="neon-rivals-game-overlay">
+            <div className="neon-rivals-game-status-card">
+              <p className="font-hud text-[11px] uppercase tracking-[0.18em] text-primary">
+                Booting Arena board
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Loading Neon Rivals board layers, tile systems, and live objective
+                rules.
+              </p>
+            </div>
+          </div>
+        )
       ) : null}
       {loadError ? (
         <div className="neon-rivals-game-overlay">

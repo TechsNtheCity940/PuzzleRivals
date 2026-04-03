@@ -3797,6 +3797,30 @@
   pointer-events: none;
 }
 
+.neon-rivals-game-overlay--match {
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 0.75rem;
+}
+
+.neon-rivals-game-boot-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(95, 226, 255, 0.16);
+  background: rgba(6, 12, 24, 0.86);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.24);
+  padding: 0.45rem 0.8rem;
+  font-family: var(--font-hud, inherit);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: hsl(var(--primary));
+}
+
 .neon-rivals-game-status-card {
   max-width: 22rem;
   border-radius: 24px;
@@ -4204,4 +4228,5 @@
     width: min(100%, calc(100dvh - 9.6rem), 1080px);
   }
 }
+
 
