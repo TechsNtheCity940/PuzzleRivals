@@ -187,6 +187,10 @@ function RotatePipesBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
     if (props.disabled || solved) return;
 
     setGrid((currentGrid) => {
+      if (currentGrid[rowIndex]?.[colIndex]?.isSource || currentGrid[rowIndex]?.[colIndex]?.isSink) {
+        return currentGrid;
+      }
+
       const rotated = currentGrid.map((row, r) =>
         row.map((cell, c) => (r === rowIndex && c === colIndex ? rotatePipeCell(cell) : cell)),
       );
@@ -1558,3 +1562,5 @@ const MatchPuzzleBoard = memo(function MatchPuzzleBoard(props: MatchPuzzleBoardP
 });
 
 export default MatchPuzzleBoard;
+
+
