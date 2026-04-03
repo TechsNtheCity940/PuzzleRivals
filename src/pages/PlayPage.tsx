@@ -14,6 +14,8 @@ import { useAuthDialog } from "@/components/auth/AuthDialogContext";
 import PageHeader from "@/components/layout/PageHeader";
 import PuzzleTileButton from "@/components/layout/PuzzleTileButton";
 import { Button } from "@/components/ui/button";
+import type { HeadToHeadPresetId } from "@/game/head-to-head/types";
+import { HEAD_TO_HEAD_PRESETS } from "@/game/head-to-head/config";
 import {
   loadDiscoveryContent,
   type GameContentResolution,
@@ -26,6 +28,7 @@ import type { DailyChallenge } from "@/lib/types";
 
 type PlayMode =
   | "ranked"
+  | "head_to_head"
   | "casual"
   | "royale"
   | "revenge"
@@ -44,6 +47,13 @@ const MODES = [
     icon: Swords,
     desc: "4-player ladder lobby",
     status: "Armed",
+  },
+  {
+    id: "head_to_head" as PlayMode,
+    label: "Head 2 Head",
+    icon: Zap,
+    desc: "1v1 score race",
+    status: "Duel",
   },
   {
     id: "casual" as PlayMode,
@@ -111,6 +121,7 @@ function canPrewarmNeonRivals() {
 
 function primeNeonRivalsRoute(assets = true) {
   void import("./NeonRivalsGamePage");
+  void import("./HeadToHeadPage");
   if (assets) {
     void primeNeonRivalsExperience();
   }
@@ -123,6 +134,7 @@ export default function PlayPage() {
   const { lastArenaMode, lowBandwidthMode } = useAppPreferences();
   const accountNeedsSync = hasSession && !user;
   const [selectedMode, setSelectedMode] = useState<PlayMode>("ranked");
+  const [headToHeadPreset, setHeadToHeadPreset] = useState<HeadToHeadPresetId>("ranked");
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(
     null,
   );
@@ -195,6 +207,17 @@ export default function PlayPage() {
   }, [lowBandwidthMode]);
 
   const selectedConfig = useMemo(() => {
+    if (selectedMode === "head_to_head") {
+      return {
+        lobby: "1v1 Duel",
+        steps: [
+          "Both players race the same board family.",
+          "Strong solves charge attacks and defenses.",
+          `First to ${HEAD_TO_HEAD_PRESETS[headToHeadPreset].targetScore} wins.`,
+        ],
+      };
+    }
+
     const revenge = selectedMode === "revenge";
     return {
       lobby: revenge ? "2 Players" : "4 Players",
@@ -206,11 +229,14 @@ export default function PlayPage() {
           ]
         : ["Random ranked puzzle", "12s practice warm-up", "Fresh live board"],
     };
-  }, [selectedMode]);
+  }, [headToHeadPreset, selectedMode]);
 
   const selectedModeMeta = MODES.find((mode) => mode.id === selectedMode);
   const arenaHref = `/play/neon-rival?mode=${lastArenaMode}`;
-  const queueHref = `/match?mode=${selectedMode}`;
+  const queueHref =
+    selectedMode === "head_to_head"
+      ? `/play/head-to-head?preset=${headToHeadPreset}`
+      : `/match?mode=${selectedMode}`;
 
   return (
     <div className="page-screen">
@@ -243,7 +269,9 @@ export default function PlayPage() {
                   {selectedModeMeta?.label} mode locked in
                 </h2>
                 <p className="hero-subtitle mt-3">
-                  Ranked uses a random lobby-selected Phaser board with a practice warm-up, then a live battle. Other queues keep the same fast-entry shell.
+                  {selectedMode === "head_to_head"
+                    ? "Head 2 Head runs as a clean 1v1 Phaser duel. One random puzzle family is locked in, both players race to the preset score target, and strong solves power the pressure tools."
+                    : "Ranked uses a random lobby-selected Phaser board with a practice warm-up, then a live battle. Other queues keep the same fast-entry shell."}
                 </p>
               </div>
               <Button
@@ -269,7 +297,9 @@ export default function PlayPage() {
                   : accountNeedsSync
                     ? "Sign Out To Retry"
                     : canSave
-                      ? "Join Queue"
+                      ? selectedMode === "head_to_head"
+                        ? "Enter Duel"
+                        : "Join Queue"
                       : "Sign Up To Compete"}
               </Button>
             </div>
@@ -300,7 +330,7 @@ export default function PlayPage() {
                 <div className="command-panel-soft px-4 py-3 text-sm leading-6 text-muted-foreground">
                   {lowBandwidthMode
                     ? "Low-bandwidth mode is active. The Phaser bundle will only load when you explicitly open the Arena route."
-                    : "Ranked queue priming stays enabled so the Phaser board is warm before the match route loads."}
+                    : "Route priming stays enabled so the Phaser board is warm before the duel or ranked route loads."}
                 </div>
               </div>
             </div>
@@ -366,6 +396,39 @@ export default function PlayPage() {
               </Button>
             </section>
 
+            {selectedMode === "head_to_head" ? (
+              <section className="section-panel">
+                <div className="section-header">
+                  <div>
+                    <p className="section-kicker">Head 2 Head Preset</p>
+                    <h2 className="section-title">Pick the score target</h2>
+                  </div>
+                  <Zap size={18} className="text-primary" />
+                </div>
+                <div className="section-stack">
+                  {Object.values(HEAD_TO_HEAD_PRESETS).map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setHeadToHeadPreset(preset.id)}
+                      className={`command-panel-soft p-4 text-left transition ${headToHeadPreset === preset.id ? "border-primary/40 bg-primary/10" : ""}`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="section-kicker">{preset.label}</p>
+                          <p className="mt-2 text-lg font-black text-white">First to {preset.targetScore}</p>
+                        </div>
+                        <span className="font-hud text-[10px] uppercase tracking-[0.16em] text-primary">
+                          {headToHeadPreset === preset.id ? "Locked" : "Set"}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-muted-foreground">{preset.description}</p>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
             <section className="section-panel">
               <div className="section-header">
                 <div>
@@ -377,17 +440,23 @@ export default function PlayPage() {
                 <Sparkles size={18} className="text-primary" />
               </div>
               <div className="section-stack">
-                {(selectedMode === "revenge"
+                {(selectedMode === "head_to_head"
                   ? [
-                      "Face the rival who just beat you in a focused rematch.",
-                      "Battle through a fresh board with the same pressure.",
-                      "Win the rematch to swing momentum back your way.",
+                      "Both players race the same puzzle family at the same time.",
+                      "Strong solves charge short disruptive attacks and tactical defenses.",
+                      "First to the preset score wins the duel.",
                     ]
-                  : [
-                      "Ranked matches drop you into fast four-player puzzle battles.",
-                      "Each round brings a new puzzle and a fresh leaderboard race.",
-                      "Climb faster with strong finishes, clean solves, and fewer mistakes.",
-                    ]
+                  : selectedMode === "revenge"
+                    ? [
+                        "Face the rival who just beat you in a focused rematch.",
+                        "Battle through a fresh board with the same pressure.",
+                        "Win the rematch to swing momentum back your way.",
+                      ]
+                    : [
+                        "Ranked matches drop you into fast four-player puzzle battles.",
+                        "Each round brings a new puzzle and a fresh leaderboard race.",
+                        "Climb faster with strong finishes, clean solves, and fewer mistakes.",
+                      ]
                 ).map((item) => (
                   <div
                     key={item}

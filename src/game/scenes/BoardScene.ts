@@ -30,6 +30,7 @@ interface NeonRivalsSessionConfig {
   mode: NeonRivalsRunMode;
   hudVariant?: "standalone" | "match";
   matchContext?: NeonRivalsMatchContext | null;
+  difficultyOverride?: 1 | 2 | 3 | 4 | 5 | null;
 }
 
 interface ArenaBoardOptions {
@@ -133,7 +134,7 @@ export default class BoardScene extends Phaser.Scene {
       bridge: session.bridge,
       seed: session.sessionSeed,
       mode: session.mode,
-      difficulty: session.matchContext?.difficulty,
+      difficulty: session.difficultyOverride ?? session.matchContext?.difficulty,
       puzzleType: session.matchContext?.puzzleType,
     });
     this.board.create();

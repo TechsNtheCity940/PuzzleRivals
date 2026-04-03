@@ -17,6 +17,7 @@ interface CreateNeonRivalsGameOptions {
   mode: NeonRivalsRunMode;
   hudVariant?: "standalone" | "match";
   matchContext?: NeonRivalsMatchContext | null;
+  difficultyOverride?: 1 | 2 | 3 | 4 | 5 | null;
 }
 
 export function createNeonRivalsGame({
@@ -28,6 +29,7 @@ export function createNeonRivalsGame({
   mode,
   hudVariant = "standalone",
   matchContext = null,
+  difficultyOverride = null,
 }: CreateNeonRivalsGameOptions) {
   return new Phaser.Game({
     type: Phaser.AUTO,
@@ -57,6 +59,7 @@ export function createNeonRivalsGame({
           mode,
           hudVariant,
           matchContext,
+          difficultyOverride,
         });
       },
     },

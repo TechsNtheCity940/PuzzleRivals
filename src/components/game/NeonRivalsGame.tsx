@@ -17,6 +17,7 @@ interface NeonRivalsGameProps {
   mode: NeonRivalsRunMode;
   hudVariant?: "standalone" | "match";
   matchContext?: NeonRivalsMatchContext | null;
+  difficultyOverride?: 1 | 2 | 3 | 4 | 5 | null;
   onStateChange?: (state: NeonRivalsGameState) => void;
   onSubmissionChange?: (
     submission: PuzzleSubmission,
@@ -34,6 +35,7 @@ export default function NeonRivalsGame({
   mode,
   hudVariant = "standalone",
   matchContext = null,
+  difficultyOverride = null,
   onStateChange,
   onSubmissionChange,
 }: NeonRivalsGameProps) {
@@ -100,6 +102,7 @@ export default function NeonRivalsGame({
           mode,
           hudVariant,
           matchContext: resolvedMatchContext,
+          difficultyOverride,
         });
       } catch (error) {
         if (!cancelled) {
@@ -121,6 +124,7 @@ export default function NeonRivalsGame({
       gameRef.current = null;
     };
   }, [
+    difficultyOverride,
     hudVariant,
     matchDifficulty,
     matchPuzzleType,

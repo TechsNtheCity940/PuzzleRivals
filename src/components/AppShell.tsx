@@ -58,8 +58,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
   );
   const isMatchRoute = location.pathname.startsWith("/match");
   const isNeonRivalsRoute = location.pathname.startsWith("/play/neon-rival");
-  const hideHeader = isMatchRoute || isNeonRivalsRoute;
-  const hideBottomNav = isNeonRivalsRoute;
+  const isHeadToHeadRoute = location.pathname.startsWith("/play/head-to-head");
+  const hideHeader = isMatchRoute || isNeonRivalsRoute || isHeadToHeadRoute;
+  const hideBottomNav = isNeonRivalsRoute || isHeadToHeadRoute;
   const accountNeedsSync = hasSession && !user;
   const ownerAccess = isOwnerUser(user);
   const blockedAccount = Boolean(user?.isBlocked);
@@ -395,5 +396,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+
 
 
