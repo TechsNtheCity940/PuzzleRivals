@@ -529,16 +529,20 @@ export default class StrategyBoard {
 
     this.candidateVisuals = this.currentLayout.candidateSquares.map((squareIndex, optionIndex) => {
       const center = this.getSquareCenter(squareIndex);
-      const glow = this.scene.add.rectangle(center.x, center.y, this.cellSize - 8, this.cellSize - 8, palette.candidate, 0.12);
-      const frame = this.scene.add.rectangle(center.x, center.y, this.cellSize - 12, this.cellSize - 12, palette.squareDark, 0.16);
-      frame.setStrokeStyle(2, palette.candidate, 0.72);
-      const label = this.scene.add.text(center.x, center.y, round.options[optionIndex], {
+      const chipHeight = Math.max(18, Math.round(this.cellSize * 0.24));
+      const chipY = center.y + this.cellSize * 0.24;
+      const glow = this.scene.add.rectangle(center.x, center.y, this.cellSize - 8, this.cellSize - 8, palette.candidate, 0.1);
+      const frame = this.scene.add.rectangle(center.x, chipY, this.cellSize - 14, chipHeight, palette.squareDark, 0.48);
+      frame.setStrokeStyle(2, palette.candidate, 0.68);
+      const label = this.scene.add.text(center.x, chipY, round.options[optionIndex], {
         fontFamily: "Chakra Petch, Arial",
-        fontSize: `${Math.max(12, Math.floor(this.cellSize * 0.17))}px`,
+        fontSize: `${Math.max(10, Math.floor(this.cellSize * 0.13))}px`,
         color: "#ffffff",
         align: "center",
-        wordWrap: { width: this.cellSize - 18 },
+        wordWrap: { width: this.cellSize - 24 },
+        lineSpacing: 2,
       }).setOrigin(0.5).setDepth(35);
+      label.setShadow(0, 1, "#02060f", 6, true, true);
       glow.setDepth(33);
       frame.setDepth(34);
       glow.setInteractive();
@@ -553,18 +557,18 @@ export default class StrategyBoard {
 
   private getRoundHelperText() {
     if (this.mode === "checkers_trap") {
-      return "Tap the glowing landing square that completes the strongest jump line.";
+      return "Hover target squares to preview the jump lane, then tap the landing square that finishes the trap.";
     }
     if (this.mode === "chess_endgame") {
-      return "Read the ending plan, then tap the square that converts the position cleanly.";
+      return "Hover candidate targets to preview the route, then tap the square that converts the ending cleanly.";
     }
     if (this.mode === "chess_opening") {
-      return "Development, king safety, and center control matter more than flashy early attacks.";
+      return "Hover each target square to preview the piece path. Development, king safety, and center control still decide the line.";
     }
     if (this.mode === "chess_mate_net") {
-      return "Look for forcing checks and covered escape squares before you commit the final hit.";
+      return "Hover target squares to trace the mating route before you commit the final forcing move.";
     }
-    return "Tap the glowing board target that matches the winning tactical move.";
+    return "Hover the glowing target squares to trace the tactical route, then commit the winning board move.";
   }
 
   private clearRoundVisuals() {
@@ -728,7 +732,7 @@ export default class StrategyBoard {
 
     this.inputLocked = true;
     this.movesLeft = Math.max(0, this.movesLeft - 1);
-    this.answers.push(optionIndex);
+    this.answers[this.roundIndex] = optionIndex;
     const round = this.rounds[this.roundIndex];
     const selected = this.candidateVisuals[optionIndex];
     const palette = boardPalette(this.mode);
@@ -758,7 +762,8 @@ export default class StrategyBoard {
     }
 
     this.combo = 0;
-    this.score += 35;
+    const penalty = 105 + this.roundIndex * 12;
+    this.score = Math.max(0, this.score - penalty);
     await this.playWrongMove(selected, palette.wrong);
 
     if (this.movesLeft <= 0) {

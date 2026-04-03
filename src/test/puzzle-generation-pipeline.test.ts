@@ -1,3 +1,4 @@
+import { RANKED_ARENA_PUZZLE_TYPES } from "../../shared/ranked-arena.ts";
 import { createAuthoritativePuzzleSelection } from "../../supabase/functions/_shared/puzzle.ts";
 import { generatePuzzleTemplate } from "../../supabase/functions/_shared/puzzle-generator.ts";
 
@@ -51,9 +52,27 @@ describe("supabase puzzle generation pipeline", () => {
       selectionSeed: "ranked-mode-cooldown",
     });
 
-    expect(template.weights.rotate_pipes).toBe(0.05);
-    expect(template.weights.rotate_pipes).toBeLessThan(template.weights.pathfinder);
+    expect(template.weights.rotate_pipes).toBe(0);
+    expect(template.weights.rotate_pipes).toBeLessThan(template.weights.number_grid);
     expect(template.rationale.some((entry) => entry.includes("same-mode cooldown"))).toBe(true);
+  });
+
+  it("keeps ranked primary selections inside the live arena pool", () => {
+    const template = generatePuzzleTemplate({
+      mode: "ranked",
+      averageElo: 1900,
+      players: [
+        createPlayer(),
+        createPlayer({ userId: "player-2", bestPuzzleType: "number_grid", worstPuzzleType: "pattern_match" }),
+      ],
+      recentPuzzleTypes: ["chess_tactic", "maze", "tile_slide"],
+      sameModeRecentPuzzleTypes: ["chess_tactic", "maze", "tile_slide"],
+      selectionSeed: "ranked-live-pool",
+    });
+
+    expect(RANKED_ARENA_PUZZLE_TYPES).toContain(template.primaryType);
+    expect(template.weights.word_scramble).toBe(0);
+    expect(template.weights.pattern_match).toBe(0);
   });
 
   it("produces the same template for the same seeded context", () => {

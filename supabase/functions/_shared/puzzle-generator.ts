@@ -1,3 +1,4 @@
+import { RANKED_ARENA_PUZZLE_TYPES } from "../../../shared/ranked-arena.ts";
 import type { MatchPlayablePuzzleType } from "./puzzle.ts";
 
 export interface PuzzleGeneratorPlayerProfile {
@@ -64,6 +65,7 @@ const ALL_PUZZLE_TYPES: MatchPlayablePuzzleType[] = [
 ];
 
 const MIN_WEIGHT = 0.05;
+const RANKED_ONLY_PUZZLE_TYPES = [...RANKED_ARENA_PUZZLE_TYPES] as MatchPlayablePuzzleType[];
 
 class DeterministicRandom {
   private seed: number;
@@ -78,9 +80,13 @@ class DeterministicRandom {
   }
 }
 
-function createWeightMap(baseWeight = 1) {
+function createWeightMap(
+  baseWeight = 1,
+  eligibleTypes: MatchPlayablePuzzleType[] = ALL_PUZZLE_TYPES,
+) {
+  const eligibleTypeSet = new Set(eligibleTypes);
   return Object.fromEntries(
-    ALL_PUZZLE_TYPES.map((type) => [type, baseWeight]),
+    ALL_PUZZLE_TYPES.map((type) => [type, eligibleTypeSet.has(type) ? baseWeight : 0]),
   ) as Record<MatchPlayablePuzzleType, number>;
 }
 
@@ -152,7 +158,9 @@ function applyReplayPrevention(
     const priorRepeats = repeatCounts.get(type) ?? 0;
     const recencyPenalty = clamp(4.5 - index * 0.6, 1.25, 4.5);
     const repeatPenalty = priorRepeats * 1.4;
-    nextWeights[type] = Math.max(MIN_WEIGHT, nextWeights[type] - recencyPenalty - repeatPenalty);
+    const currentWeight = nextWeights[type] ?? 0;
+    if (currentWeight <= 0) return;
+    nextWeights[type] = Math.max(MIN_WEIGHT, currentWeight - recencyPenalty - repeatPenalty);
     repeatCounts.set(type, priorRepeats + 1);
   });
 
@@ -183,24 +191,32 @@ function applyModeCooldown(
   const recentlyBlocked = new Set(cooldownWindow.slice(0, 2));
 
   for (const [index, type] of cooldownWindow.entries()) {
+    const currentWeight = nextWeights[type] ?? 0;
+    if (currentWeight <= 0) continue;
+
+    if (index === 0) {
+      nextWeights[type] = 0;
+      continue;
+    }
+
     if (recentlyBlocked.has(type)) {
       nextWeights[type] = MIN_WEIGHT;
       continue;
     }
 
     const cooldownPenalty = clamp(3.25 - index * 0.45, 1.1, 3.25);
-    nextWeights[type] = Math.max(MIN_WEIGHT, nextWeights[type] - cooldownPenalty);
+    nextWeights[type] = Math.max(MIN_WEIGHT, currentWeight - cooldownPenalty);
   }
 
-  rationale.push("same-mode cooldown strongly suppresses puzzle types used in this queue recently");
+  rationale.push("same-mode cooldown blocks the immediate repeat and strongly suppresses puzzle types used in this queue recently");
   return nextWeights;
 }
 
 function buildBalancedWeights(context: PuzzleGeneratorContext) {
-  const baseWeights = createWeightMap(1);
-  const rationale = ["ranked mode balances variety against overplayed puzzle types"];
+  const baseWeights = createWeightMap(1, RANKED_ONLY_PUZZLE_TYPES);
+  const rationale = ["ranked mode balances variety across the live ranked arena puzzle pool"];
 
-  for (const type of ALL_PUZZLE_TYPES) {
+  for (const type of RANKED_ONLY_PUZZLE_TYPES) {
     const lobbyMatches = context.players.reduce(
       (sum, player) => sum + (player.matchesPlayedByType[type] ?? 0),
       0,

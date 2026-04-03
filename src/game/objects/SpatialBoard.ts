@@ -331,7 +331,8 @@ export default class SpatialBoard {
     }
 
     this.combo = 0;
-    this.score += 40;
+    const penalty = 95 + this.roundIndex * 12;
+    this.score = Math.max(0, this.score - penalty);
     await this.playWrongOption(panel);
 
     if (this.movesLeft <= 0) {

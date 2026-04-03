@@ -390,7 +390,8 @@ export default class QuizBoard {
     }
 
     this.combo = 0;
-    this.score += 35;
+    const penalty = 90 + this.roundIndex * 10;
+    this.score = Math.max(0, this.score - penalty);
     await this.playWrongOption(panel, palette.wrong);
 
     if (this.movesLeft <= 0) {

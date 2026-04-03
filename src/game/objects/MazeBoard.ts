@@ -67,6 +67,8 @@ export default class MazeBoard {
   private wallGraphics?: Phaser.GameObjects.Graphics;
   private routeGlowGraphics?: Phaser.GameObjects.Graphics;
   private routeGraphics?: Phaser.GameObjects.Graphics;
+  private forecastGlowGraphics?: Phaser.GameObjects.Graphics;
+  private forecastGraphics?: Phaser.GameObjects.Graphics;
   private scanLine?: Phaser.GameObjects.Rectangle;
   private orbCore?: Phaser.GameObjects.Arc;
   private orbGlow?: Phaser.GameObjects.Arc;
@@ -119,6 +121,8 @@ export default class MazeBoard {
     this.wallGraphics?.destroy();
     this.routeGlowGraphics?.destroy();
     this.routeGraphics?.destroy();
+    this.forecastGlowGraphics?.destroy();
+    this.forecastGraphics?.destroy();
     this.scanLine?.destroy();
     this.orbCore?.destroy();
     this.orbGlow?.destroy();
@@ -163,12 +167,15 @@ export default class MazeBoard {
 
     this.wallGlowGraphics = this.scene.add.graphics().setDepth(26);
     this.wallGraphics = this.scene.add.graphics().setDepth(27);
+    this.forecastGlowGraphics = this.scene.add.graphics().setDepth(28);
+    this.forecastGraphics = this.scene.add.graphics().setDepth(29);
     this.routeGlowGraphics = this.scene.add.graphics().setDepth(30);
     this.routeGraphics = this.scene.add.graphics().setDepth(31);
 
     this.createCells();
     this.drawMazeWalls();
     this.drawRoute();
+    this.updateForecast();
     this.createNodes();
     this.createOrb();
     this.createScanLine();
@@ -191,9 +198,11 @@ export default class MazeBoard {
       });
       zone.on("pointerover", () => {
         this.updateCellStyles(index);
+        this.updateForecast(index);
       });
       zone.on("pointerout", () => {
         this.updateCellStyles();
+        this.updateForecast();
       });
       return { fill, glow, zone };
     });
@@ -314,6 +323,94 @@ export default class MazeBoard {
     this.routeGraphics?.strokePath();
   }
 
+  private updateForecast(hoverIndex?: number) {
+    const canPreviewHover = typeof hoverIndex === "number"
+      && this.isAdjacent(this.currentIndex, hoverIndex)
+      && canMoveInMaze(this.maze, this.currentIndex, hoverIndex);
+    const projected = this.buildForecastPath(canPreviewHover ? hoverIndex : this.currentIndex);
+    const previewPath = canPreviewHover ? [this.currentIndex, ...projected] : projected;
+    this.drawForecast(previewPath.slice(0, Math.min(previewPath.length, 6)));
+  }
+
+  private buildForecastPath(startIndex: number) {
+    if (startIndex === this.maze.goalIndex) {
+      return [startIndex];
+    }
+
+    const queue = [startIndex];
+    const visited = new Set<number>([startIndex]);
+    const parent = new Map<number, number>();
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (current === undefined) {
+        break;
+      }
+
+      const currentRow = Math.floor(current / this.maze.size);
+      const neighbors = [current - this.maze.size, current + 1, current + this.maze.size, current - 1];
+      for (const next of neighbors) {
+        if (next < 0 || next >= this.maze.cells.length) {
+          continue;
+        }
+        if (Math.abs(next - current) === 1 && Math.floor(next / this.maze.size) !== currentRow) {
+          continue;
+        }
+        if (visited.has(next) || !canMoveInMaze(this.maze, current, next)) {
+          continue;
+        }
+
+        visited.add(next);
+        parent.set(next, current);
+        if (next === this.maze.goalIndex) {
+          const path = [next];
+          let cursor = current;
+          while (cursor !== startIndex) {
+            path.push(cursor);
+            cursor = parent.get(cursor) ?? startIndex;
+          }
+          path.push(startIndex);
+          path.reverse();
+          return path;
+        }
+        queue.push(next);
+      }
+    }
+
+    return [startIndex];
+  }
+
+  private drawForecast(path: number[]) {
+    this.forecastGlowGraphics?.clear();
+    this.forecastGraphics?.clear();
+    if (path.length < 2) {
+      return;
+    }
+
+    this.forecastGlowGraphics?.lineStyle(14, 0x5fe2ff, 0.1);
+    this.forecastGraphics?.lineStyle(4, 0x5fe2ff, 0.38);
+
+    const start = this.getCellCenter(path[0]);
+    this.forecastGlowGraphics?.beginPath();
+    this.forecastGlowGraphics?.moveTo(start.x, start.y);
+    this.forecastGraphics?.beginPath();
+    this.forecastGraphics?.moveTo(start.x, start.y);
+
+    for (const cellIndex of path.slice(1)) {
+      const point = this.getCellCenter(cellIndex);
+      this.forecastGlowGraphics?.lineTo(point.x, point.y);
+      this.forecastGraphics?.lineTo(point.x, point.y);
+    }
+
+    this.forecastGlowGraphics?.strokePath();
+    this.forecastGraphics?.strokePath();
+    this.forecastGraphics?.fillStyle(0x5fe2ff, 0.44);
+    for (const cellIndex of path.slice(1)) {
+      const point = this.getCellCenter(cellIndex);
+      this.forecastGraphics?.fillCircle(point.x, point.y, Math.max(4, Math.round(this.cellSize * 0.06)));
+    }
+  }
+
   private registerKeyboard() {
     this.keyboardHandler = (event: KeyboardEvent) => {
       if (event.code === "ArrowUp") {
@@ -372,6 +469,7 @@ export default class MazeBoard {
     this.score += 140 + Math.max(0, this.movesLeft * 4);
     this.drawRoute();
     this.updateCellStyles();
+    this.updateForecast();
     this.emitState();
 
     if (this.currentIndex === this.maze.goalIndex) {
@@ -434,22 +532,40 @@ export default class MazeBoard {
     }
 
     this.inputLocked = true;
+    this.combo = 0;
+    this.score = Math.max(0, this.score - 45);
     const point = this.getCellCenter(targetIndex ?? this.currentIndex);
+    const origin = this.getCellCenter(this.currentIndex);
     const ring = this.scene.add.image(point.x, point.y, "impact_ring");
+    const shock = this.scene.add.graphics().setDepth(35);
+    shock.lineStyle(4, 0xff4d7d, 0.56);
+    shock.beginPath();
+    shock.moveTo(origin.x, origin.y);
+    shock.lineTo(point.x, point.y);
+    shock.strokePath();
     ring.setTint(0xff4d7d);
     ring.setAlpha(0.24);
     ring.setScale(0.28);
     ring.setDepth(34);
     this.scene.cameras.main.shake(100, 0.0015);
-    await this.tweenPromise(ring, {
-      alpha: 0,
-      scaleX: 0.96,
-      scaleY: 0.96,
-      duration: 180,
-      ease: "Quad.easeOut",
-    });
+    await Promise.all([
+      this.tweenPromise(ring, {
+        alpha: 0,
+        scaleX: 0.96,
+        scaleY: 0.96,
+        duration: 180,
+        ease: "Quad.easeOut",
+      }),
+      this.tweenPromise(shock, {
+        alpha: 0,
+        duration: 180,
+        ease: "Quad.easeOut",
+      }),
+    ]);
     ring.destroy();
+    shock.destroy();
     this.inputLocked = false;
+    this.emitState();
   }
 
   private async playCompletion() {

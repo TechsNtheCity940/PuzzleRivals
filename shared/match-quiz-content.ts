@@ -216,6 +216,8 @@ const CHESS_BANK: FixedQuizEntry[] = [
   { prompt: "White to move: a discovered attack wins the queen. Start with?", answer: "Nd5", distractors: ["Qc2", "Re1", "h4"] },
   { prompt: "Black to move: a skewer on the open file wins material. Which move starts it?", answer: "Rc1+", distractors: ["Qg5", "Bb4", "a6"] },
   { prompt: "White to move: force the king onto a mating square with the first check.", answer: "Qh7+", distractors: ["Re1", "Nd5", "a3"] },
+  { prompt: "Black to move: the knight jump forks king and queen. Which move lands it?", answer: "Nc2+", distractors: ["Ne2+", "Qa5+", "Rf2+"] },
+  { prompt: "White to move: deflect the rook defender before the final strike. What starts it?", answer: "Qxd7+", distractors: ["Re7", "Bh6", "Nc6"] },
 ];
 
 const CHECKERS_BANK: FixedQuizEntry[] = [
@@ -225,6 +227,10 @@ const CHECKERS_BANK: FixedQuizEntry[] = [
   { prompt: "Black to move: force the trade that opens your promotion lane.", answer: "F4", distractors: ["B6", "D2", "H4"] },
   { prompt: "Red to move: which jump keeps your back row intact?", answer: "E5", distractors: ["A3", "C7", "G5"] },
   { prompt: "Black to move: set up a king trap on the next turn.", answer: "D4", distractors: ["B2", "F6", "H2"] },
+  { prompt: "Red to move: open the longest forcing jump lane. Which landing square starts it?", answer: "B4", distractors: ["D2", "F4", "H6"] },
+  { prompt: "Black to move: cash in the edge capture before it escapes. Which square do you land on?", answer: "E3", distractors: ["C5", "G5", "A3"] },
+  { prompt: "Red to move: choose the jump that keeps your king lane alive.", answer: "F6", distractors: ["B6", "D4", "H4"] },
+  { prompt: "Black to move: force the recapture so your next piece queens. Which square starts it?", answer: "C3", distractors: ["E5", "G3", "A5"] },
 ];
 
 const DEDUCTION_BANK: FixedQuizEntry[] = [
@@ -243,6 +249,10 @@ const CHESS_ENDGAME_BANK: FixedQuizEntry[] = [
   { prompt: "A king and rook versus king ending normally wins by driving the king to?", answer: "The edge", distractors: ["The center", "A knight square", "A dark square only"] },
   { prompt: "In pawn endings, what often decides if a passed pawn queens first?", answer: "Tempo", distractors: ["Piece color", "Opening theory", "Move notation"] },
   { prompt: "If your rook is active behind a passed pawn, your main idea is usually to?", answer: "Support promotion from behind", distractors: ["Trade your rook", "Hide your king", "Avoid checks entirely"] },
+  { prompt: "King activity in rook endings usually means your king should head toward?", answer: "The center and pawns", distractors: ["The corner only", "Your own back rank", "The enemy rook file only"] },
+  { prompt: "If the defending king is cut off by one file, the attacking side often wants to?", answer: "Bring the king closer", distractors: ["Trade the rook immediately", "Push all pawns blindly", "Repeat checks forever"] },
+  { prompt: "In king and pawn endings, what key square concept tells you whether a lone king can stop the pawn?", answer: "The square of the pawn", distractors: ["The color complex", "The bishop pair", "The rook file"] },
+  { prompt: "When two passed pawns race, what should you compare before pushing?", answer: "Who queens with tempo", distractors: ["Which pawn is prettier", "Whose rook moved first", "The opening variation"] },
 ];
 
 const CHESS_OPENING_BANK: FixedQuizEntry[] = [
@@ -252,6 +262,10 @@ const CHESS_OPENING_BANK: FixedQuizEntry[] = [
   { prompt: "Which is usually better in the opening: moving one piece three times or developing a new piece?", answer: "Developing a new piece", distractors: ["Moving one piece three times", "Early king walk", "Rook pawn push"] },
   { prompt: "What does development usually mean?", answer: "Bringing pieces to active squares", distractors: ["Trading queens early", "Moving only pawns", "Forcing a draw"] },
   { prompt: "Before launching an attack, what opening goal should you usually complete?", answer: "King safety", distractors: ["Pawn storms only", "Edge pawn pushes", "Rook sacrifices"] },
+  { prompt: "When both bishops and knights are undeveloped, what is usually best?", answer: "Develop minor pieces before the queen", distractors: ["Launch a rook pawn", "Walk the king", "Trade your best bishop"] },
+  { prompt: "Why is grabbing a poisoned wing pawn risky in the opening?", answer: "You can fall behind in development", distractors: ["It castles your king", "It guarantees a draw", "It removes central tension"] },
+  { prompt: "In open positions, which piece pair usually improves fastest with active development?", answer: "Bishops", distractors: ["Kings", "Edge pawns", "Only rooks"] },
+  { prompt: "If your opponent ignores development and hunts pawns, your practical reply is usually to?", answer: "Develop with tempo", distractors: ["Copy the greed", "Retreat every piece", "Trade queens immediately"] },
 ];
 
 const CHESS_MATE_NET_BANK: FixedQuizEntry[] = [
@@ -261,6 +275,10 @@ const CHESS_MATE_NET_BANK: FixedQuizEntry[] = [
   { prompt: "The easiest mate nets usually begin by taking away what?", answer: "Escape squares", distractors: ["Material only", "Center pawns", "Opening theory"] },
   { prompt: "If the king has one safe square left, your next move should try to?", answer: "Cover that square with tempo", distractors: ["Trade all pieces", "Push a rook pawn", "Force repetition"] },
   { prompt: "A mating net is strongest when your attack is?", answer: "Forcing and coordinated", distractors: ["Slow and random", "Material-only", "Passive"] },
+  { prompt: "If your queen gives check and the king only has one file left, what matters next?", answer: "Closing the final file", distractors: ["Trading rooks", "Opening the center", "Retreating the bishop"] },
+  { prompt: "Why is a rook on the seventh rank dangerous in mating attacks?", answer: "It cuts escape lanes", distractors: ["It blocks your queen", "It forces stalemate", "It weakens your king"] },
+  { prompt: "When both rooks and queen attack the king box, your first priority is usually to?", answer: "Keep checks forcing", distractors: ["Cash in pawns", "Retreat to defend", "Trade queens"] },
+  { prompt: "A classic mating net often succeeds because the defender cannot do what?", answer: "Create luft in time", distractors: ["Develop a bishop", "Win a pawn", "Trade a knight"] },
 ];
 
 const CAPITALS = [
@@ -278,7 +296,7 @@ const LANDMARKS = [
 
 export function buildGeneratedQuizRounds(kind: QuizPuzzleKind, seed: number, difficulty: number): GeneratedQuizRound[] {
   const rng = new SeededRandom(seed);
-  const totalRounds = Math.min(6, Math.max(5, difficulty + 1));
+  const totalRounds = 10;
 
   switch (kind) {
     case "riddle_choice":

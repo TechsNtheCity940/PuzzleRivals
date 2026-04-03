@@ -67,7 +67,7 @@ describe("Neon Rivals run modes", () => {
     expect(numberObjective.startingMoves).toBe(18);
     expect(numberObjective.targetValue).toBe(100);
     expect(spatialState.boardFamily).toBe("spatial");
-    expect(spatialState.movesLeft).toBe(12);
+    expect(spatialState.movesLeft).toBe(14);
     expect(spatialState.objectiveTarget).toBe(100);
   });
 
@@ -76,9 +76,9 @@ describe("Neon Rivals run modes", () => {
     const checkersState = createInitialGameState("checkers_trap", 91);
 
     expect(chessObjective.boardFamily).toBe("strategy");
-    expect(chessObjective.startingMoves).toBe(10);
+    expect(chessObjective.startingMoves).toBe(14);
     expect(checkersState.boardFamily).toBe("strategy");
-    expect(checkersState.movesLeft).toBe(10);
+    expect(checkersState.movesLeft).toBe(14);
     expect(checkersState.objectiveTarget).toBe(100);
   });
 
@@ -90,7 +90,7 @@ describe("Neon Rivals run modes", () => {
     expect(endgameObjective.boardFamily).toBe("strategy");
     expect(endgameObjective.title).toBe("Chess Endgame");
     expect(quizObjective.boardFamily).toBe("quiz");
-    expect(quizObjective.startingMoves).toBe(10);
+    expect(quizObjective.startingMoves).toBe(14);
     expect(memoryState.boardFamily).toBe("memory");
     expect(memoryState.resourceLabel).toBe("attempts");
   });

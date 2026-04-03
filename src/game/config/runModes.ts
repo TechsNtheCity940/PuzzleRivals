@@ -259,7 +259,7 @@ const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo
     description: "Track anchor blocks mentally. One clean read should light the next board immediately.",
     targetValue: 100,
     targetScore: 1680,
-    startingMoves: 12,
+    startingMoves: 14,
     resourceLabel: "moves",
   },
   riddle_relay: {
@@ -269,7 +269,7 @@ const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo
     description: "Read the prompt, pulse the right answer lane, and keep the board streak alive across the whole relay.",
     targetValue: 100,
     targetScore: 1660,
-    startingMoves: 10,
+    startingMoves: 14,
     resourceLabel: "moves",
   },
   trivia_blitz: {
@@ -279,7 +279,7 @@ const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo
     description: "Facts arrive fast here. Clean streaks bank better rewards than late recoveries.",
     targetValue: 100,
     targetScore: 1690,
-    startingMoves: 10,
+    startingMoves: 14,
     resourceLabel: "moves",
   },
   geography_dash: {
@@ -289,7 +289,7 @@ const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo
     description: "Read the globe board fast. Capitals, countries, and landmarks share the same pressure clock.",
     targetValue: 100,
     targetScore: 1680,
-    startingMoves: 10,
+    startingMoves: 14,
     resourceLabel: "moves",
   },
   science_spark: {
@@ -299,7 +299,7 @@ const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo
     description: "Elements, systems, and core science facts cycle in under the same live answer pressure.",
     targetValue: 100,
     targetScore: 1700,
-    startingMoves: 10,
+    startingMoves: 14,
     resourceLabel: "moves",
   },
   analogy_arc: {
@@ -309,7 +309,7 @@ const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo
     description: "Pattern reading beats guessing. One clean analogy keeps the chain moving.",
     targetValue: 100,
     targetScore: 1670,
-    startingMoves: 10,
+    startingMoves: 14,
     resourceLabel: "moves",
   },
   vocabulary_duel: {
@@ -319,7 +319,7 @@ const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo
     description: "Read fast, but do not rush. Close distractors punish loose taps here.",
     targetValue: 100,
     targetScore: 1710,
-    startingMoves: 10,
+    startingMoves: 14,
     resourceLabel: "moves",
   },
   memory_flash: {
@@ -339,7 +339,7 @@ const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo
     description: "Checks, captures, and threats. The live board target is the answer surface now, not a side list.",
     targetValue: 100,
     targetScore: 1780,
-    startingMoves: 10,
+    startingMoves: 14,
     resourceLabel: "moves",
   },
   checkers_trap: {
@@ -349,7 +349,7 @@ const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo
     description: "Track the capture route, pressure promotion lanes, and bank each solved board before the clock dries up.",
     targetValue: 100,
     targetScore: 1700,
-    startingMoves: 10,
+    startingMoves: 14,
     resourceLabel: "moves",
   },
   chess_endgame: {
@@ -359,7 +359,7 @@ const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo
     description: "Opposition, rook activity, and passed pawns. Endgame details decide the board here.",
     targetValue: 100,
     targetScore: 1760,
-    startingMoves: 10,
+    startingMoves: 14,
     resourceLabel: "moves",
   },
   chess_opening: {
@@ -369,7 +369,7 @@ const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo
     description: "Principles matter here: development, king safety, and center control over flashy nonsense.",
     targetValue: 100,
     targetScore: 1740,
-    startingMoves: 10,
+    startingMoves: 14,
     resourceLabel: "moves",
   },
   chess_mate_net: {
@@ -379,7 +379,7 @@ const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo
     description: "Remove escape squares, force checks, and finish the line cleanly while the board stays live.",
     targetValue: 100,
     targetScore: 1790,
-    startingMoves: 10,
+    startingMoves: 14,
     resourceLabel: "moves",
   },
 };
