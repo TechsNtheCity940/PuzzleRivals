@@ -252,9 +252,7 @@ export default function MatchPage() {
   const [hintSaving, setHintSaving] = useState(false);
   const [hintPenaltyTotal, setHintPenaltyTotal] = useState(0);
   const [hintUsesThisRound, setHintUsesThisRound] = useState(0);
-  const [lastHintPenalty, setLastHintPenalty] = useState(0);
   const [hintCooldownUntil, setHintCooldownUntil] = useState<number | null>(null);
-  const [hintMessage, setHintMessage] = useState<string | null>(null);
   const [solvePending, setSolvePending] = useState(false);
   const [exitPending, setExitPending] = useState(false);
   const [resultsSnapshot, setResultsSnapshot] = useState<BackendLobby | null>(
@@ -292,9 +290,7 @@ export default function MatchPage() {
     setPracticeSolved(false);
     setHintPenaltyTotal(0);
     setHintUsesThisRound(0);
-    setLastHintPenalty(0);
     setHintCooldownUntil(null);
-    setHintMessage(null);
     setSolvePending(false);
     setResultsSnapshot(null);
     readySentLobbyIdRef.current = null;
@@ -415,9 +411,7 @@ export default function MatchPage() {
     completedRoundRef.current = completedAt;
     setHintPenaltyTotal(0);
     setHintUsesThisRound(0);
-    setLastHintPenalty(0);
     setHintCooldownUntil(null);
-    setHintMessage(null);
     void refreshUser();
   }, [lobby, refreshUser]);
 
@@ -446,9 +440,7 @@ export default function MatchPage() {
   useEffect(() => {
     setHintPenaltyTotal(0);
     setHintUsesThisRound(0);
-    setLastHintPenalty(0);
     setHintCooldownUntil(null);
-    setHintMessage(null);
     setArenaState(null);
     liveSolveStageKeyRef.current = null;
     progressSubmissionKeyRef.current = null;
@@ -750,9 +742,7 @@ export default function MatchPage() {
       setLocalHintBalance(response.remainingHints);
       setHintPenaltyTotal(response.hintPenaltyTotal);
       setHintUsesThisRound(response.hintUses);
-      setLastHintPenalty(response.penalty);
       setHintCooldownUntil(cooldownAt);
-      setHintMessage(message);
       void refreshUser();
       toast.message(`Hint used. -${response.penalty} score`, {
         description: message,
@@ -831,49 +821,13 @@ export default function MatchPage() {
     const nextHintPenalty = getMatchHintPenalty(
       (selfPlayer.hintUses ?? hintUsesThisRound) + 1,
     );
-
-    const resolveNumericValue = (player: BackendLobbyPlayer) => {
-      const playerScore = Math.max(
-        Number(player.liveScoreRaw ?? player.score ?? 0),
-        player.playerId === user?.id && arenaState
-          ? Math.floor(arenaState.score)
-          : 0,
-      );
-
-      return getEffectiveMatchScore(
-        playerScore,
-        player.hintPenaltyTotal ?? hintPenaltyTotal,
-      );
-    };
-
-    const rankedPlayers = [...lobby.players]
-      .sort((left, right) => {
-        const leftSolved = left.solvedAtMs !== null || left.progress >= 100 || left.completions > 0;
-        const rightSolved = right.solvedAtMs !== null || right.progress >= 100 || right.completions > 0;
-
-        if (!isPractice && !rapidFire && leftSolved !== rightSolved) {
-          return leftSolved ? -1 : 1;
-        }
-
-        const scoreDelta = resolveNumericValue(right) - resolveNumericValue(left);
-        if (scoreDelta !== 0) {
-          return scoreDelta;
-        }
-
-        if (rapidFire && right.completions !== left.completions) {
-          return right.completions - left.completions;
-        }
-
-        if (right.progress !== left.progress) {
-          return right.progress - left.progress;
-        }
-
-        if (left.solvedAtMs === null && right.solvedAtMs === null) return 0;
-        if (left.solvedAtMs === null) return 1;
-        if (right.solvedAtMs === null) return -1;
-        return left.solvedAtMs - right.solvedAtMs;
-      })
-      .slice(0, 4);
+    const hintButtonLabel = hintSaving
+      ? "Using..."
+      : hintCooldownSeconds > 0
+        ? `${hintCooldownSeconds}s`
+        : localHintBalance <= 0
+          ? "No Hints"
+          : `Hint -${nextHintPenalty}`;
 
     return (
       <div className="match-ranked-screen">
@@ -881,18 +835,21 @@ export default function MatchPage() {
           <div className="match-ranked-topbar">
             <div className="match-ranked-stage">
               <span className="match-ranked-stage-chip">
-                {isPractice
-                  ? practiceSolved
-                    ? "Practice Clear"
-                    : "Practice Warm-Up"
-                  : "Live Battle"}
+                {isPractice ? "Practice" : "Live"}
               </span>
-              <span className="match-ranked-stage-chip">
-                {selectionMeta?.label ?? "Random Puzzle"}
-              </span>
-              <span className="match-ranked-stage-chip">
-                Score {Math.round(displayedScore)}
-              </span>
+              <div className="match-ranked-stage-copy">
+                <p className="match-ranked-stage-title">
+                  {selectionMeta?.label ?? "Random Puzzle"}
+                </p>
+                <p className="match-ranked-stage-subtitle">
+                  {isPractice
+                    ? "Warm-up round before the scored battle."
+                    : "Ranked battle in progress."}
+                </p>
+              </div>
+            </div>
+
+            <div className="match-ranked-hudrail">
               {!isPractice ? (
                 <Button
                   onClick={() => void handleUseHint()}
@@ -904,67 +861,32 @@ export default function MatchPage() {
                     hintCooldownSeconds > 0 ||
                     disabled
                   }
-                  className="h-8 rounded-full border-primary/20 bg-white/5 px-4 text-[10px] font-black uppercase tracking-[0.16em]"
+                  className="match-ranked-hint-button"
                 >
                   <Lightbulb size={14} />
-                  {hintSaving
-                    ? "Using..."
-                    : hintCooldownSeconds > 0
-                      ? `Hint ${hintCooldownSeconds}s`
-                      : localHintBalance <= 0
-                        ? "No Hints"
-                        : `Hint -${nextHintPenalty}`}
+                  {hintButtonLabel}
                 </Button>
               ) : null}
-              {!isPractice && hintMessage ? (
-                <p className="w-full text-xs leading-5 text-white/70">
-                  {hintMessage}
-                  <span className="ml-2 text-primary">
-                    {hintUsesThisRound} used | -{lastHintPenalty || nextHintPenalty} last
-                  </span>
-                </p>
-              ) : null}
-            </div>
-            <div
-              className={cn(
-                "match-ranked-timer",
-                lowTime && "match-ranked-timer--urgent",
-              )}
-            >
-              <span className="match-ranked-timer-label">
-                {isPractice ? "Practice" : "Match"} Timer
-              </span>
-              <span className="match-ranked-timer-value">{formatTime(timeLeft)}</span>
-            </div>
-          </div>
 
-          <div className="match-ranked-scorestrip">
-            {rankedPlayers.map((player, index) => {
-              const numericValue = resolveNumericValue(player);
-              const valueLabel = `${Math.round(numericValue)} pts`;
+              <div className="match-ranked-scorebox">
+                <span className="match-ranked-scorebox-label">Live Score</span>
+                <span className="match-ranked-scorebox-value">
+                  {Math.round(displayedScore).toLocaleString()}
+                </span>
+              </div>
 
-              return (
-                <div
-                  key={player.playerId}
-                  className={cn(
-                    "match-ranked-player",
-                    player.playerId === user?.id && "match-ranked-player--self",
-                  )}
-                >
-                  <span className="match-ranked-player-rank">#{index + 1}</span>
-                  <div className="match-ranked-player-copy">
-                    <p className="match-ranked-player-name">
-                      {player.username}
-                      {player.playerId === user?.id ? " (You)" : ""}
-                    </p>
-                    <p className="match-ranked-player-meta">
-                      {player.isBot ? "Training rival" : "Live rival"}
-                    </p>
-                  </div>
-                  <span className="match-ranked-player-value">{valueLabel}</span>
-                </div>
-              );
-            })}
+              <div
+                className={cn(
+                  "match-ranked-timer",
+                  lowTime && "match-ranked-timer--urgent",
+                )}
+              >
+                <span className="match-ranked-timer-label">
+                  {isPractice ? "Practice" : "Match"} Timer
+                </span>
+                <span className="match-ranked-timer-value">{formatTime(timeLeft)}</span>
+              </div>
+            </div>
           </div>
 
           <div className="match-ranked-board-wrap">
@@ -1339,6 +1261,9 @@ export default function MatchPage() {
     </div>
   );
 }
+
+
+
 
 
 

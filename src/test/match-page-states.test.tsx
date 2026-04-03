@@ -253,7 +253,7 @@ describe("MatchPage states", () => {
     renderMatchPage();
 
     expect(await screen.findByText("Practice Timer")).toBeInTheDocument();
-    expect(screen.getByText("Practice Warm-Up")).toBeInTheDocument();
+    expect(screen.getByText(/Warm-up round before the scored battle\./i)).toBeInTheDocument();
     expect(await screen.findByTestId("mock-neon-rivals-game")).toBeInTheDocument();
   });
 
@@ -263,7 +263,7 @@ describe("MatchPage states", () => {
     renderMatchPage();
 
     expect(await screen.findByText("Match Timer")).toBeInTheDocument();
-    expect(screen.getByText(/Live Battle/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ranked battle in progress\./i)).toBeInTheDocument();
     expect(await screen.findByTestId("mock-neon-rivals-game")).toBeInTheDocument();
   });
 
@@ -304,9 +304,10 @@ describe("MatchPage states", () => {
     });
 
     expect(screen.getByText("Match Leaderboard")).toBeInTheDocument();
-    expect(screen.queryByText("Practice Warm-Up")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Warm-up round before the scored battle\./i)).not.toBeInTheDocument();
   });
 });
+
 
 
 
