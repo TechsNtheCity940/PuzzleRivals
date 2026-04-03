@@ -1,4 +1,5 @@
 import { buildGeneratedQuizRounds } from "./match-quiz-content.ts";
+import { buildStrategyRounds, evaluateStrategyMoveSequence } from "../../../shared/strategy-puzzle-content.ts";
 import { buildCrosswordMini, buildMatchingPairs, buildMaze, buildMemoryGrid, buildNumberGrid, buildPathfinder, buildPatternRounds, buildSpatialRounds, buildSudokuMini, buildTilePuzzle, buildWordScramble, buildWordSearch, buildWordle, getMazeProgress, normalizeSegment } from "./match-puzzle-contract.ts";
 import {
   HEAD_TO_HEAD_ARENA_PUZZLE_TYPES,
@@ -69,8 +70,8 @@ export type PuzzleSubmission =
   | { kind: "memory_grid"; selectedIndices: number[] }
   | { kind: "riddle_choice"; answers: number[] }
   | { kind: "wordle_guess"; guesses: string[] }
-  | { kind: "chess_tactic"; answers: number[] }
-  | { kind: "checkers_tactic"; answers: number[] }
+  | { kind: "chess_tactic"; moves: Array<{ from: number; to: number }> }
+  | { kind: "checkers_tactic"; moves: Array<{ from: number; to: number }> }
   | { kind: "logic_sequence"; answers: number[] }
   | { kind: "trivia_blitz"; answers: number[] }
   | { kind: "geography_quiz"; answers: number[] }
@@ -79,9 +80,9 @@ export type PuzzleSubmission =
   | { kind: "code_breaker"; answers: number[] }
   | { kind: "analogies"; answers: number[] }
   | { kind: "deduction_grid"; answers: number[] }
-  | { kind: "chess_endgame"; answers: number[] }
-  | { kind: "chess_opening"; answers: number[] }
-  | { kind: "chess_mate_net"; answers: number[] }
+  | { kind: "chess_endgame"; moves: Array<{ from: number; to: number }> }
+  | { kind: "chess_opening"; moves: Array<{ from: number; to: number }> }
+  | { kind: "chess_mate_net"; moves: Array<{ from: number; to: number }> }
   | { kind: "vocabulary_duel"; answers: number[] };
 
 type PipeType = "straight" | "corner" | "tee" | "cross" | "end" | "empty";
@@ -521,12 +522,12 @@ export function evaluatePuzzleSubmission(
       return clampProgress((correct / target.length) * 100);
     }
     case "chess_tactic": {
-      const rounds = buildGeneratedQuizRounds("chess_tactic", seed, difficulty);
-      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+      const rounds = buildStrategyRounds("chess_tactic", seed, difficulty);
+      return evaluateStrategyMoveSequence(rounds, submission.moves);
     }
     case "checkers_tactic": {
-      const rounds = buildGeneratedQuizRounds("checkers_tactic", seed, difficulty);
-      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+      const rounds = buildStrategyRounds("checkers_tactic", seed, difficulty);
+      return evaluateStrategyMoveSequence(rounds, submission.moves);
     }
     case "logic_sequence": {
       const rounds = buildGeneratedQuizRounds("logic_sequence", seed, difficulty);
@@ -561,16 +562,16 @@ export function evaluatePuzzleSubmission(
       return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
     }
     case "chess_endgame": {
-      const rounds = buildGeneratedQuizRounds("chess_endgame", seed, difficulty);
-      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+      const rounds = buildStrategyRounds("chess_endgame", seed, difficulty);
+      return evaluateStrategyMoveSequence(rounds, submission.moves);
     }
     case "chess_opening": {
-      const rounds = buildGeneratedQuizRounds("chess_opening", seed, difficulty);
-      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+      const rounds = buildStrategyRounds("chess_opening", seed, difficulty);
+      return evaluateStrategyMoveSequence(rounds, submission.moves);
     }
     case "chess_mate_net": {
-      const rounds = buildGeneratedQuizRounds("chess_mate_net", seed, difficulty);
-      return evaluateAnswers(rounds.length, rounds.map((round) => round.correctOption), submission.answers);
+      const rounds = buildStrategyRounds("chess_mate_net", seed, difficulty);
+      return evaluateStrategyMoveSequence(rounds, submission.moves);
     }
     case "vocabulary_duel": {
       const rounds = buildGeneratedQuizRounds("vocabulary_duel", seed, difficulty);

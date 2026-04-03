@@ -201,14 +201,19 @@ export type WordleGuessSubmission = {
   guesses: string[];
 };
 
+export interface StrategyMoveSubmission {
+  from: number;
+  to: number;
+}
+
 export type ChessTacticSubmission = {
   kind: "chess_tactic";
-  answers: number[];
+  moves: StrategyMoveSubmission[];
 };
 
 export type CheckersTacticSubmission = {
   kind: "checkers_tactic";
-  answers: number[];
+  moves: StrategyMoveSubmission[];
 };
 
 export type LogicSequenceSubmission = {
@@ -253,17 +258,17 @@ export type DeductionGridSubmission = {
 
 export type ChessEndgameSubmission = {
   kind: "chess_endgame";
-  answers: number[];
+  moves: StrategyMoveSubmission[];
 };
 
 export type ChessOpeningSubmission = {
   kind: "chess_opening";
-  answers: number[];
+  moves: StrategyMoveSubmission[];
 };
 
 export type ChessMateNetSubmission = {
   kind: "chess_mate_net";
-  answers: number[];
+  moves: StrategyMoveSubmission[];
 };
 
 export type VocabularyDuelSubmission = {
