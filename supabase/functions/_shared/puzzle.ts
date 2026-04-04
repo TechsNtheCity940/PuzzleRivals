@@ -6,6 +6,8 @@ import {
   buildMatchingPairs,
   buildMaze,
   buildMemoryGrid,
+  buildGlyphRushRounds,
+  evaluateGlyphRushAnswers,
   buildMirrorMaze,
   buildNumberGrid,
   buildPathfinder,
@@ -44,6 +46,7 @@ export type MatchPlayablePuzzleType =
   | "maze"
   | "pathfinder"
   | "memory_grid"
+  | "glyph_rush"
   | "riddle_choice"
   | "wordle_guess"
   | "chess_tactic"
@@ -94,6 +97,7 @@ export type PuzzleSubmission =
   | { kind: "maze"; position: number }
   | { kind: "pathfinder"; path: number[] }
   | { kind: "memory_grid"; selectedIndices: number[] }
+  | { kind: "glyph_rush"; answers: number[][] }
   | { kind: "riddle_choice"; answers: number[] }
   | { kind: "wordle_guess"; guesses: string[] }
   | { kind: "chess_tactic"; moves: Array<{ from: number; to: number }> }
@@ -173,6 +177,7 @@ const MATCH_PLAYABLE_PUZZLES: MatchPlayablePuzzleType[] = [
   "maze",
   "pathfinder",
   "memory_grid",
+  "glyph_rush",
   "riddle_choice",
   "wordle_guess",
   "chess_tactic",
@@ -206,6 +211,7 @@ const PUZZLE_CATALOG: Record<MatchPlayablePuzzleType, PuzzleCatalogEntry> = {
   maze: { type: "maze", label: "Maze Rush", icon: "🏁", description: "Guide the runner through the maze and reach the goal square." },
   pathfinder: { type: "pathfinder", label: "Pathfinder", icon: "Route", description: "Trace the valid route through a blocked grid from start to finish." },
   memory_grid: { type: "memory_grid", label: "Memory Flash", icon: "🧠", description: "Memorize the highlighted pattern, then tap the same cells back." },
+  glyph_rush: { type: "glyph_rush", label: "Glyph Rush", icon: "?", description: "Watch the rune burst, then rebuild the glowing glyph pattern from memory." },
   riddle_choice: { type: "riddle_choice", label: "Riddle Relay", icon: "❓", description: "Solve rapid-fire riddles with multiple-choice answers." },
   wordle_guess: { type: "wordle_guess", label: "Word Strike", icon: "🟩", description: "Guess the five-letter word using color feedback from each attempt." },
   chess_tactic: { type: "chess_tactic", label: "Chess Shot", icon: "♞", description: "Pick the best tactical move from the presented chess position." },
@@ -798,6 +804,10 @@ export function evaluatePuzzleSubmission(
       const puzzle = buildMemoryGrid(seed, difficulty);
       const correct = submission.selectedIndices.filter((index) => puzzle.targets.includes(index)).length;
       return clampProgress((correct / puzzle.targets.length) * 100);
+    }
+    case "glyph_rush": {
+      const rounds = buildGlyphRushRounds(seed, difficulty);
+      return evaluateGlyphRushAnswers(rounds, submission.answers);
     }
     case "riddle_choice": {
       const rounds = buildGeneratedQuizRounds("riddle_choice", seed, difficulty);

@@ -106,6 +106,11 @@ const BOARD_CONTROL_HINTS: Record<NeonRivalsBoardFamily, string[]> = {
     "Correct cells lock in place. Wrong taps reset the pattern and cost a real attempt.",
     "Do not chase one tile at a time. Hold the full shape in memory before you replay it.",
   ],
+  glyph: [
+    "Watch the rune burst once, then rebuild the exact same sigil pattern from memory.",
+    "You can toggle selections before locking the full pattern, but the board judges the moment you fill every target slot.",
+    "Anchor the outer corners and brightest runes first. One drifted tile cracks the whole sigil and costs an attempt.",
+  ],
 };
 
 type RunSyncState =
@@ -195,6 +200,8 @@ function getBoardMetricCard(state: NeonRivalsGameState) {
       return { title: "Prompt Streak", value: String(state.matchedTiles), detail: `${state.resourceLabel} left ${state.movesLeft}` };
     case "memory":
       return { title: "Patterns Held", value: String(state.matchedTiles), detail: `${state.resourceLabel} left ${state.movesLeft}` };
+    case "glyph":
+      return { title: "Sigils Held", value: String(state.matchedTiles), detail: `${state.resourceLabel} left ${state.movesLeft}` };
     default:
       return { title: "Peak Combo", value: `x${state.maxCombo}`, detail: `${state.resourceLabel} left ${state.movesLeft}` };
   }
@@ -211,6 +218,7 @@ function getProgressDetail(state: NeonRivalsGameState) {
   if (state.boardFamily === "strategy") return `${state.matchedTiles} tactics solved`;
   if (state.boardFamily === "quiz") return `${state.matchedTiles} prompts solved`;
   if (state.boardFamily === "memory") return `${state.matchedTiles} patterns solved`;
+  if (state.boardFamily === "glyph") return `${state.matchedTiles} sigils rebuilt`;
   return `${state.matchedTiles} cleared`;
 }
 
@@ -226,7 +234,8 @@ function boardFamilyLabel(family: "all" | NeonRivalsBoardFamily) {
   if (family === "spatial") return "Spatial";
   if (family === "strategy") return "Strategy";
   if (family === "quiz") return "Quiz";
-  return "Memory";
+  if (family === "memory") return "Memory";
+  return "Glyph";
 }
 
 export default function NeonRivalsGamePage() {

@@ -67,6 +67,7 @@ export const HEAD_TO_HEAD_MODE_POOL: HeadToHeadModeDefinition[] = [
   resolveMode("number_crunch", 2, 19000),
   resolveMode("spatial_spin", 2, 16000),
   resolveMode("memory_flash", 2, 15000),
+  resolveMode("glyph_rush", 2, 14800),
 ];
 
 export const HEAD_TO_HEAD_ATTACK_ROTATION: HeadToHeadAttackId[] = [
@@ -176,6 +177,7 @@ export const HEAD_TO_HEAD_BALANCE = {
       number: 8900,
       spatial: 7200,
       memory: 6900,
+      glyph: 7200,
     } as const,
     minimumSolveMs: 2600,
     roundVarianceMs: 2400,

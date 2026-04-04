@@ -20,6 +20,7 @@ export type PuzzleType =
   | "maze"
   | "pathfinder"
   | "memory_grid"
+  | "glyph_rush"
   | "riddle_choice"
   | "wordle_guess"
   | "chess_tactic"

@@ -19,6 +19,7 @@ export type MatchPlayablePuzzleType =
   | "maze"
   | "pathfinder"
   | "memory_grid"
+  | "glyph_rush"
   | "riddle_choice"
   | "wordle_guess"
   | "chess_tactic"
@@ -212,6 +213,11 @@ export type MemoryGridSubmission = {
   selectedIndices: number[];
 };
 
+export type GlyphRushSubmission = {
+  kind: "glyph_rush";
+  answers: number[][];
+};
+
 export type RiddleChoiceSubmission = {
   kind: "riddle_choice";
   answers: number[];
@@ -314,6 +320,7 @@ export type PuzzleSubmission =
   | MazeSubmission
   | PathfinderSubmission
   | MemoryGridSubmission
+  | GlyphRushSubmission
   | RiddleChoiceSubmission
   | WordleGuessSubmission
   | ChessTacticSubmission

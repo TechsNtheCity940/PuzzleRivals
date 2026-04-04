@@ -25,6 +25,7 @@ const RAPID_FIRE_TYPES = new Set<MatchPlayablePuzzleType>([
   "deduction_grid",
   "vocabulary_duel",
   "pathfinder",
+  "glyph_rush",
 ]);
 
 export const RAPID_FIRE_CUTOFF_MS = 5_000;

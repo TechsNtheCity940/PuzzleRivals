@@ -31,7 +31,7 @@ function boardComboBase(mode: HeadToHeadModeDefinition, difficulty: number, seed
     return clamp(2 + Math.round(roll * 3), 2, 5);
   }
 
-  if (mode.boardFamily === "memory" || mode.boardFamily === "spatial") {
+  if (mode.boardFamily === "memory" || mode.boardFamily === "glyph" || mode.boardFamily === "spatial") {
     return clamp(1 + Math.round(roll * 2), 1, 3);
   }
 
@@ -45,6 +45,7 @@ function boardMatchValue(mode: HeadToHeadModeDefinition, difficulty: number, see
     case "match3":
       return clamp(5 + Math.round(roll * 8), 5, 14);
     case "memory":
+    case "glyph":
       return clamp(3 + Math.round(roll * 4), 3, 7);
     case "maze":
       return clamp(4 + Math.round(roll * 5), 4, 9);

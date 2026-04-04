@@ -175,6 +175,13 @@ export const NEON_RIVALS_RUN_MODE_OPTIONS: NeonRivalsRunModeOption[] = [
     kicker: "Recall lane",
     description: "Watch the live memory pulse, hold the sequence, and tap the glowing cells back into place.",
   },
+  {
+    id: "glyph_rush",
+    boardFamily: "glyph",
+    label: "Glyph Rush",
+    kicker: "Rune recall lane",
+    description: "Catch the glowing rune pattern, hold the sigil in memory, and recreate it before the preview burns out.",
+  },
 ];
 
 const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo_rush">, ObjectivePreset> = {
@@ -346,6 +353,16 @@ const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo
     targetValue: 100,
     targetScore: 1685,
     startingMoves: 12,
+    resourceLabel: "attempts",
+  },
+  glyph_rush: {
+    boardFamily: "glyph",
+    title: "Glyph Rush",
+    label: "Rebuild each flashing sigil pattern before the attempt meter burns out.",
+    description: "The rune board flashes once, then drops into memory mode. Clean recreations chain faster and score harder.",
+    targetValue: 100,
+    targetScore: 1840,
+    startingMoves: 14,
     resourceLabel: "attempts",
   },
   chess_shot: {

@@ -7,6 +7,7 @@ import type {
   NeonRivalsMatchContext,
   NeonRivalsRunMode,
 } from "@/game/types";
+import GlyphBoard from "@/game/objects/GlyphBoard";
 import LinkBoard from "@/game/objects/LinkBoard";
 import MemoryBoard from "@/game/objects/MemoryBoard";
 import MazeBoard from "@/game/objects/MazeBoard";
@@ -54,7 +55,8 @@ type ArenaBoardInstance =
   | Pick<SpatialBoard, "create" | "destroy">
   | Pick<StrategyBoard, "create" | "destroy">
   | Pick<QuizBoard, "create" | "destroy">
-  | Pick<MemoryBoard, "create" | "destroy">;
+  | Pick<MemoryBoard, "create" | "destroy">
+  | Pick<GlyphBoard, "create" | "destroy">;
 
 function boardMetricText(state: NeonRivalsGameState) {
   if (state.boardFamily === "maze") {
@@ -97,6 +99,10 @@ function boardMetricText(state: NeonRivalsGameState) {
     return `Patterns held ${state.matchedTiles}`;
   }
 
+  if (state.boardFamily === "glyph") {
+    return `Sigils rebuilt ${state.matchedTiles}`;
+  }
+
   return `Combo x${state.maxCombo}`;
 }
 
@@ -110,6 +116,7 @@ function getGridTint(boardFamily: NeonRivalsBoardFamily) {
   if (boardFamily === "strategy") return 0xffd76e;
   if (boardFamily === "quiz") return 0x65f2ff;
   if (boardFamily === "memory") return 0xff92d9;
+  if (boardFamily === "glyph") return 0xffb86b;
   return 0xffffff;
 }
 
@@ -202,6 +209,10 @@ export default class BoardScene extends Phaser.Scene {
 
     if (boardFamily === "memory") {
       return new MemoryBoard(this, boardOptions);
+    }
+
+    if (boardFamily === "glyph") {
+      return new GlyphBoard(this, boardOptions);
     }
 
     return new PuzzleBoard(this, boardOptions);

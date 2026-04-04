@@ -25,6 +25,7 @@ const MATCH_PLAYABLE_PUZZLES: MatchPlayablePuzzleType[] = [
   "maze",
   "pathfinder",
   "memory_grid",
+  "glyph_rush",
   "riddle_choice",
   "wordle_guess",
   "logic_sequence",

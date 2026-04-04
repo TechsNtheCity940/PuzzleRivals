@@ -20,6 +20,7 @@ const RAPID_FIRE_TYPES = new Set<MatchPlayablePuzzleType>([
   "deduction_grid",
   "vocabulary_duel",
   "pathfinder",
+  "glyph_rush",
 ]);
 
 const PUZZLE_HELP: Record<MatchPlayablePuzzleType, string> = {
@@ -39,6 +40,7 @@ const PUZZLE_HELP: Record<MatchPlayablePuzzleType, string> = {
   maze: "Move through the maze and reach the finish square before the timer runs out.",
   pathfinder: "Trace the one valid route through the blocked grid from start to goal.",
   memory_grid: "Memorize the flash pattern, then tap the exact same cells back.",
+  glyph_rush: "Watch the rune burst, then rebuild the glowing glyph pattern before the preview fades from memory.",
   riddle_choice: "Read the prompt and choose the strongest answer before the next clue arrives.",
   wordle_guess: "Enter a five-letter guess and use the feedback to lock the word quickly.",
   chess_tactic: "Pick the forcing move that wins material, mates, or takes control immediately.",
@@ -74,6 +76,7 @@ const PUZZLE_HINTS: Record<MatchPlayablePuzzleType, string> = {
   maze: "Follow the open corridors from your current tile and avoid backing into dead ends unless there is no forward route.",
   pathfinder: "Work from the goal backward if the route looks messy. The shortest clean lane is usually the intended one.",
   memory_grid: "Break the pattern into small chunks such as corners, center shapes, or short rows before tapping.",
+  glyph_rush: "Anchor the pattern by its brightest rune and outer corners first, then fill the inner sigils from memory.",
   riddle_choice: "Literal answers are often traps. Look for the object that matches the wording in an unexpected way.",
   wordle_guess: "Lock in green letters first and stop reusing letters that already tested wrong.",
   chess_tactic: "Checks, captures, and threats. Test forcing moves in that order before anything quiet.",

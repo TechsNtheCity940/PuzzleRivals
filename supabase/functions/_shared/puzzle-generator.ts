@@ -50,6 +50,7 @@ const ALL_PUZZLE_TYPES: MatchPlayablePuzzleType[] = [
   "maze",
   "pathfinder",
   "memory_grid",
+  "glyph_rush",
   "riddle_choice",
   "wordle_guess",
   "logic_sequence",

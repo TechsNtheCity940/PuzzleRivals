@@ -273,6 +273,11 @@ export function calculateArcadeRunReward(input: {
     reward.xp += input.success ? 24 : 8;
     reward.shards += input.success ? 4 : 1;
     reward.passXp += input.success ? 20 : 6;
+  } else if (input.mode === "glyph_rush") {
+    reward.xp += input.success ? 28 : 10;
+    reward.shards += input.success ? 5 : 2;
+    reward.passXp += input.success ? 24 : 8;
+    reward.coins += input.success ? 18 : 6;
   } else if (["chess_shot", "chess_endgame", "chess_opening", "chess_mate_net"].includes(input.mode)) {
     reward.xp += input.success ? 30 : 10;
     reward.shards += input.success ? 5 : 2;

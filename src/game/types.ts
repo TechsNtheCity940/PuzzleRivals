@@ -14,7 +14,8 @@ export type NeonRivalsBoardFamily =
   | "spatial"
   | "strategy"
   | "quiz"
-  | "memory";
+  | "memory"
+  | "glyph";
 
 export type NeonRivalsRunMode =
   | "score_attack"
@@ -40,7 +41,8 @@ export type NeonRivalsRunMode =
   | "science_spark"
   | "analogy_arc"
   | "vocabulary_duel"
-  | "memory_flash";
+  | "memory_flash"
+  | "glyph_rush";
 
 export interface ArenaRotationHistoryEntry {
   mode: NeonRivalsRunMode;

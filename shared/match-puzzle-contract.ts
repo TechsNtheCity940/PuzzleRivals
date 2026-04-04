@@ -22,6 +22,13 @@ export interface MemoryGridPuzzle {
   targets: number[];
 }
 
+export interface GlyphRushRound {
+  size: number;
+  glyphs: string[];
+  targets: number[];
+  previewMs: number;
+}
+
 export interface NumberGridPuzzle {
   size: number;
   grid: (number | null)[];
@@ -135,6 +142,11 @@ const PATTERN_COLORS = [
   "hsl(0 100% 65%)",
   "hsl(200 100% 60%)",
   "hsl(45 100% 55%)",
+];
+const GLYPH_RUNE_BANK = [
+  "?", "?", "?", "?", "?", "?", "?", "?",
+  "?", "?", "?", "?", "?", "?", "?", "?",
+  "?", "?", "?", "?", "?", "?", "?", "?",
 ];
 const WORD_SEARCH_WORD_BANK = [
   "BRAIN", "QUEST", "SPARK", "GRID", "LOGIC", "MAZE", "ROOK", "CROWN",
@@ -287,6 +299,58 @@ export function buildMemoryGrid(seed: number, difficulty: number): MemoryGridPuz
     size: 4,
     targets: rng.shuffle(Array.from({ length: 16 }, (_, index) => index)).slice(0, Math.min(7, Math.max(4, difficulty + 2))),
   };
+}
+
+function buildGlyphRuneSet(rng: SeededRandom, total: number) {
+  const pool = rng.shuffle(GLYPH_RUNE_BANK);
+  return Array.from({ length: total }, (_, index) => pool[index % pool.length]);
+}
+
+export function buildGlyphRushRounds(seed: number, difficulty: number): GlyphRushRound[] {
+  const rng = new SeededRandom(seed);
+  const size = 4;
+  const totalRounds = Math.min(10, Math.max(7, difficulty + 5));
+
+  return Array.from({ length: totalRounds }, (_, roundIndex) => {
+    const targetFloor = 3 + Math.floor(roundIndex / 2);
+    const targetCount = Math.min(8, Math.max(3, targetFloor + rng.nextInt(0, 1)));
+    const targets = rng
+      .shuffle(Array.from({ length: size * size }, (_, index) => index))
+      .slice(0, targetCount)
+      .sort((left, right) => left - right);
+    const previewMs = Math.max(650, 1450 - roundIndex * 70 - difficulty * 40 + rng.nextInt(-50, 50));
+
+    return {
+      size,
+      glyphs: buildGlyphRuneSet(rng, size * size),
+      targets,
+      previewMs,
+    };
+  });
+}
+
+export function evaluateGlyphRushAnswers(rounds: GlyphRushRound[], answers: number[][]) {
+  if (rounds.length === 0) {
+    return 0;
+  }
+
+  const totalScore = rounds.reduce((sum, round, roundIndex) => {
+    const answer = Array.isArray(answers[roundIndex])
+      ? [...new Set(answers[roundIndex].filter((value) => Number.isInteger(value) && value >= 0 && value < round.size * round.size))]
+      : [];
+    const expected = new Set(round.targets);
+    const correct = answer.filter((value) => expected.has(value)).length;
+    const extras = Math.max(0, answer.length - correct);
+
+    if (correct === round.targets.length && extras === 0) {
+      return sum + 1;
+    }
+
+    const partial = Math.max(0, (correct - extras * 0.65) / Math.max(round.targets.length, 1));
+    return sum + Math.min(0.92, partial);
+  }, 0);
+
+  return clampProgress((totalScore / rounds.length) * 100);
 }
 
 export function buildWordle(seed: number) {

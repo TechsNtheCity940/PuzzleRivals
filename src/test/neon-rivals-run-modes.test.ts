@@ -97,10 +97,11 @@ describe("Neon Rivals run modes", () => {
     expect(checkersState.objectiveTarget).toBe(100);
   });
 
-  it("creates additional strategy, quiz, and memory states", () => {
+  it("creates additional strategy, quiz, memory, and glyph states", () => {
     const endgameObjective = buildNeonRivalsObjective("chess_endgame", 52);
     const quizObjective = buildNeonRivalsObjective("science_spark", 44);
     const memoryState = createInitialGameState("memory_flash", 61);
+    const glyphObjective = buildNeonRivalsObjective("glyph_rush", 63);
 
     expect(endgameObjective.boardFamily).toBe("strategy");
     expect(endgameObjective.title).toBe("Chess Endgame");
@@ -108,5 +109,8 @@ describe("Neon Rivals run modes", () => {
     expect(quizObjective.startingMoves).toBe(14);
     expect(memoryState.boardFamily).toBe("memory");
     expect(memoryState.resourceLabel).toBe("attempts");
+    expect(glyphObjective.boardFamily).toBe("glyph");
+    expect(glyphObjective.startingMoves).toBe(14);
+    expect(glyphObjective.targetScore).toBe(1840);
   });
 });

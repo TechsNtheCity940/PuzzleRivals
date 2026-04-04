@@ -48,6 +48,7 @@ export const PUZZLE_THEME_CATEGORY_BY_TYPE: Record<MatchPlayablePuzzleType, Neon
   maze: "maze-route",
   pathfinder: "maze-route",
   memory_grid: "memory-recall",
+  glyph_rush: "memory-recall",
   riddle_choice: "quiz-choice",
   wordle_guess: "word-letter-grid",
   chess_tactic: "chess-strategy",
@@ -156,7 +157,7 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     label: "Memory / Recall",
     kicker: "Recall Stack",
     summary: "Reveal shimmer, match arcs, and glitch-reset cues for high-speed recall boards.",
-    puzzleTypes: ["memory_grid", "matching_pairs"],
+    puzzleTypes: ["memory_grid", "glyph_rush", "matching_pairs"],
     surfaceAssetRef: "/cosmetics/boards/memory-flash-board.svg",
     surfaceVariant: "grid",
     surfaceLayout: {

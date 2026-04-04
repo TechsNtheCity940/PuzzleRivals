@@ -24,6 +24,7 @@ const ALL_PUZZLE_TYPES: MatchPlayablePuzzleType[] = [
   "maze",
   "pathfinder",
   "memory_grid",
+  "glyph_rush",
   "riddle_choice",
   "wordle_guess",
   "chess_tactic",
@@ -60,6 +61,7 @@ describe("neon puzzle board theme registry", () => {
     expect(getNeonPuzzleThemeCategory("tile_slide")).toBe("sliding-spatial");
     expect(getNeonPuzzleThemeCategory("maze")).toBe("maze-route");
     expect(getNeonPuzzleThemeCategory("memory_grid")).toBe("memory-recall");
+    expect(getNeonPuzzleThemeCategory("glyph_rush")).toBe("memory-recall");
     expect(getNeonPuzzleThemeCategory("riddle_choice")).toBe("quiz-choice");
     expect(getNeonPuzzleThemeCategory("code_breaker")).toBe("code-deduction");
     expect(getNeonPuzzleThemeCategory("chess_tactic")).toBe("chess-strategy");
