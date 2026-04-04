@@ -14,7 +14,7 @@ Primary project goals:
 
 ## General working rules
 
-- Always inspect the current repository structure before making major changes.
+- Always inspect the currentository structure before making major changes.
 - Prefer small, targeted improvements over broad rewrites.
 - Preserve existing conventions, file structure, and naming unless there is a strong reason to improve them.
 - Keep logic modular and easy to extend.
