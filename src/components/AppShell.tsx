@@ -18,6 +18,7 @@ import { loadSocialAlertSummary } from "@/lib/friends";
 import { FALLBACK_APP_RUNTIME_STATUS, loadAppRuntimeStatus } from "@/lib/app-status";
 import { useAuth } from "@/providers/AuthProvider";
 import { useAppPreferences } from "@/providers/AppPreferencesProvider";
+import RouteMusicController from "@/components/audio/RouteMusicController";
 import BottomNav from "./BottomNav";
 import {
   resolveCanonicalBrowserUrl,
@@ -193,6 +194,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className={`app-shell bg-background ${theme.shellClass}`} style={themeVars}>
+      <RouteMusicController />
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute inset-0 app-noise opacity-30" />
         <div className="absolute inset-0 app-theme-shell-art opacity-35" />

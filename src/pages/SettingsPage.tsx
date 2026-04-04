@@ -126,7 +126,7 @@ export default function SettingsPage() {
               <PreferenceRow
                 icon={Volume2}
                 title="Music"
-                description="Lets the account shell and Arena honor a global music preference instead of burying it per route later."
+                description="Plays quieter dashboard loops on the home screen and a slightly louder arena mix during live puzzle routes and head-to-head matches."
                 checked={musicEnabled}
                 onCheckedChange={(checked) =>
                   updatePreference("musicEnabled", checked)
