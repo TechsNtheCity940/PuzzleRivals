@@ -23,6 +23,23 @@ function normalizeScore(value: unknown) {
   return null;
 }
 
+function readErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -38,7 +55,7 @@ Deno.serve(async (req) => {
     };
     const admin = createAdminClient();
 
-    await advanceLobbyState(lobbyId);
+    const advancedSnapshot = await advanceLobbyState(lobbyId);
 
     const { data: round, error: roundError } = await admin
       .from("rounds")
@@ -49,7 +66,16 @@ Deno.serve(async (req) => {
       .single();
 
     if (roundError) throw roundError;
-    if (stage !== "live" || round.status !== "live") {
+    if (stage !== "live") {
+      throw new Error("Solve submissions are only accepted during the live round.");
+    }
+
+    if (round.status === "intermission" || round.status === "complete") {
+      const snapshot = advancedSnapshot ?? await getLobbySnapshot(lobbyId);
+      return Response.json(snapshot, { headers: corsHeaders });
+    }
+
+    if (round.status !== "live") {
       throw new Error("Solve submissions are only accepted during the live round.");
     }
 
@@ -124,9 +150,9 @@ Deno.serve(async (req) => {
       .upsert(payload, { onConflict: "round_id,user_id" });
 
     if (error) throw error;
-    const advancedSnapshot = await advanceLobbyState(lobbyId);
-    if (advancedSnapshot) {
-      return Response.json(advancedSnapshot, { headers: corsHeaders });
+    const latestSnapshot = await advanceLobbyState(lobbyId);
+    if (latestSnapshot) {
+      return Response.json(latestSnapshot, { headers: corsHeaders });
     }
 
     const snapshot = await getLobbySnapshot(lobbyId);
@@ -134,7 +160,7 @@ Deno.serve(async (req) => {
     return Response.json(snapshot, { headers: corsHeaders });
   } catch (error) {
     return Response.json(
-      { message: error instanceof Error ? error.message : "Failed to submit solve." },
+      { message: readErrorMessage(error, "Failed to submit solve.") },
       { status: 400, headers: corsHeaders },
     );
   }

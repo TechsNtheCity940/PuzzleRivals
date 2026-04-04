@@ -1,6 +1,10 @@
 import type { BackendLobby, MatchMode, PuzzleSubmission } from "@/lib/backend";
 import type { NeonRivalsRunSubmission, NeonRivalsRunSyncResult } from "@/game/types";
-import { supabase, supabaseConfigErrorMessage } from "@/lib/supabase-client";
+import {
+  invokeSupabaseFunction,
+  type SupabaseFunctionErrorCandidate,
+} from "@/lib/supabase-function-client";
+import { supabase } from "@/lib/supabase-client";
 
 export interface MatchHintSyncResult {
   lobby: BackendLobby;
@@ -54,52 +58,30 @@ function normalizeBackendLobby(value: BackendLobby | MatchHintPayload): BackendL
   };
 }
 
+function isMatchModeSchemaDrift(error: SupabaseFunctionErrorCandidate) {
+  const normalized = `${error.message ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`
+    .trim()
+    .toLowerCase();
+
+  return normalized.includes("invalid input value for enum match_mode");
+}
+
+function resolveSchemaResource(functionName: string) {
+  switch (functionName) {
+    case "join-lobby":
+      return "public.match_mode";
+    default:
+      return "active matchmaking schema";
+  }
+}
+
 async function invoke<T>(functionName: string, body: Record<string, unknown>) {
-  if (!supabase) {
-    throw new Error(supabaseConfigErrorMessage);
-  }
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.access_token) {
-    throw new Error("You must be signed in before using matchmaking.");
-  }
-
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-  const browserKey =
-    (import.meta.env.VITE_SUPABASE_PUBLIC_KEY as string | undefined) ??
-    (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) ??
-    (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
-
-  if (!supabaseUrl || !browserKey) {
-    throw new Error(supabaseConfigErrorMessage);
-  }
-
-  const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: browserKey,
-      "x-supabase-auth": session.access_token,
-    },
-    body: JSON.stringify(body),
+  return invokeSupabaseFunction<T>(functionName, body, {
+    requiresSessionMessage: "You must be signed in before using matchmaking.",
+    schemaResource: resolveSchemaResource(functionName),
+    isSchemaSetupIssue:
+      functionName === "join-lobby" ? isMatchModeSchemaDrift : undefined,
   });
-
-  const payload = (await response.json().catch(() => null)) as
-    | T
-    | { message?: string }
-    | null;
-
-  if (!response.ok) {
-    const message =
-      payload && typeof payload === "object" && "message" in payload && typeof payload.message === "string"
-        ? payload.message
-        : `Request failed with status ${response.status}`;
-    throw new Error(message);
-  }
-  return payload as T;
 }
 
 export function subscribeToLobby(lobbyId: string, onSnapshot: (lobby: BackendLobby) => void) {

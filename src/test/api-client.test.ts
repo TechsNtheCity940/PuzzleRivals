@@ -23,6 +23,31 @@ vi.mock("@/lib/supabase-client", () => ({
     removeChannel: mocks.removeChannel,
   },
   supabaseConfigErrorMessage: "Supabase is not configured.",
+  supabaseFunctionsUrl: "https://puzzlerivals.supabase.co/functions/v1",
+  isSupabaseSchemaSetupIssue: vi.fn((error: unknown) => {
+    if (!error || typeof error !== "object") {
+      return false;
+    }
+
+    const candidate = error as {
+      code?: string;
+      message?: string;
+      details?: string | null;
+      hint?: string | null;
+      status?: number;
+    };
+    const message = `${candidate.message ?? ""} ${candidate.details ?? ""} ${candidate.hint ?? ""}`.toLowerCase();
+
+    return (
+      candidate.status === 404 ||
+      candidate.code === "404" ||
+      candidate.code === "PGRST205" ||
+      candidate.code === "42P01" ||
+      message.includes("could not find the table") ||
+      (message.includes("relation") && message.includes("does not exist"))
+    );
+  }),
+  toSupabaseSchemaSetupError: vi.fn((error: { message?: string }, resource?: string) => new Error(`Supabase auth succeeded, but the app database schema is missing or out of date${resource ? ` for ${resource}` : ""}. Backend reported: ${error.message ?? ""}`)),
 }));
 
 describe("supabase api client", () => {
@@ -64,6 +89,7 @@ describe("supabase api client", () => {
         method: "POST",
         headers: expect.objectContaining({
           "Content-Type": "application/json",
+          Authorization: "Bearer token-123",
           apikey: "public-anon-key",
           "x-supabase-auth": "token-123",
         }),
@@ -198,6 +224,31 @@ describe("supabase api client", () => {
     const { supabaseApi } = await import("@/lib/api-client");
 
     await expect(supabaseApi.joinLobby("ranked")).rejects.toThrow("queue unavailable");
+  });
+
+  it("maps match mode enum drift to a schema setup message", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "token-h2h",
+        },
+      },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: vi.fn().mockResolvedValue({
+        message: 'invalid input value for enum match_mode: "head_to_head"',
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { supabaseApi } = await import("@/lib/api-client");
+
+    await expect(supabaseApi.joinLobby("head_to_head")).rejects.toThrow(
+      "public.match_mode",
+    );
   });
 
   it("requires a signed-in session before invoking matchmaking functions", async () => {

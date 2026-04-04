@@ -15,6 +15,37 @@ function normalizeScore(value: unknown) {
   return 0;
 }
 
+function readErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+function shouldSyncClosedStage(
+  stage: "practice" | "live",
+  roundStatus: string,
+) {
+  return (
+    (stage === "practice" &&
+      (roundStatus === "live" ||
+        roundStatus === "intermission" ||
+        roundStatus === "complete")) ||
+    (stage === "live" &&
+      (roundStatus === "intermission" || roundStatus === "complete"))
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -30,7 +61,7 @@ Deno.serve(async (req) => {
     };
     const admin = createAdminClient();
 
-    await advanceLobbyState(lobbyId);
+    const advancedSnapshot = await advanceLobbyState(lobbyId);
 
     const [{ data: round, error: roundError }, { data: lobby, error: lobbyError }] = await Promise.all([
       admin
@@ -45,12 +76,6 @@ Deno.serve(async (req) => {
 
     if (roundError) throw roundError;
     if (lobbyError) throw lobbyError;
-    if (stage === "practice" && round.status !== "practice") {
-      throw new Error("Practice submissions are not accepted right now.");
-    }
-    if (stage === "live" && round.status !== "live") {
-      throw new Error("Live submissions are not accepted right now.");
-    }
 
     const { data: currentResult, error: resultError } = await admin
       .from("round_results")
@@ -61,6 +86,27 @@ Deno.serve(async (req) => {
 
     if (resultError) {
       throw resultError;
+    }
+
+    if (shouldSyncClosedStage(stage, round.status)) {
+      const snapshot = advancedSnapshot ?? await getLobbySnapshot(lobbyId);
+      return Response.json(
+        {
+          progress: stage === "practice"
+            ? Number(currentResult?.practice_progress ?? 0)
+            : Number(currentResult?.live_progress ?? 0),
+          liveScore: Number(currentResult?.live_score ?? 0),
+          ...snapshot,
+        },
+        { headers: corsHeaders },
+      );
+    }
+
+    if (stage === "practice" && round.status !== "practice") {
+      throw new Error("Practice submissions are not accepted right now.");
+    }
+    if (stage === "live" && round.status !== "live") {
+      throw new Error("Live submissions are not accepted right now.");
     }
 
     const scoreRace = stage === "live" && isLiveScoreRacePuzzle(lobby.mode, round.puzzle_type);
@@ -118,7 +164,7 @@ Deno.serve(async (req) => {
     return Response.json({ progress, liveScore, ...snapshot }, { headers: corsHeaders });
   } catch (error) {
     return Response.json(
-      { message: error instanceof Error ? error.message : "Failed to submit progress." },
+      { message: readErrorMessage(error, "Failed to submit progress.") },
       { status: 400, headers: corsHeaders },
     );
   }

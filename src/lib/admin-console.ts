@@ -1,4 +1,4 @@
-import { supabase, supabaseConfigErrorMessage } from "@/lib/supabase-client";
+import { invokeSupabaseFunction } from "@/lib/supabase-function-client";
 import type { SupportTicketPriority, SupportTicketStatus, UserAppRole } from "@/lib/types";
 import type { SupportClientContext } from "@/lib/support";
 
@@ -186,16 +186,21 @@ function mapAdminFunctionError(message: string) {
 }
 
 async function invoke<T>(body: Record<string, unknown>) {
-  if (!supabase) {
-    throw new Error(supabaseConfigErrorMessage);
-  }
+  try {
+    return await invokeSupabaseFunction<T>("owner-admin-console", body, {
+      requiresSessionMessage:
+        "You must be signed in as the owner before using the admin console.",
+      functionUnavailableMessage:
+        "The owner admin console backend is unavailable. Deploy the Supabase function owner-admin-console and retry.",
+      schemaResource: "owner admin schema",
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(mapAdminFunctionError(error.message));
+    }
 
-  const { data, error } = await supabase.functions.invoke("owner-admin-console", { body });
-  if (error) {
-    throw new Error(mapAdminFunctionError(error.message));
+    throw error;
   }
-
-  return data as T;
 }
 
 export function loadAdminDashboard() {

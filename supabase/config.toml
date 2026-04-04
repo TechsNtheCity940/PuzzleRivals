@@ -47,6 +47,15 @@ verify_jwt = false
 [functions.submit-solve]
 verify_jwt = false
 
+[functions.use-match-hint]
+verify_jwt = false
+
+[functions.submit-neon-rivals-run]
+verify_jwt = false
+
+[functions.owner-admin-console]
+verify_jwt = false
+
 [functions.vote-next-round]
 verify_jwt = false
 

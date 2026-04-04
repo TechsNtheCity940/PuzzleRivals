@@ -5,7 +5,7 @@ import {
   generatePuzzleTemplate,
   type PuzzleGeneratorPlayerProfile,
 } from "./puzzle-generator.ts";
-import { fillLobbyWithEasyBots, hydrateBotRoundProgress } from "./bots.ts";
+import { clearActiveBotsFromLobby, fillLobbyWithEasyBots, hydrateBotRoundProgress } from "./bots.ts";
 import {
   getLiveDurationMs,
   getLiveTargetScore,
@@ -727,6 +727,8 @@ export async function resetLobbyForRefill(lobbyId: string) {
       intermission_ends_at: null,
     }).eq("id", round.id);
   }
+
+  await clearActiveBotsFromLobby(lobby.id);
 
   await admin.from("lobby_players").update({
     is_ready: false,

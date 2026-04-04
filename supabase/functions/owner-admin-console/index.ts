@@ -258,6 +258,68 @@ function isMissingRelationError(error: { code?: string; message?: string } | nul
   );
 }
 
+function optionalCount(result: {
+  count: number | null;
+  error: { code?: string; message?: string } | null;
+}) {
+  if (isMissingRelationError(result.error)) {
+    return 0;
+  }
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  return result.count ?? 0;
+}
+
+function optionalRows<T>(result: {
+  data: T[] | null;
+  error: { code?: string; message?: string } | null;
+}) {
+  if (isMissingRelationError(result.error)) {
+    return [] as T[];
+  }
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  return (result.data ?? []) as T[];
+}
+
+function optionalSingle<T>(result: {
+  data: T | null;
+  error: { code?: string; message?: string } | null;
+}) {
+  if (isMissingRelationError(result.error)) {
+    return null;
+  }
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  return (result.data ?? null) as T | null;
+}
+
+function readErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 function asNumber(value: unknown, fallback = 0) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
@@ -530,6 +592,10 @@ async function writeAuditLog(
   });
 
   if (error) {
+    if (isMissingRelationError(error)) {
+      return;
+    }
+
     throw error;
   }
 }
@@ -590,14 +656,7 @@ async function loadDashboard(admin: SupabaseClient) {
     paidVipUsersResult,
     vipAccessUsersResult,
     blockedUsersResult,
-    openTicketsResult,
-    purchasesResult,
-    productsResult,
     recentUsersResult,
-    recentTicketsResult,
-    recentAuditsResult,
-    recentWebhooksResult,
-    recentRunsResult,
     signupTrendRowsResult,
   ]) {
     if (result.error) {
@@ -605,13 +664,14 @@ async function loadDashboard(admin: SupabaseClient) {
     }
   }
 
-  const purchaseRows = (purchasesResult.data ?? []) as PurchaseRow[];
+  const openTicketsCount = optionalCount(openTicketsResult);
+  const purchaseRows = optionalRows<PurchaseRow>(purchasesResult);
   const capturedPurchases = purchaseRows.filter((entry) => entry.status === "captured");
   const totalSalesUsd = capturedPurchases
     .filter((entry) => entry.currency === "USD")
     .reduce((sum, entry) => sum + (entry.amount ?? 0), 0);
 
-  const products = ((productsResult.data ?? []) as Array<{ id: string; kind: string; metadata: Record<string, unknown> | null }>).map((entry) => ({
+  const products = optionalRows<{ id: string; kind: string; metadata: Record<string, unknown> | null }>(productsResult).map((entry) => ({
     id: entry.id,
     kind: entry.kind,
     name: readProductName(entry.metadata),
@@ -622,9 +682,11 @@ async function loadDashboard(admin: SupabaseClient) {
   const paypalMode = (Deno.env.get("PAYPAL_ENV") ?? "live") === "live" ? "live" : "sandbox";
   const paypalConfigured = Boolean(Deno.env.get("PAYPAL_CLIENT_ID") && Deno.env.get("PAYPAL_CLIENT_SECRET"));
   const paypalWebhookConfigured = Boolean(Deno.env.get("PAYPAL_WEBHOOK_ID"));
-  if (broadcastResult.error && !isMissingRelationError(broadcastResult.error)) {
-    throw broadcastResult.error;
-  }
+  const broadcast = optionalSingle<SiteBroadcastRow>(broadcastResult);
+  const recentTicketRows = optionalRows<TicketRow>(recentTicketsResult);
+  const recentAuditRows = optionalRows<AuditRow>(recentAuditsResult);
+  const recentWebhookRows = optionalRows<WebhookRow>(recentWebhooksResult);
+  const recentRunRows = optionalRows<RunRow>(recentRunsResult);
 
   return {
     metrics: {
@@ -638,7 +700,7 @@ async function loadDashboard(admin: SupabaseClient) {
       paidVipUsers: paidVipUsersResult.count ?? 0,
       vipAccessUsers: vipAccessUsersResult.count ?? 0,
       blockedUsers: blockedUsersResult.count ?? 0,
-      openTickets: openTicketsResult.count ?? 0,
+      openTickets: openTicketsCount,
     } satisfies AdminDashboardMetrics,
     monitoring: {
       paypalMode,
@@ -646,14 +708,14 @@ async function loadDashboard(admin: SupabaseClient) {
       paypalWebhookConfigured,
       activeProductCount: products.length,
     } satisfies AdminDashboardMonitoring,
-    broadcast: mapBroadcast((broadcastResult.data ?? null) as SiteBroadcastRow | null),
+    broadcast: mapBroadcast(broadcast),
     signupTrend: buildSignupTrend((signupTrendRowsResult.data ?? []) as Array<{ created_at: string }>),
     products,
     recentUsers: ((recentUsersResult.data ?? []) as ProfileRow[]).map((profile) => mapUserRecord(profile, authUserMap.get(profile.id) ?? null)),
-    recentTickets: await mapTickets(admin, (recentTicketsResult.data ?? []) as TicketRow[], authUserMap),
-    recentAudits: await mapAudits(admin, (recentAuditsResult.data ?? []) as AuditRow[]),
-    recentWebhooks: mapWebhooks((recentWebhooksResult.data ?? []) as WebhookRow[]),
-    recentRuns: await mapRuns(admin, (recentRunsResult.data ?? []) as RunRow[]),
+    recentTickets: await mapTickets(admin, recentTicketRows, authUserMap),
+    recentAudits: await mapAudits(admin, recentAuditRows),
+    recentWebhooks: mapWebhooks(recentWebhookRows),
+    recentRuns: await mapRuns(admin, recentRunRows),
   };
 }
 
@@ -882,6 +944,10 @@ async function listTickets(admin: SupabaseClient, status: unknown, limitValue: u
 
   const { data, error } = await query;
   if (error) {
+    if (isMissingRelationError(error)) {
+      return { tickets: [] };
+    }
+
     throw error;
   }
 
@@ -984,7 +1050,7 @@ Deno.serve(async (req) => {
     return Response.json(result, { headers: corsHeaders });
   } catch (error) {
     return Response.json(
-      { message: error instanceof Error ? error.message : "Admin request failed." },
+      { message: readErrorMessage(error, "Admin request failed.") },
       { status: toErrorStatus(error), headers: corsHeaders },
     );
   }
