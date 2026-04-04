@@ -33,6 +33,7 @@ export interface NeonPuzzleThemeDefinition {
 
 export const PUZZLE_THEME_CATEGORY_BY_TYPE: Record<MatchPlayablePuzzleType, NeonPuzzleThemeCategory> = {
   rotate_pipes: "pipe-path",
+  circuit_clash: "pipe-path",
   number_grid: "number-logic-grid",
   pattern_match: "pattern-match",
   word_scramble: "word-letter-grid",
@@ -69,7 +70,7 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     label: "Pipe / Path",
     kicker: "Flow Reactor",
     summary: "Glowing conduits, power nodes, and current pulses built for route-completion pressure.",
-    puzzleTypes: ["rotate_pipes"],
+    puzzleTypes: ["rotate_pipes", "circuit_clash"],
     surfaceAssetRef: "/cosmetics/boards/pipe-flow-board.svg",
     surfaceVariant: "grid",
     surfaceLayout: {

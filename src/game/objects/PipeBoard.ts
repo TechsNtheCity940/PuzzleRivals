@@ -104,6 +104,80 @@ export default class PipeBoard {
     this.grid = checkPipeConnections(generatePipePuzzle(this.sessionSeed, this.size));
   }
 
+  private getModeProfile() {
+    if (this.mode === "circuit_clash") {
+      return {
+        submissionKind: "circuit_clash" as const,
+        sourceTag: "SRC",
+        sinkTag: "GRID",
+        ringTint: 0xb8ff43,
+        connectedColor: 0xc9ff6f,
+        endpointColor: 0xf5ff91,
+        idlePipe: 0x6f8f8d,
+        selectionPipe: 0xf7ffbf,
+        selectionStroke: 0xc5ff5e,
+        connectedStroke: 0x78ffce,
+        idleStroke: 0x2f5f66,
+        selectionGlow: 0xb9ff43,
+        sinkGlow: 0xfff275,
+        sourceGlow: 0x65f7ff,
+        connectedGlow: 0x7dffcb,
+        idleGlow: 0x33516a,
+        markerSource: 0x91fbff,
+        markerSink: 0xf6ff9c,
+        sourceTagColor: "#d6ffff",
+        sinkTagColor: "#f5ffbb",
+        flowLine: 0xe5ffe2,
+        sourceDroplet: 0xd4ffff,
+        sinkDroplet: 0xf8ffbd,
+        leakLine: 0xff7a8b,
+        leakSpark: 0xffb2b8,
+        rotationBase: 80,
+        connectionScore: 175,
+        comboScore: 30,
+        idleScore: 12,
+        finishBase: 420,
+        finishMoveBonus: 24,
+        completionTint: 0xc9ff6f,
+      };
+    }
+
+    return {
+      submissionKind: "rotate_pipes" as const,
+      sourceTag: "IN",
+      sinkTag: "OUT",
+      ringTint: 0x64edff,
+      connectedColor: 0x86f8ff,
+      endpointColor: 0xffec66,
+      idlePipe: 0x5d8aa7,
+      selectionPipe: 0xfff089,
+      selectionStroke: 0xffe86b,
+      connectedStroke: 0x4fdfff,
+      idleStroke: 0x21415d,
+      selectionGlow: 0xffe86b,
+      sinkGlow: 0xc8ff4d,
+      sourceGlow: 0x5fe2ff,
+      connectedGlow: 0x72f8ff,
+      idleGlow: 0x2e5677,
+      markerSource: 0x8ff8ff,
+      markerSink: 0xd8ff87,
+      sourceTagColor: "#d6ffff",
+      sinkTagColor: "#ebffb1",
+      flowLine: 0xb7ffff,
+      sourceDroplet: 0xc5ffff,
+      sinkDroplet: 0xe6ffab,
+      leakLine: 0xff76b6,
+      leakSpark: 0xffa8d1,
+      rotationBase: 65,
+      connectionScore: 140,
+      comboScore: 22,
+      idleScore: 10,
+      finishBase: 320,
+      finishMoveBonus: 18,
+      completionTint: 0x86f8ff,
+    };
+  }
+
   create() {
     const totalCells = this.grid.flat().length;
     const rotatableCells = this.countRotatableCells();
@@ -296,6 +370,7 @@ export default class PipeBoard {
     this.selectedCol = col;
     this.refreshAllVisuals();
 
+    const profile = this.getModeProfile();
     const previousConnected = this.countConnected(this.grid);
     const currentRotation = currentCell.rotation;
     const nextGrid = checkPipeConnections(
@@ -309,7 +384,7 @@ export default class PipeBoard {
     this.movesLeft = Math.max(0, this.movesLeft - 1);
     const visual = this.visuals[row][col];
     const ring = this.scene.add.image(visual.container.x, visual.container.y, "impact_ring");
-    ring.setTint(0x64edff);
+    ring.setTint(profile.ringTint);
     ring.setDepth(40);
     ring.setAlpha(0.18);
     ring.setScale(0.34);
@@ -338,10 +413,10 @@ export default class PipeBoard {
     if (delta > 0) {
       this.combo += 1;
       this.maxCombo = Math.max(this.maxCombo, this.combo);
-      this.score += 65 + delta * 140 + this.combo * 22;
+      this.score += profile.rotationBase + delta * profile.connectionScore + this.combo * profile.comboScore;
     } else {
       this.combo = 0;
-      this.score += 10;
+      this.score += profile.idleScore;
     }
 
     this.refreshAllVisuals();
@@ -349,7 +424,7 @@ export default class PipeBoard {
 
     if (this.getProgressPercent() >= 100) {
       this.status = "complete";
-      this.score += 320 + this.movesLeft * 18;
+      this.score += profile.finishBase + this.movesLeft * profile.finishMoveBonus;
       await this.playCompletion();
       this.emitState();
       this.bridge?.onComplete?.(this.snapshotState());
@@ -382,21 +457,22 @@ export default class PipeBoard {
   }
 
   private drawPipeVisual(cell: PipeCell, visual: PipeVisual, row: number, col: number) {
+    const profile = this.getModeProfile();
     const isEndpoint = Boolean(cell.isSource || cell.isSink);
     const isSelected = row === this.selectedRow && col === this.selectedCol;
-    const connectedColor = isEndpoint ? 0xffec66 : 0x86f8ff;
+    const connectedColor = isEndpoint ? profile.endpointColor : profile.connectedColor;
     const baseColor = cell.isConnected ? 0x0d2546 : isSelected ? 0x11264a : 0x0a1630;
-    const strokeColor = isSelected ? 0xffe86b : cell.isConnected ? 0x4fdfff : 0x21415d;
-    const pipeColor = isSelected ? 0xfff089 : cell.isConnected ? connectedColor : 0x5d8aa7;
+    const strokeColor = isSelected ? profile.selectionStroke : cell.isConnected ? profile.connectedStroke : profile.idleStroke;
+    const pipeColor = isSelected ? profile.selectionPipe : cell.isConnected ? connectedColor : profile.idlePipe;
     const glowColor = isSelected
-      ? 0xffe86b
+      ? profile.selectionGlow
       : cell.isSink
-        ? 0xc8ff4d
+        ? profile.sinkGlow
         : cell.isSource
-          ? 0x5fe2ff
+          ? profile.sourceGlow
           : cell.isConnected
-            ? 0x72f8ff
-            : 0x2e5677;
+            ? profile.connectedGlow
+            : profile.idleGlow;
     const arm = this.cellSize * 0.34;
     const pipeWidth = Math.max(8, Math.round(this.cellSize * 0.13));
     const activeDirections = this.getActiveFlowDirections(row, col, cell).map((direction) =>
@@ -418,12 +494,12 @@ export default class PipeBoard {
     );
     visual.marker.setRadius(this.cellSize * (isEndpoint ? 0.085 : 0.055));
     visual.marker.setFillStyle(
-      cell.isSink ? 0xd8ff87 : cell.isSource ? 0x8ff8ff : 0xffec66,
+      cell.isSink ? profile.markerSink : cell.isSource ? profile.markerSource : profile.endpointColor,
       isEndpoint ? 0.95 : isSelected ? 0.34 : 0.12,
     );
-    visual.tag.setText(cell.isSource ? "IN" : cell.isSink ? "OUT" : "");
+    visual.tag.setText(cell.isSource ? profile.sourceTag : cell.isSink ? profile.sinkTag : "");
     visual.tag.setVisible(isEndpoint);
-    visual.tag.setColor(cell.isSink ? "#ebffb1" : "#d6ffff");
+    visual.tag.setColor(cell.isSink ? profile.sinkTagColor : profile.sourceTagColor);
 
     this.clearFlowAnimation(visual);
     this.clearLeakAnimation(visual);
@@ -459,7 +535,7 @@ export default class PipeBoard {
     visual.pipe.fillCircle(0, 0, pipeWidth * 0.46);
 
     if ((cell.isConnected || cell.isSource) && activeDirections.length > 0) {
-      visual.flow.lineStyle(Math.max(4, Math.round(pipeWidth * 0.42)), 0xb7ffff, 0.95);
+      visual.flow.lineStyle(Math.max(4, Math.round(pipeWidth * 0.42)), profile.flowLine, 0.95);
       activeDirections.forEach((direction, index) => {
         const endpoint = this.getLocalDirectionEndpoint(direction, arm);
         visual.flow.beginPath();
@@ -471,7 +547,7 @@ export default class PipeBoard {
           cell.isSink ? endpoint.x : 0,
           cell.isSink ? endpoint.y : 0,
           Math.max(3, pipeWidth * 0.18),
-          cell.isSink ? 0xe6ffab : 0xc5ffff,
+          cell.isSink ? profile.sinkDroplet : profile.sourceDroplet,
           0.96,
         );
         droplet.setDepth(5);
@@ -497,12 +573,12 @@ export default class PipeBoard {
         visual.flowTweens.push(tween);
       });
 
-      visual.flow.fillStyle(cell.isSink ? 0xe8ffaf : 0xb7ffff, cell.isSource ? 1 : 0.94);
+      visual.flow.fillStyle(cell.isSink ? profile.sinkDroplet : profile.flowLine, cell.isSource ? 1 : 0.94);
       visual.flow.fillCircle(0, 0, pipeWidth * 0.28);
     }
 
     if (cell.isConnected && deadEnds.length > 0) {
-      visual.leak.lineStyle(2, 0xff76b6, 0.82);
+      visual.leak.lineStyle(2, profile.leakLine, 0.82);
       deadEnds.forEach((direction, index) => {
         const endpoint = this.getLocalDirectionEndpoint(direction, arm);
         const sparkEnd = {
@@ -519,7 +595,7 @@ export default class PipeBoard {
           sparkEnd.x,
           sparkEnd.y,
           Math.max(2, pipeWidth * 0.14),
-          0xffa8d1,
+          profile.leakSpark,
           0.92,
         );
         spark.setDepth(5);
@@ -651,12 +727,13 @@ export default class PipeBoard {
   }
 
   private async playCompletion() {
+    const profile = this.getModeProfile();
     const burst = this.scene.add.image(
       BOARD_VIEWPORT_CENTER_X,
       BOARD_VIEWPORT_CENTER_Y,
       "combo_burst",
     );
-    burst.setTint(0x86f8ff);
+    burst.setTint(profile.completionTint);
     burst.setDepth(42);
     burst.setAlpha(0.64);
     burst.setScale(0.38);
@@ -684,8 +761,9 @@ export default class PipeBoard {
   }
 
   private buildSubmission(): PuzzleSubmission {
+    const profile = this.getModeProfile();
     return {
-      kind: "rotate_pipes",
+      kind: profile.submissionKind,
       rotations: this.grid.flat().map((cell) => cell.rotation),
     };
   }

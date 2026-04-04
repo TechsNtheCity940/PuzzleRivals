@@ -21,6 +21,7 @@ export type NeonRivalsRunMode =
   | "clear_rush"
   | "maze_rush"
   | "pipe_rush"
+  | "circuit_clash"
   | "tile_shift"
   | "number_crunch"
   | "spatial_spin"

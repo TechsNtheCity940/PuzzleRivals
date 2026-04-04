@@ -51,10 +51,13 @@ describe("Neon Rivals run modes", () => {
 
   it("creates pipe and tile arena states with their own board families", () => {
     const pipeObjective = buildNeonRivalsObjective("pipe_rush", 91);
+    const circuitObjective = buildNeonRivalsObjective("circuit_clash", 93);
     const tileState = createInitialGameState("tile_shift", 88);
 
     expect(pipeObjective.boardFamily).toBe("pipe");
     expect(pipeObjective.targetValue).toBe(100);
+    expect(circuitObjective.boardFamily).toBe("pipe");
+    expect(circuitObjective.title).toBe("Circuit Clash");
     expect(tileState.boardFamily).toBe("tile");
     expect(tileState.movesLeft).toBe(28);
   });

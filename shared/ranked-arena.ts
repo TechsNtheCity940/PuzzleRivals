@@ -1,5 +1,5 @@
 export const RANKED_ARENA_PUZZLE_TYPES = [
-  "rotate_pipes",
+  "circuit_clash",
   "number_grid",
   "tile_slide",
   "maze",
@@ -8,7 +8,7 @@ export const RANKED_ARENA_PUZZLE_TYPES = [
 export type RankedArenaPuzzleType = (typeof RANKED_ARENA_PUZZLE_TYPES)[number];
 
 export const RANKED_ARENA_MODE_BY_PUZZLE = {
-  rotate_pipes: "pipe_rush",
+  circuit_clash: "circuit_clash",
   number_grid: "number_crunch",
   tile_slide: "tile_shift",
   maze: "maze_rush",

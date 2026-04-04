@@ -4,6 +4,7 @@ export type MatchMode = "ranked" | "head_to_head" | "casual" | "royale" | "reven
 
 export type MatchPlayablePuzzleType =
   | "rotate_pipes"
+  | "circuit_clash"
   | "number_grid"
   | "pattern_match"
   | "word_scramble"
@@ -125,6 +126,11 @@ export interface BackendLobby {
 
 export type RotatePipesSubmission = {
   kind: "rotate_pipes";
+  rotations: number[];
+};
+
+export type CircuitClashSubmission = {
+  kind: "circuit_clash";
   rotations: number[];
 };
 
@@ -278,6 +284,7 @@ export type VocabularyDuelSubmission = {
 
 export type PuzzleSubmission =
   | RotatePipesSubmission
+  | CircuitClashSubmission
   | NumberGridSubmission
   | PatternMatchSubmission
   | WordScrambleSubmission

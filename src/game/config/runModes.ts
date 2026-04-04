@@ -85,6 +85,13 @@ export const NEON_RIVALS_RUN_MODE_OPTIONS: NeonRivalsRunModeOption[] = [
     description: "Rotate the conduit grid until the source floods the network and the full neon circuit lights up.",
   },
   {
+    id: "circuit_clash",
+    boardFamily: "pipe",
+    label: "Circuit Clash",
+    kicker: "Power grid lane",
+    description: "Rotate live circuit tiles, drive current out from the source core, and light every goal node before the grid overloads.",
+  },
+  {
     id: "tile_shift",
     boardFamily: "tile",
     label: "Tile Shift",
@@ -195,6 +202,16 @@ const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo
     targetValue: 100,
     targetScore: 1750,
     startingMoves: 20,
+    resourceLabel: "moves",
+  },
+  circuit_clash: {
+    boardFamily: "pipe",
+    title: "Circuit Clash",
+    label: "Light every goal node and complete the powered route before the grid overloads.",
+    description: "Build cleaner power routes, extend current through longer branches, and keep the whole board humming under pressure.",
+    targetValue: 100,
+    targetScore: 1900,
+    startingMoves: 18,
     resourceLabel: "moves",
   },
   tile_shift: {

@@ -20,6 +20,7 @@ describe("head to head config", () => {
         (entry) => entry.boardFamily !== "quiz" && entry.boardFamily !== "strategy",
       ),
     ).toBe(true);
+    expect(HEAD_TO_HEAD_MODE_POOL.some((entry) => entry.mode === "circuit_clash")).toBe(true);
   });
 
   it("keeps attack effects at five seconds or longer by default", () => {

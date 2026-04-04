@@ -16,6 +16,7 @@ import { CURRENT_NEON_RIVALS_SEASON, NEON_RIVALS_STORE_ITEMS } from "./season-co
 
 const EMPTY_PUZZLE_SKILLS: Partial<Record<PuzzleType, number>> = {
   rotate_pipes: 0,
+  circuit_clash: 0,
   number_grid: 0,
   pattern_match: 0,
   word_scramble: 0,
@@ -48,6 +49,7 @@ const EMPTY_PUZZLE_SKILLS: Partial<Record<PuzzleType, number>> = {
 
 export const PUZZLE_TYPES: PuzzleMeta[] = [
   { type: "rotate_pipes", label: "Pipe Flow", icon: "Wrench", description: "Rotate pipe tiles to connect the flow" },
+  { type: "circuit_clash", label: "Circuit Clash", icon: "Bolt", description: "Power the circuit grid from source to goal nodes" },
   { type: "number_grid", label: "Number Crunch", icon: "123", description: "Fill the grid with correct sums" },
   { type: "pattern_match", label: "Pattern Eye", icon: "Eye", description: "Find the matching pattern" },
   { type: "word_scramble", label: "Word Blitz", icon: "ABC", description: "Unscramble the letters" },

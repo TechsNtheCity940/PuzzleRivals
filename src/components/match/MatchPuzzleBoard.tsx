@@ -167,7 +167,7 @@ function PatternIcon({ item }: { item: PatternItem }) {
   );
 }
 
-function RotatePipesBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
+function RotatePipesBoard(props: Pick<MatchPuzzleBoardProps, "puzzleType" | "seed" | "difficulty" | "isPractice" | "disabled" | "onSolve" | "onProgress" | "onStateChange">) {
   const size = props.difficulty >= 4 ? 5 : 4;
   const [grid, setGrid] = useState(() => checkPipeConnections(generatePipePuzzle(props.seed, size)));
   const [solved, setSolved] = useState(false);
@@ -178,10 +178,10 @@ function RotatePipesBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
     const progress = clampProgress((connected / Math.max(total, 1)) * 100);
     props.onProgress(progress);
     props.onStateChange?.({
-      kind: "rotate_pipes",
+      kind: props.puzzleType === "circuit_clash" ? "circuit_clash" : "rotate_pipes",
       rotations: grid.flat().map((cell) => cell.rotation),
     }, progress);
-  }, [grid, props.onProgress, props.onStateChange]);
+  }, [grid, props.onProgress, props.onStateChange, props.puzzleType]);
 
   function handleRotate(rowIndex: number, colIndex: number) {
     if (props.disabled || solved) return;
@@ -212,7 +212,9 @@ function RotatePipesBoard(props: Omit<MatchPuzzleBoardProps, "puzzleType">) {
     <div className="match-neon-stage match-spatial-board flex flex-col items-center gap-3">
       {props.isPractice && (
         <p className="text-center font-hud text-sm text-muted-foreground">
-          Rotate tiles until the source path connects cleanly to the sink.
+{props.puzzleType === "circuit_clash"
+            ? "Rotate the circuit tiles so current reaches every goal node on the board."
+            : "Rotate tiles until the source path connects cleanly to the sink."}
         </p>
       )}
       <div className="grid gap-2 rounded-[28px] bg-card/70 p-3" style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}>
@@ -1399,7 +1401,7 @@ const MatchPuzzleBoard = memo(function MatchPuzzleBoard(props: MatchPuzzleBoardP
 
   let board: JSX.Element;
 
-  if (props.puzzleType === "rotate_pipes") {
+  if (props.puzzleType === "rotate_pipes" || props.puzzleType === "circuit_clash") {
     board = <RotatePipesBoard {...boardProps} />;
   } else if (props.puzzleType === "number_grid") {
     board = <NumberGridBoard {...boardProps} />;

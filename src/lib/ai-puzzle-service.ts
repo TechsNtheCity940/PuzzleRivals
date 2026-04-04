@@ -10,6 +10,7 @@ export interface MatchPuzzleMeta extends PuzzleCatalogEntry {}
 
 const MATCH_PLAYABLE_PUZZLES: MatchPlayablePuzzleType[] = [
   "rotate_pipes",
+  "circuit_clash",
   "number_grid",
   "pattern_match",
   "word_scramble",

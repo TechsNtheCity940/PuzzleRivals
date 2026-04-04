@@ -35,6 +35,7 @@ export interface GeneratedPuzzleTemplate {
 
 const ALL_PUZZLE_TYPES: MatchPlayablePuzzleType[] = [
   "rotate_pipes",
+  "circuit_clash",
   "number_grid",
   "pattern_match",
   "word_scramble",

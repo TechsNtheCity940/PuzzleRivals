@@ -683,7 +683,7 @@ export default function MatchPage() {
         currentLobby.id,
         "live",
         currentSubmission,
-        mode === "head_to_head" ? undefined : arenaStateRef.current?.score ?? 0,
+        scoreRace ? undefined : arenaStateRef.current?.score ?? 0,
       )
       .then((response) => setLobby(response.lobby))
       .catch((error) => {
@@ -697,7 +697,7 @@ export default function MatchPage() {
         setSolvePending(false);
         solvePendingRef.current = false;
       });
-  }, [mode]);
+  }, [scoreRace]);
 
   async function handleUseHint() {
 
@@ -990,7 +990,7 @@ export default function MatchPage() {
                       stage,
                       submission,
                       state.objectiveProgressPercent,
-                      isHeadToHead ? undefined : state.score,
+                      scoreRace ? undefined : state.score,
                     );
                   }}
                   onStateChange={(state) => {

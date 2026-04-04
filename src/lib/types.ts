@@ -5,6 +5,7 @@
 // ---------- Puzzle Engine ----------
 export type PuzzleType =
   | "rotate_pipes"
+  | "circuit_clash"
   | "number_grid"
   | "pattern_match"
   | "word_scramble"

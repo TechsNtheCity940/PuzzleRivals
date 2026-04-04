@@ -60,7 +60,7 @@ export const HEAD_TO_HEAD_MODE_POOL: HeadToHeadModeDefinition[] = [
   resolveMode("color_hunt", 2, 19000),
   resolveMode("clear_rush", 2, 18000),
   resolveMode("maze_rush", 2, 17000),
-  resolveMode("pipe_rush", 2, 19000),
+  resolveMode("circuit_clash", 2, 18500),
   resolveMode("tile_shift", 2, 22000),
   resolveMode("number_crunch", 2, 19000),
   resolveMode("spatial_spin", 2, 16000),

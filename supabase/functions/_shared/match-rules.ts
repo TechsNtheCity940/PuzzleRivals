@@ -6,6 +6,7 @@ import {
 import type { MatchPlayablePuzzleType } from "./puzzle.ts";
 
 const RAPID_FIRE_TYPES = new Set<MatchPlayablePuzzleType>([
+  "circuit_clash",
   "pattern_match",
   "word_scramble",
   "crossword_mini",

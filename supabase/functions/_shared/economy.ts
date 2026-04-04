@@ -242,6 +242,10 @@ export function calculateArcadeRunReward(input: {
   } else if (input.mode === "pipe_rush") {
     reward.coins += input.success ? 24 : 8;
     reward.shards += input.success ? 3 : 1;
+  } else if (input.mode === "circuit_clash") {
+    reward.coins += input.success ? 32 : 10;
+    reward.shards += input.success ? 5 : 2;
+    reward.passXp += input.success ? 24 : 8;
   } else if (input.mode === "tile_shift") {
     reward.xp += input.success ? 24 : 8;
     reward.passXp += input.success ? 15 : 5;
