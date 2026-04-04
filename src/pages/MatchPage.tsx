@@ -119,10 +119,6 @@ function LobbySeat({
   seatLabel: string;
   isSelf: boolean;
 }) {
-  const title =
-    player?.titleName ?? (player?.isBot ? "Easy Bot" : `${player?.rank} rival`);
-  const bannerName =
-    player?.bannerName ?? (player?.isBot ? "Training Banner" : "Arena Banner");
   const emblemName =
     player?.emblemName ?? (player?.isBot ? "Practice Emblem" : "Rank Emblem");
 
@@ -135,9 +131,7 @@ function LobbySeat({
       )}
     >
       <div className="match-seat-banner">
-        <span className="match-seat-banner-label">
-          {player ? bannerName : "Queue Search"}
-        </span>
+        <span className="match-seat-banner-label">{seatLabel}</span>
         <span className="match-seat-banner-status">
           {player ? (player.ready ? "Ready" : "Locking") : "Scanning"}
         </span>
@@ -147,16 +141,16 @@ function LobbySeat({
         {player ? (
           <IdentityLoadoutCard
             username={`${player.username}${isSelf ? " (You)" : ""}`}
-            subtitle={`${seatLabel} - ${player.isBot ? "training rival" : "live profile synced"}`}
+            subtitle={player.isBot ? "Training rival" : "Live rival"}
             avatarId={player.avatarId ?? DEFAULT_AVATAR_ID}
             frameId={player.frameId}
             playerCardId={player.playerCardId}
             bannerId={player.bannerId}
             emblemId={player.emblemId}
             titleId={player.titleId}
-            titleLabel={title}
-            bannerLabel={bannerName}
             emblemLabel={emblemName}
+            rankLabel={player.isBot ? "Easy Bot" : player.rank}
+            variant="match-seat"
             className="match-seat-loadout"
           />
         ) : (
@@ -170,40 +164,12 @@ function LobbySeat({
                 {seatLabel} - waiting for challenger
               </p>
               <div className="match-seat-meta">
-                <span className="match-seat-chip">Player card pending</span>
-                <span className="match-seat-chip">Emblem pending</span>
+                <span className="match-seat-chip">Neon Circuit card queued</span>
+                <span className="match-seat-chip">Random rival incoming</span>
               </div>
             </div>
           </div>
         )}
-
-        <div className="match-seat-rank">
-          <p
-            className={cn(
-              "text-sm font-black",
-              player ? getRankColor(player.rank) : "text-muted-foreground",
-            )}
-          >
-            {player ? `${player.isBot ? "Easy bot" : player.rank}` : "Open"}
-          </p>
-          <p className="font-hud text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            {player ? `${player.elo} elo` : "waiting"}
-          </p>
-          <div
-            className={cn(
-              "match-seat-presence",
-              player
-                ? "match-seat-presence-ready"
-                : "match-seat-presence-searching",
-            )}
-          >
-            {player ? (
-              <Users size={14} />
-            ) : (
-              <LoaderCircle size={14} className="animate-spin" />
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -274,6 +240,7 @@ export default function MatchPage() {
   const [hintPenaltyTotal, setHintPenaltyTotal] = useState(0);
   const [hintUsesThisRound, setHintUsesThisRound] = useState(0);
   const [hintCooldownUntil, setHintCooldownUntil] = useState<number | null>(null);
+  const [activeHint, setActiveHint] = useState<{ text: string; expiresAt: number } | null>(null);
   const [solvePending, setSolvePending] = useState(false);
   const [exitPending, setExitPending] = useState(false);
   const [quitConfirmOpen, setQuitConfirmOpen] = useState(false);
@@ -313,6 +280,7 @@ export default function MatchPage() {
     setHintPenaltyTotal(0);
     setHintUsesThisRound(0);
     setHintCooldownUntil(null);
+    setActiveHint(null);
     setSolvePending(false);
     setResultsSnapshot(null);
     readySentLobbyIdRef.current = null;
@@ -773,6 +741,7 @@ export default function MatchPage() {
       setHintPenaltyTotal(response.hintPenaltyTotal);
       setHintUsesThisRound(response.hintUses);
       setHintCooldownUntil(cooldownAt);
+      setActiveHint({ text: message, expiresAt: Date.now() + 6500 });
       void refreshUser();
       toast.message(`Hint used. -${response.penalty} score`, {
         description: message,
@@ -785,6 +754,13 @@ export default function MatchPage() {
       setHintSaving(false);
     }
   }
+
+  useEffect(() => {
+    if (lobby?.status !== "live" || !lobby.selection) {
+      setActiveHint(null);
+      return;
+    }
+  }, [lobby?.status, lobby?.selection?.selectedAt]);
 
   async function leaveMatch() {
     if (!lobby || exitPending) return;
@@ -877,6 +853,10 @@ export default function MatchPage() {
         : localHintBalance <= 0
           ? "No Hints"
           : `Hint -${nextHintPenalty}`;
+    const visibleHint =
+      !isPractice && activeHint && activeHint.expiresAt > clockNow
+        ? activeHint.text
+        : null;
 
     return (
       <>
@@ -975,6 +955,18 @@ export default function MatchPage() {
                 </div>
               </div>
             </div>
+
+            {visibleHint ? (
+              <div className="match-ranked-hint-panel">
+                <div className="match-ranked-hint-panel-copy">
+                  <span className="match-ranked-hint-panel-label">Live Hint</span>
+                  <p>{visibleHint}</p>
+                </div>
+                <span className="match-ranked-hint-panel-penalty">
+                  Score pressure active
+                </span>
+              </div>
+            ) : null}
 
             <div className="match-ranked-board-wrap">
               <div className="match-ranked-board-shell">

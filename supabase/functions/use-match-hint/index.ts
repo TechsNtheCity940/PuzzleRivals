@@ -104,13 +104,13 @@ Deno.serve(async (req) => {
     const snapshot = await advanceLobbyState(lobbyId) ?? await getLobbySnapshot(lobbyId);
     return Response.json(
       {
+        lobby: snapshot,
         penalty,
         hintUses: nextHintUses,
         hintPenaltyTotal: nextPenaltyTotal,
         nextHintAvailableAt,
         remainingHints,
         liveScore,
-        ...snapshot,
       },
       { headers: corsHeaders },
     );

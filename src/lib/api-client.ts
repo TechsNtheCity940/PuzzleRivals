@@ -12,6 +12,48 @@ export interface MatchHintSyncResult {
   liveScore: number;
 }
 
+type LegacyMatchHintPayload = Omit<MatchHintSyncResult, "lobby"> & Partial<BackendLobby>;
+type MatchHintPayload = MatchHintSyncResult | LegacyMatchHintPayload;
+
+function isBackendLobby(value: unknown): value is BackendLobby {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.mode === "string" &&
+    typeof candidate.status === "string" &&
+    Array.isArray(candidate.players)
+  );
+}
+
+function normalizeBackendLobby(value: BackendLobby | MatchHintPayload): BackendLobby | null {
+  if (!isBackendLobby(value)) {
+    return null;
+  }
+
+  return {
+    id: value.id,
+    mode: value.mode,
+    status: value.status,
+    maxPlayers: value.maxPlayers,
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+    expiresAt: value.expiresAt,
+    players: value.players,
+    selection: value.selection,
+    practiceStartsAt: value.practiceStartsAt,
+    practiceEndsAt: value.practiceEndsAt,
+    liveStartsAt: value.liveStartsAt,
+    liveEndsAt: value.liveEndsAt,
+    intermissionStartsAt: value.intermissionStartsAt,
+    intermissionEndsAt: value.intermissionEndsAt,
+    results: value.results,
+  };
+}
+
 async function invoke<T>(functionName: string, body: Record<string, unknown>) {
   if (!supabase) {
     throw new Error(supabaseConfigErrorMessage);
@@ -118,8 +160,20 @@ export const supabaseApi = {
       score,
     });
   },
-  useMatchHint(lobbyId: string) {
-    return invoke<MatchHintSyncResult>("use-match-hint", { lobbyId });
+  async useMatchHint(lobbyId: string) {
+    const payload = await invoke<MatchHintPayload>("use-match-hint", { lobbyId });
+    const lobby = "lobby" in payload && payload.lobby
+      ? normalizeBackendLobby(payload.lobby)
+      : normalizeBackendLobby(payload);
+
+    if (!lobby) {
+      throw new Error("Hint response did not include the updated lobby state.");
+    }
+
+    return {
+      ...payload,
+      lobby,
+    } as MatchHintSyncResult;
   },
   voteNextRound(lobbyId: string, vote: "continue" | "exit") {
     return invoke<{ lobby: BackendLobby }>("vote-next-round", { lobbyId, vote });

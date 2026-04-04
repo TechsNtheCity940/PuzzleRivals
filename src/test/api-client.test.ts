@@ -129,6 +129,56 @@ describe("supabase api client", () => {
     );
   });
 
+  it("normalizes legacy match hint payloads into the current client shape", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "token-hint",
+        },
+      },
+    });
+
+    const legacyLobby = {
+      id: "lobby-hint",
+      mode: "ranked",
+      status: "live",
+      maxPlayers: 4,
+      createdAt: "2026-04-03T00:00:00.000Z",
+      updatedAt: "2026-04-03T00:00:00.000Z",
+      expiresAt: "2026-04-03T00:10:00.000Z",
+      players: [],
+      selection: null,
+      practiceStartsAt: null,
+      practiceEndsAt: null,
+      liveStartsAt: null,
+      liveEndsAt: null,
+      intermissionStartsAt: null,
+      intermissionEndsAt: null,
+      results: null,
+    };
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        ...legacyLobby,
+        penalty: 60,
+        hintUses: 1,
+        hintPenaltyTotal: 60,
+        nextHintAvailableAt: "2026-04-03T00:00:12.000Z",
+        remainingHints: 2,
+        liveScore: 340,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { supabaseApi } = await import("@/lib/api-client");
+    const result = await supabaseApi.useMatchHint("lobby-hint");
+
+    expect(result.lobby).toEqual(legacyLobby);
+    expect(result.penalty).toBe(60);
+    expect(result.hintUses).toBe(1);
+  });
+
   it("surfaces Supabase Edge Function error messages", async () => {
     mocks.getSession.mockResolvedValue({
       data: {

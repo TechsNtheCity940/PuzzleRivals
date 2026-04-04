@@ -4763,3 +4763,233 @@
     margin-inline: 0.75rem;
   }
 }
+
+.match-seat-main {
+  @apply relative z-10 flex items-center justify-center px-4 py-4;
+}
+
+.match-seat-loadout {
+  width: min(100%, 320px);
+}
+
+.identity-loadout-card--match-seat {
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+  padding: 1rem;
+  gap: 0;
+  border-radius: 32px;
+  background-image:
+    var(--identity-card-art, none),
+    radial-gradient(circle at top, rgba(101, 242, 255, 0.14), transparent 54%),
+    linear-gradient(180deg, rgba(8, 14, 28, 0.94), rgba(5, 10, 20, 0.96));
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.34);
+}
+
+.identity-loadout-card--match-seat::after {
+  background: linear-gradient(180deg, rgba(6, 10, 20, 0.08), rgba(6, 10, 20, 0.56));
+}
+
+.identity-loadout-card-frame-art,
+.identity-loadout-card-frame-shell {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+}
+
+.identity-loadout-card-frame-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  mix-blend-mode: screen;
+  opacity: 0.96;
+}
+
+.identity-loadout-match-seat-shell {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.identity-loadout-match-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.identity-loadout-match-avatar {
+  flex-shrink: 0;
+}
+
+.identity-loadout-match-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding-top: 0.15rem;
+}
+
+.identity-loadout-match-subtitle {
+  font-family: "Chakra Petch", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.identity-loadout-match-rail {
+  position: relative;
+  display: flex;
+  min-height: 82px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.85rem 1rem;
+  background: linear-gradient(90deg, rgba(13, 18, 31, 0.88), rgba(12, 18, 28, 0.72));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.identity-loadout-match-banner-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.98;
+}
+
+.identity-loadout-match-rail::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(8, 12, 24, 0.54), rgba(8, 12, 24, 0.28));
+}
+
+.identity-loadout-match-emblem,
+.identity-loadout-match-rank {
+  position: relative;
+  z-index: 1;
+}
+
+.identity-loadout-match-emblem {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.identity-loadout-match-emblem-copy {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "Chakra Petch", monospace;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.identity-loadout-match-rank {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.identity-loadout-match-rank-label {
+  font-family: "Chakra Petch", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.54);
+}
+
+.identity-loadout-match-rank-value {
+  font-size: 1rem;
+  font-weight: 900;
+  text-transform: capitalize;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.match-ranked-hint-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid rgba(101, 242, 255, 0.18);
+  border-radius: 22px;
+  padding: 0.9rem 1rem;
+  background: linear-gradient(135deg, rgba(8, 16, 30, 0.92), rgba(10, 20, 38, 0.88));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+}
+
+.match-ranked-hint-panel-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.match-ranked-hint-panel-label {
+  font-family: "Chakra Petch", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #c8ff4d;
+}
+
+.match-ranked-hint-panel-copy p {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.match-ranked-hint-panel-penalty {
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(200, 255, 77, 0.2);
+  background: rgba(200, 255, 77, 0.08);
+  padding: 0.4rem 0.75rem;
+  font-family: "Chakra Petch", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #c8ff4d;
+}
+
+@media (max-width: 900px) {
+  .match-seat-loadout {
+    width: 100%;
+  }
+
+  .identity-loadout-card--match-seat {
+    max-width: none;
+  }
+
+  .identity-loadout-match-rail {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .identity-loadout-match-rank {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .match-ranked-hint-panel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
