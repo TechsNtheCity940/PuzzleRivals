@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCrosswordMini,
+  buildLinkLock,
   buildMatchingPairs,
   buildMaze,
+  buildMirrorMaze,
   buildMemoryGrid,
   buildNumberGrid,
   buildPathfinder,
   buildPatternRounds,
   buildSpatialRounds,
   buildSudokuMini,
+  evaluateLinkLockPaths,
+  evaluateMirrorMazeState,
   buildTilePuzzle,
   buildWordScramble,
   buildWordSearch,
@@ -16,17 +20,22 @@ import {
   getMazeProgress,
   isTilePuzzleSolved,
   normalizeSegment,
+  traceMirrorBeam,
 } from "@/lib/match-puzzle-contract";
 import {
   buildCrosswordMini as buildBackendCrosswordMini,
+  buildLinkLock as buildBackendLinkLock,
   buildMatchingPairs as buildBackendMatchingPairs,
   buildMaze as buildBackendMaze,
+  buildMirrorMaze as buildBackendMirrorMaze,
   buildMemoryGrid as buildBackendMemoryGrid,
   buildNumberGrid as buildBackendNumberGrid,
   buildPathfinder as buildBackendPathfinder,
   buildPatternRounds as buildBackendPatternRounds,
   buildSpatialRounds as buildBackendSpatialRounds,
   buildSudokuMini as buildBackendSudokuMini,
+  evaluateLinkLockPaths as evaluateBackendLinkLockPaths,
+  evaluateMirrorMazeState as evaluateBackendMirrorMazeState,
   buildTilePuzzle as buildBackendTilePuzzle,
   buildWordScramble as buildBackendWordScramble,
   buildWordSearch as buildBackendWordSearch,
@@ -34,6 +43,7 @@ import {
   getMazeProgress as getBackendMazeProgress,
   isTilePuzzleSolved as isBackendTilePuzzleSolved,
   normalizeSegment as normalizeBackendSegment,
+  traceMirrorBeam as traceBackendMirrorBeam,
 } from "../../supabase/functions/_shared/match-puzzle-contract.ts";
 
 describe("match puzzle contract", () => {
@@ -87,5 +97,35 @@ describe("match puzzle contract", () => {
   it("normalizes word-search segments the same way as the backend", () => {
     expect(normalizeSegment(12, 4)).toBe(normalizeBackendSegment(12, 4));
     expect(normalizeSegment(4, 12)).toBe("4:12");
+  });
+
+  it("matches the authoritative backend link-lock contract and path evaluation", () => {
+    const clientPuzzle = buildLinkLock(81231, 4);
+    const backendPuzzle = buildBackendLinkLock(81231, 4);
+
+    expect(clientPuzzle).toEqual(backendPuzzle);
+
+    const submission = clientPuzzle.pairs.map((pair) => ({
+      pairId: pair.pairId,
+      cells: [...pair.guidePath],
+    }));
+
+    expect(evaluateLinkLockPaths(clientPuzzle, submission)).toEqual(
+      evaluateBackendLinkLockPaths(backendPuzzle, submission),
+    );
+    expect(evaluateLinkLockPaths(clientPuzzle, submission).solved).toBe(true);
+  });
+
+  it("matches the authoritative backend mirror-maze contract and beam tracing", () => {
+    const clientPuzzle = buildMirrorMaze(54001, 4);
+    const backendPuzzle = buildBackendMirrorMaze(54001, 4);
+
+    expect(clientPuzzle).toEqual(backendPuzzle);
+    expect(traceMirrorBeam(clientPuzzle)).toEqual(traceBackendMirrorBeam(backendPuzzle));
+
+    const solvedRotations = clientPuzzle.cells.map((cell) => cell.rotation);
+    expect(evaluateMirrorMazeState(clientPuzzle, solvedRotations)).toEqual(
+      evaluateBackendMirrorMazeState(backendPuzzle, solvedRotations),
+    );
   });
 });

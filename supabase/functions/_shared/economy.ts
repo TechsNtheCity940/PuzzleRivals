@@ -246,6 +246,14 @@ export function calculateArcadeRunReward(input: {
     reward.coins += input.success ? 32 : 10;
     reward.shards += input.success ? 5 : 2;
     reward.passXp += input.success ? 24 : 8;
+  } else if (input.mode === "link_lock") {
+    reward.coins += input.success ? 28 : 9;
+    reward.passXp += input.success ? 22 : 7;
+    reward.shards += input.success ? 4 : 1;
+  } else if (input.mode === "mirror_maze") {
+    reward.coins += input.success ? 30 : 10;
+    reward.passXp += input.success ? 24 : 8;
+    reward.shards += input.success ? 5 : 2;
   } else if (input.mode === "tile_shift") {
     reward.xp += input.success ? 24 : 8;
     reward.passXp += input.success ? 15 : 5;

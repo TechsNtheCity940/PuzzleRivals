@@ -10,7 +10,7 @@ import {
 import { recordArcadeRunActivity } from "../_shared/activity.ts";
 
 type RunStatus = "complete" | "failed";
-type RunMode = "score_attack" | "combo_rush" | "color_hunt" | "clear_rush" | "maze_rush" | "pipe_rush" | "circuit_clash" | "tile_shift" | "number_crunch" | "spatial_spin" | "chess_shot" | "checkers_trap" | "chess_endgame" | "chess_opening" | "chess_mate_net" | "riddle_relay" | "trivia_blitz" | "geography_dash" | "science_spark" | "analogy_arc" | "vocabulary_duel" | "memory_flash";
+type RunMode = "score_attack" | "combo_rush" | "color_hunt" | "clear_rush" | "maze_rush" | "pipe_rush" | "circuit_clash" | "link_lock" | "mirror_maze" | "tile_shift" | "number_crunch" | "spatial_spin" | "chess_shot" | "checkers_trap" | "chess_endgame" | "chess_opening" | "chess_mate_net" | "riddle_relay" | "trivia_blitz" | "geography_dash" | "science_spark" | "analogy_arc" | "vocabulary_duel" | "memory_flash";
 
 type RewardSummary = {
   xp: number;
@@ -36,7 +36,7 @@ type ProfileWalletRow = {
   rank_points: number;
 };
 
-const VALID_MODES = new Set<RunMode>(["score_attack", "combo_rush", "color_hunt", "clear_rush", "maze_rush", "pipe_rush", "circuit_clash", "tile_shift", "number_crunch", "spatial_spin", "chess_shot", "checkers_trap", "chess_endgame", "chess_opening", "chess_mate_net", "riddle_relay", "trivia_blitz", "geography_dash", "science_spark", "analogy_arc", "vocabulary_duel", "memory_flash"]);
+const VALID_MODES = new Set<RunMode>(["score_attack", "combo_rush", "color_hunt", "clear_rush", "maze_rush", "pipe_rush", "circuit_clash", "link_lock", "mirror_maze", "tile_shift", "number_crunch", "spatial_spin", "chess_shot", "checkers_trap", "chess_endgame", "chess_opening", "chess_mate_net", "riddle_relay", "trivia_blitz", "geography_dash", "science_spark", "analogy_arc", "vocabulary_duel", "memory_flash"]);
 
 function asNumber(value: unknown, fallback = 0) {
   if (typeof value === "number" && Number.isFinite(value)) {

@@ -306,6 +306,37 @@ describe("MatchPage states", () => {
     expect(screen.getByText("Match Leaderboard")).toBeInTheDocument();
     expect(screen.queryByText(/Warm-up round before the scored battle\./i)).not.toBeInTheDocument();
   });
+
+  it("holds the leaderboard long enough to review after an early next-round start", async () => {
+    vi.useFakeTimers();
+    const baseNow = new Date("2026-03-13T00:01:12.000Z").getTime();
+    vi.setSystemTime(baseNow);
+    mockLobbyState.lobby = createLobby("intermission");
+
+    renderMatchPage();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("Match Leaderboard")).toBeInTheDocument();
+
+    await act(async () => {
+      const nextLobby = createLobby("practice");
+      mockLobbyState.lobby = nextLobby;
+      mockLobbyState.listener?.(nextLobby);
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      vi.setSystemTime(baseNow + 12_500);
+      vi.advanceTimersByTime(12_500);
+      vi.advanceTimersByTime(250);
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByText("Match Leaderboard")).not.toBeInTheDocument();
+  }, 10000);
 });
 
 

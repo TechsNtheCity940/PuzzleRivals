@@ -25,6 +25,8 @@ const RAPID_FIRE_TYPES = new Set<MatchPlayablePuzzleType>([
 const PUZZLE_HELP: Record<MatchPlayablePuzzleType, string> = {
   rotate_pipes: "Rotate each tile until the lit path runs cleanly from the source to the sink.",
   circuit_clash: "Rotate the circuit tiles until current runs from the source core into every goal node.",
+  link_lock: "Connect each matching node pair without crossing any completed route on the board.",
+  mirror_maze: "Rotate the mirrors so the beam reflects through the grid and lights every target.",
   number_grid: "Fill every empty square so each row and column matches the target sum.",
   pattern_match: "Read the rule across rows and columns, then tap the tile that completes the pattern.",
   word_scramble: "Tap the scrambled letters in the correct order to rebuild the hidden word.",
@@ -58,6 +60,8 @@ const PUZZLE_HELP: Record<MatchPlayablePuzzleType, string> = {
 const PUZZLE_HINTS: Record<MatchPlayablePuzzleType, string> = {
   rotate_pipes: "Start by fixing the source corner, then rotate neighboring pieces so every open side connects to another pipe.",
   circuit_clash: "Drive the power outward from the source first, then clean up dead ends so every goal node receives current.",
+  link_lock: "Start from an endpoint, extend one clean route at a time, and avoid boxing off the remaining pairs.",
+  mirror_maze: "Trace the beam after every rotation. One clean reflector often fixes two targets at once.",
   number_grid: "Use the row and column totals to solve the most constrained blank first instead of guessing.",
   pattern_match: "Rows usually control shape while columns control color. Check what stays constant in each direction.",
   word_scramble: "Build common prefixes or suffixes first. If a letter pair looks natural together, anchor it early.",

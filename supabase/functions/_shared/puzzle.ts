@@ -1,6 +1,26 @@
 import { buildGeneratedQuizRounds } from "./match-quiz-content.ts";
 import { buildStrategyRounds, evaluateStrategyMoveSequence } from "../../../shared/strategy-puzzle-content.ts";
-import { buildCrosswordMini, buildMatchingPairs, buildMaze, buildMemoryGrid, buildNumberGrid, buildPathfinder, buildPatternRounds, buildSpatialRounds, buildSudokuMini, buildTilePuzzle, buildWordScramble, buildWordSearch, buildWordle, getMazeProgress, normalizeSegment } from "./match-puzzle-contract.ts";
+import {
+  buildCrosswordMini,
+  buildLinkLock,
+  buildMatchingPairs,
+  buildMaze,
+  buildMemoryGrid,
+  buildMirrorMaze,
+  buildNumberGrid,
+  buildPathfinder,
+  buildPatternRounds,
+  buildSpatialRounds,
+  buildSudokuMini,
+  buildTilePuzzle,
+  buildWordScramble,
+  buildWordSearch,
+  buildWordle,
+  evaluateLinkLockPaths,
+  evaluateMirrorMazeState,
+  getMazeProgress,
+  normalizeSegment,
+} from "./match-puzzle-contract.ts";
 import {
   HEAD_TO_HEAD_ARENA_PUZZLE_TYPES,
   isHeadToHeadArenaPuzzleType,
@@ -10,6 +30,8 @@ import { RANKED_ARENA_PUZZLE_TYPES, isRankedArenaPuzzleType } from "../../../sha
 export type MatchPlayablePuzzleType =
   | "rotate_pipes"
   | "circuit_clash"
+  | "link_lock"
+  | "mirror_maze"
   | "number_grid"
   | "pattern_match"
   | "word_scramble"
@@ -58,6 +80,8 @@ export interface AuthoritativePuzzleSelection {
 export type PuzzleSubmission =
   | { kind: "rotate_pipes"; rotations: number[] }
   | { kind: "circuit_clash"; rotations: number[] }
+  | { kind: "link_lock"; paths: Array<{ pairId: number; cells: number[] }> }
+  | { kind: "mirror_maze"; rotations: number[] }
   | { kind: "number_grid"; values: Array<number | null> }
   | { kind: "pattern_match"; answers: number[] }
   | { kind: "word_scramble"; selectedIndices: number[] }
@@ -135,6 +159,8 @@ class SeededRandom {
 const MATCH_PLAYABLE_PUZZLES: MatchPlayablePuzzleType[] = [
   "rotate_pipes",
   "circuit_clash",
+  "link_lock",
+  "mirror_maze",
   "number_grid",
   "pattern_match",
   "word_scramble",
@@ -699,6 +725,14 @@ export function evaluatePuzzleSubmission(
       const total = checked.flat().length;
       const connected = checked.flat().filter((cell) => cell.isConnected).length;
       return clampProgress((connected / Math.max(total, 1)) * 100);
+    }
+    case "link_lock": {
+      const puzzle = buildLinkLock(seed, difficulty);
+      return evaluateLinkLockPaths(puzzle, submission.paths).progress;
+    }
+    case "mirror_maze": {
+      const puzzle = buildMirrorMaze(seed, difficulty);
+      return evaluateMirrorMazeState(puzzle, submission.rotations).progress;
     }
     case "number_grid": {
       const puzzle = buildNumberGrid(seed, difficulty);

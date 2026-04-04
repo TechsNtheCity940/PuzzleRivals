@@ -21,6 +21,8 @@ describe("head to head config", () => {
       ),
     ).toBe(true);
     expect(HEAD_TO_HEAD_MODE_POOL.some((entry) => entry.mode === "circuit_clash")).toBe(true);
+    expect(HEAD_TO_HEAD_MODE_POOL.some((entry) => entry.mode === "link_lock")).toBe(true);
+    expect(HEAD_TO_HEAD_MODE_POOL.some((entry) => entry.mode === "mirror_maze")).toBe(true);
   });
 
   it("keeps attack effects at five seconds or longer by default", () => {

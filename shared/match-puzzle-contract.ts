@@ -591,3 +591,472 @@ export function isTilePuzzleSolved(tiles: number[]) {
 
   return tiles[tiles.length - 1] === 0;
 }
+
+
+export interface LinkLockPair {
+  pairId: number;
+  color: string;
+  endpoints: [number, number];
+  guidePath: number[];
+}
+
+export interface LinkLockPuzzle {
+  size: number;
+  pairs: LinkLockPair[];
+}
+
+export interface LinkLockPathSubmission {
+  pairId: number;
+  cells: number[];
+}
+
+interface LinkLockTemplate {
+  size: number;
+  paths: Array<Array<[number, number]>>;
+}
+
+const LINK_LOCK_PALETTE = [
+  '#5fe2ff',
+  '#c8ff4d',
+  '#ff86d3',
+  '#ffc95e',
+] as const;
+
+const LINK_LOCK_TEMPLATES: LinkLockTemplate[] = [
+  {
+    size: 5,
+    paths: [
+      [[0, 0], [0, 1], [0, 2], [1, 2], [2, 2]],
+      [[0, 4], [1, 4], [2, 4], [3, 4], [4, 4]],
+      [[4, 0], [3, 0], [2, 0], [2, 1], [3, 1], [4, 1]],
+    ],
+  },
+  {
+    size: 6,
+    paths: [
+      [[0, 0], [0, 1], [1, 1], [2, 1], [2, 2], [2, 3]],
+      [[0, 5], [1, 5], [2, 5], [3, 5], [4, 5], [5, 5]],
+      [[5, 0], [4, 0], [3, 0], [3, 1], [3, 2], [4, 2], [5, 2]],
+      [[1, 3], [1, 4], [2, 4], [3, 4], [4, 4]],
+    ],
+  },
+];
+
+function toGridIndex(size: number, row: number, col: number) {
+  return row * size + col;
+}
+
+function areOrthogonallyAdjacent(size: number, left: number, right: number) {
+  const leftRow = Math.floor(left / size);
+  const leftCol = left % size;
+  const rightRow = Math.floor(right / size);
+  const rightCol = right % size;
+  return Math.abs(leftRow - rightRow) + Math.abs(leftCol - rightCol) === 1;
+}
+
+function transformSquareCoord(
+  size: number,
+  coord: [number, number],
+  rotationSteps: number,
+  mirrored: boolean,
+): [number, number] {
+  let [row, col] = coord;
+
+  for (let step = 0; step < rotationSteps; step += 1) {
+    [row, col] = [col, size - 1 - row];
+  }
+
+  if (mirrored) {
+    col = size - 1 - col;
+  }
+
+  return [row, col];
+}
+
+function transformSquareIndex(
+  size: number,
+  index: number,
+  rotationSteps: number,
+  mirrored: boolean,
+) {
+  const row = Math.floor(index / size);
+  const col = index % size;
+  const [nextRow, nextCol] = transformSquareCoord(size, [row, col], rotationSteps, mirrored);
+  return toGridIndex(size, nextRow, nextCol);
+}
+
+function normalizeEndpointPath(path: number[], endpoints: [number, number]) {
+  if (path[0] === endpoints[0] && path[path.length - 1] === endpoints[1]) {
+    return path;
+  }
+
+  if (path[0] === endpoints[1] && path[path.length - 1] === endpoints[0]) {
+    return [...path].reverse();
+  }
+
+  return path;
+}
+
+export function buildLinkLock(seed: number, difficulty: number): LinkLockPuzzle {
+  const rng = new SeededRandom(seed + difficulty * 97);
+  const targetSize = difficulty >= 4 ? 6 : 5;
+  const templates = LINK_LOCK_TEMPLATES.filter((template) => template.size === targetSize);
+  const template = templates[rng.nextInt(0, templates.length - 1)] ?? LINK_LOCK_TEMPLATES[0];
+  const rotationSteps = rng.nextInt(0, 3);
+  const mirrored = rng.next() > 0.5;
+  const colors = rng.shuffle([...LINK_LOCK_PALETTE]);
+
+  const paths = template.paths.map((path) =>
+    path.map(([row, col]) => {
+      const [nextRow, nextCol] = transformSquareCoord(
+        template.size,
+        [row, col],
+        rotationSteps,
+        mirrored,
+      );
+      return toGridIndex(template.size, nextRow, nextCol);
+    }),
+  );
+
+  return {
+    size: template.size,
+    pairs: paths.map((path, index) => ({
+      pairId: index + 1,
+      color: colors[index % colors.length],
+      endpoints: [path[0], path[path.length - 1]],
+      guidePath: path,
+    })),
+  };
+}
+
+export function evaluateLinkLockPaths(
+  puzzle: LinkLockPuzzle,
+  submittedPaths: LinkLockPathSubmission[],
+) {
+  const pairById = new Map(puzzle.pairs.map((pair) => [pair.pairId, pair] as const));
+  const endpointOwners = new Map<number, number>();
+  const occupied = new Map<number, number>();
+  const validPairIds: number[] = [];
+  const seenPairs = new Set<number>();
+
+  for (const pair of puzzle.pairs) {
+    endpointOwners.set(pair.endpoints[0], pair.pairId);
+    endpointOwners.set(pair.endpoints[1], pair.pairId);
+  }
+
+  for (const submittedPath of submittedPaths) {
+    const pair = pairById.get(submittedPath.pairId);
+    if (!pair || seenPairs.has(pair.pairId) || submittedPath.cells.length < 2) {
+      continue;
+    }
+
+    const cells = normalizeEndpointPath(submittedPath.cells, pair.endpoints);
+    const [start, end] = pair.endpoints;
+    if (cells[0] != start || cells[cells.length - 1] != end) {
+      continue;
+    }
+
+    const visited = new Set<number>();
+    let valid = true;
+
+    for (let index = 0; index < cells.length; index += 1) {
+      const cell = cells[index];
+      if (!Number.isInteger(cell) || cell < 0 || cell >= puzzle.size * puzzle.size) {
+        valid = false;
+        break;
+      }
+      if (visited.has(cell)) {
+        valid = false;
+        break;
+      }
+      if (index > 0 && !areOrthogonallyAdjacent(puzzle.size, cells[index - 1], cell)) {
+        valid = false;
+        break;
+      }
+
+      const isOwnEndpoint = cell === start || cell === end;
+      const endpointOwner = endpointOwners.get(cell);
+      if (!isOwnEndpoint && endpointOwner !== undefined) {
+        valid = false;
+        break;
+      }
+
+      const occupiedBy = occupied.get(cell);
+      if (occupiedBy !== undefined && occupiedBy !== pair.pairId) {
+        valid = false;
+        break;
+      }
+
+      visited.add(cell);
+    }
+
+    if (!valid) {
+      continue;
+    }
+
+    seenPairs.add(pair.pairId);
+    validPairIds.push(pair.pairId);
+    for (const cell of cells) {
+      occupied.set(cell, pair.pairId);
+    }
+  }
+
+  const completedPairs = validPairIds.length;
+  return {
+    completedPairs,
+    validPairIds,
+    progress: clampProgress((completedPairs / Math.max(puzzle.pairs.length, 1)) * 100),
+    solved: completedPairs === puzzle.pairs.length,
+  };
+}
+
+export type MirrorBeamDirection = 0 | 1 | 2 | 3;
+
+export interface MirrorMazeCell {
+  type: 'empty' | 'mirror';
+  rotation: number;
+  locked?: boolean;
+}
+
+export interface MirrorMazePuzzle {
+  size: number;
+  sourceIndex: number;
+  sourceDirection: MirrorBeamDirection;
+  targets: number[];
+  cells: MirrorMazeCell[];
+}
+
+interface MirrorMazeTemplate {
+  size: number;
+  sourceIndex: number;
+  sourceDirection: MirrorBeamDirection;
+  targets: number[];
+  mirrors: Array<{
+    index: number;
+    solvedRotation: number;
+    locked?: boolean;
+  }>;
+}
+
+const MIRROR_MAZE_TEMPLATES: MirrorMazeTemplate[] = [
+  {
+    size: 5,
+    sourceIndex: toGridIndex(5, 4, 0),
+    sourceDirection: 1,
+    targets: [toGridIndex(5, 2, 3), toGridIndex(5, 0, 4)],
+    mirrors: [
+      { index: toGridIndex(5, 4, 2), solvedRotation: 90 },
+      { index: toGridIndex(5, 2, 2), solvedRotation: 0 },
+      { index: toGridIndex(5, 2, 4), solvedRotation: 90 },
+    ],
+  },
+  {
+    size: 6,
+    sourceIndex: toGridIndex(6, 5, 0),
+    sourceDirection: 1,
+    targets: [toGridIndex(6, 4, 4), toGridIndex(6, 1, 5), toGridIndex(6, 0, 2)],
+    mirrors: [
+      { index: toGridIndex(6, 5, 2), solvedRotation: 90 },
+      { index: toGridIndex(6, 3, 2), solvedRotation: 0 },
+      { index: toGridIndex(6, 3, 4), solvedRotation: 90 },
+      { index: toGridIndex(6, 1, 4), solvedRotation: 0 },
+      { index: toGridIndex(6, 1, 2), solvedRotation: 90 },
+    ],
+  },
+];
+
+function rotateBeamDirection(direction: MirrorBeamDirection, rotationSteps: number) {
+  return ((direction + rotationSteps) % 4) as MirrorBeamDirection;
+}
+
+function mirrorBeamDirection(direction: MirrorBeamDirection) {
+  if (direction === 1) return 3;
+  if (direction === 3) return 1;
+  return direction;
+}
+
+function normalizeMirrorRotation(rotation: number) {
+  const normalized = ((rotation % 180) + 180) % 180;
+  return normalized >= 90 ? 90 : 0;
+}
+
+function transformMirrorRotation(rotation: number, rotationSteps: number, mirrored: boolean) {
+  let nextRotation = normalizeMirrorRotation(rotation);
+  if (rotationSteps % 2 !== 0) {
+    nextRotation = nextRotation === 0 ? 90 : 0;
+  }
+  if (mirrored) {
+    nextRotation = nextRotation === 0 ? 90 : 0;
+  }
+  return nextRotation;
+}
+
+function reflectMirrorBeam(direction: MirrorBeamDirection, rotation: number) {
+  const normalizedRotation = normalizeMirrorRotation(rotation);
+
+  if (normalizedRotation === 0) {
+    switch (direction) {
+      case 0:
+        return 3;
+      case 1:
+        return 2;
+      case 2:
+        return 1;
+      case 3:
+        return 0;
+    }
+  }
+
+  switch (direction) {
+    case 0:
+      return 1;
+    case 1:
+      return 0;
+    case 2:
+      return 3;
+    case 3:
+      return 2;
+  }
+}
+
+function nextBeamIndex(size: number, index: number, direction: MirrorBeamDirection) {
+  const row = Math.floor(index / size);
+  const col = index % size;
+  if (direction === 0 && row > 0) return index - size;
+  if (direction === 1 && col < size - 1) return index + 1;
+  if (direction === 2 && row < size - 1) return index + size;
+  if (direction === 3 && col > 0) return index - 1;
+  return null;
+}
+
+export function buildMirrorMaze(seed: number, difficulty: number): MirrorMazePuzzle {
+  const rng = new SeededRandom(seed + difficulty * 131);
+  const targetSize = difficulty >= 4 ? 6 : 5;
+  const templates = MIRROR_MAZE_TEMPLATES.filter((template) => template.size === targetSize);
+  const template = templates[rng.nextInt(0, templates.length - 1)] ?? MIRROR_MAZE_TEMPLATES[0];
+  const rotationSteps = rng.nextInt(0, 3);
+  const mirrored = rng.next() > 0.5;
+  const cells = Array.from({ length: template.size * template.size }, () => ({
+    type: 'empty',
+    rotation: 0,
+  } as MirrorMazeCell));
+
+  let scrambledMirrorCount = 0;
+  for (const mirror of template.mirrors) {
+    const index = transformSquareIndex(
+      template.size,
+      mirror.index,
+      rotationSteps,
+      mirrored,
+    );
+    const solvedRotation = transformMirrorRotation(
+      mirror.solvedRotation,
+      rotationSteps,
+      mirrored,
+    );
+    let rotation = solvedRotation;
+    if (!mirror.locked && rng.next() > 0.2) {
+      rotation = solvedRotation === 0 ? 90 : 0;
+      scrambledMirrorCount += 1;
+    }
+
+    cells[index] = {
+      type: 'mirror',
+      rotation,
+      locked: mirror.locked ?? false,
+    };
+  }
+
+  if (scrambledMirrorCount === 0) {
+    const mutableMirrorIndex = cells.findIndex((cell) => cell.type === 'mirror' && !cell.locked);
+    if (mutableMirrorIndex >= 0) {
+      cells[mutableMirrorIndex] = {
+        ...cells[mutableMirrorIndex],
+        rotation: cells[mutableMirrorIndex].rotation === 0 ? 90 : 0,
+      };
+    }
+  }
+
+  return {
+    size: template.size,
+    sourceIndex: transformSquareIndex(template.size, template.sourceIndex, rotationSteps, mirrored),
+    sourceDirection: mirrored
+      ? mirrorBeamDirection(rotateBeamDirection(template.sourceDirection, rotationSteps))
+      : rotateBeamDirection(template.sourceDirection, rotationSteps),
+    targets: template.targets.map((target) =>
+      transformSquareIndex(template.size, target, rotationSteps, mirrored),
+    ),
+    cells,
+  };
+}
+
+export function traceMirrorBeam(puzzle: MirrorMazePuzzle, overrideRotations?: number[]) {
+  const cells = puzzle.cells.map((cell, index) => {
+    if (cell.type !== 'mirror' || !overrideRotations || overrideRotations.length !== puzzle.cells.length) {
+      return { ...cell, rotation: normalizeMirrorRotation(cell.rotation) };
+    }
+
+    return {
+      ...cell,
+      rotation: normalizeMirrorRotation(overrideRotations[index] ?? cell.rotation),
+    };
+  });
+  const hitTargets = new Set<number>();
+  const beamCells = [puzzle.sourceIndex];
+  const visitedStates = new Set<string>();
+  let currentIndex = puzzle.sourceIndex;
+  let direction = puzzle.sourceDirection;
+
+  for (let step = 0; step < puzzle.cells.length * 8; step += 1) {
+    const stateKey = `${currentIndex}:${direction}`;
+    if (visitedStates.has(stateKey)) {
+      return {
+        beamCells,
+        hitTargets: [...hitTargets],
+        terminated: 'loop' as const,
+      };
+    }
+    visitedStates.add(stateKey);
+
+    if (puzzle.targets.includes(currentIndex)) {
+      hitTargets.add(currentIndex);
+    }
+
+    const cell = cells[currentIndex];
+    if (cell.type === 'mirror') {
+      direction = reflectMirrorBeam(direction, cell.rotation);
+    }
+
+    const nextIndex = nextBeamIndex(puzzle.size, currentIndex, direction);
+    if (nextIndex === null) {
+      return {
+        beamCells,
+        hitTargets: [...hitTargets],
+        terminated: 'edge' as const,
+      };
+    }
+
+    beamCells.push(nextIndex);
+    currentIndex = nextIndex;
+  }
+
+  return {
+    beamCells,
+    hitTargets: [...hitTargets],
+    terminated: 'loop' as const,
+  };
+}
+
+export function evaluateMirrorMazeState(
+  puzzle: MirrorMazePuzzle,
+  overrideRotations?: number[],
+) {
+  const beam = traceMirrorBeam(puzzle, overrideRotations);
+  const litTargetCount = beam.hitTargets.filter((target) => puzzle.targets.includes(target)).length;
+  return {
+    ...beam,
+    litTargetCount,
+    progress: clampProgress((litTargetCount / Math.max(puzzle.targets.length, 1)) * 100),
+    solved: litTargetCount === puzzle.targets.length,
+  };
+}

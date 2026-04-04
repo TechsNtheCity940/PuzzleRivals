@@ -9,6 +9,9 @@ import {
 
 const ALL_PUZZLE_TYPES: MatchPlayablePuzzleType[] = [
   "rotate_pipes",
+  "circuit_clash",
+  "link_lock",
+  "mirror_maze",
   "number_grid",
   "pattern_match",
   "word_scramble",
@@ -49,6 +52,8 @@ describe("neon puzzle board theme registry", () => {
 
   it("keeps the requested category placements for season 1 boards", () => {
     expect(getNeonPuzzleThemeCategory("rotate_pipes")).toBe("pipe-path");
+    expect(getNeonPuzzleThemeCategory("link_lock")).toBe("pipe-path");
+    expect(getNeonPuzzleThemeCategory("mirror_maze")).toBe("maze-route");
     expect(getNeonPuzzleThemeCategory("number_grid")).toBe("number-logic-grid");
     expect(getNeonPuzzleThemeCategory("pattern_match")).toBe("pattern-match");
     expect(getNeonPuzzleThemeCategory("word_scramble")).toBe("word-letter-grid");

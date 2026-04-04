@@ -106,7 +106,7 @@ type HistoryParticipationRow = {
 };
 
 const PRACTICE_DURATION_MS = 12_000;
-const INTERMISSION_DURATION_MS = 10_000;
+const INTERMISSION_DURATION_MS = 12_000;
 
 function buildPuzzleProfile(rows: PuzzleStatRow[]): Pick<PuzzleGeneratorPlayerProfile, "averageProgressByType" | "matchesPlayedByType"> {
   const averageProgressByType: Partial<Record<MatchPlayablePuzzleType, number>> = {};
@@ -784,6 +784,7 @@ export async function advanceLobbyState(lobbyId: string) {
 
   return broadcastLobbySnapshot(lobbyId);
 }
+
 
 
 

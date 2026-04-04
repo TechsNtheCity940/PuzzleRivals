@@ -7,8 +7,10 @@ import type {
   NeonRivalsMatchContext,
   NeonRivalsRunMode,
 } from "@/game/types";
+import LinkBoard from "@/game/objects/LinkBoard";
 import MemoryBoard from "@/game/objects/MemoryBoard";
 import MazeBoard from "@/game/objects/MazeBoard";
+import MirrorBoard from "@/game/objects/MirrorBoard";
 import NumberBoard from "@/game/objects/NumberBoard";
 import PipeBoard from "@/game/objects/PipeBoard";
 import PuzzleBoard from "@/game/objects/PuzzleBoard";
@@ -45,6 +47,8 @@ type ArenaBoardInstance =
   | Pick<PuzzleBoard, "create" | "destroy">
   | Pick<MazeBoard, "create" | "destroy">
   | Pick<PipeBoard, "create" | "destroy">
+  | Pick<LinkBoard, "create" | "destroy">
+  | Pick<MirrorBoard, "create" | "destroy">
   | Pick<TileBoard, "create" | "destroy">
   | Pick<NumberBoard, "create" | "destroy">
   | Pick<SpatialBoard, "create" | "destroy">
@@ -59,6 +63,14 @@ function boardMetricText(state: NeonRivalsGameState) {
 
   if (state.boardFamily === "pipe") {
     return `Connected ${state.matchedTiles}`;
+  }
+
+  if (state.boardFamily === "link") {
+    return `Locked pairs ${state.matchedTiles}`;
+  }
+
+  if (state.boardFamily === "mirror") {
+    return `Targets lit ${state.matchedTiles}`;
   }
 
   if (state.boardFamily === "tile") {
@@ -91,6 +103,8 @@ function boardMetricText(state: NeonRivalsGameState) {
 function getGridTint(boardFamily: NeonRivalsBoardFamily) {
   if (boardFamily === "tile") return 0xff7de2;
   if (boardFamily === "pipe") return 0x87f8ff;
+  if (boardFamily === "link") return 0xc8ff4d;
+  if (boardFamily === "mirror") return 0xffc95e;
   if (boardFamily === "number") return 0x72f5ff;
   if (boardFamily === "spatial") return 0xb88aff;
   if (boardFamily === "strategy") return 0xffd76e;
@@ -156,6 +170,14 @@ export default class BoardScene extends Phaser.Scene {
 
     if (boardFamily === "pipe") {
       return new PipeBoard(this, boardOptions);
+    }
+
+    if (boardFamily === "link") {
+      return new LinkBoard(this, boardOptions);
+    }
+
+    if (boardFamily === "mirror") {
+      return new MirrorBoard(this, boardOptions);
     }
 
     if (boardFamily === "tile") {

@@ -34,6 +34,8 @@ export interface NeonPuzzleThemeDefinition {
 export const PUZZLE_THEME_CATEGORY_BY_TYPE: Record<MatchPlayablePuzzleType, NeonPuzzleThemeCategory> = {
   rotate_pipes: "pipe-path",
   circuit_clash: "pipe-path",
+  link_lock: "pipe-path",
+  mirror_maze: "maze-route",
   number_grid: "number-logic-grid",
   pattern_match: "pattern-match",
   word_scramble: "word-letter-grid",
@@ -70,7 +72,7 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     label: "Pipe / Path",
     kicker: "Flow Reactor",
     summary: "Glowing conduits, power nodes, and current pulses built for route-completion pressure.",
-    puzzleTypes: ["rotate_pipes", "circuit_clash"],
+    puzzleTypes: ["rotate_pipes", "circuit_clash", "link_lock"],
     surfaceAssetRef: "/cosmetics/boards/pipe-flow-board.svg",
     surfaceVariant: "grid",
     surfaceLayout: {
@@ -141,7 +143,7 @@ export const NEON_PUZZLE_THEME_DEFINITIONS: Record<NeonPuzzleThemeCategory, Neon
     label: "Maze / Route",
     kicker: "Route Grid",
     summary: "Start and goal pulse states, trace lines, and wrong-route dimming for pathfinding.",
-    puzzleTypes: ["maze", "pathfinder"],
+    puzzleTypes: ["maze", "pathfinder", "mirror_maze"],
     surfaceAssetRef: "/cosmetics/boards/maze-rush-board.svg",
     surfaceVariant: "grid",
     surfaceLayout: {

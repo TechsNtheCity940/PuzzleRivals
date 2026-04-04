@@ -5,6 +5,8 @@ export type MatchMode = "ranked" | "head_to_head" | "casual" | "royale" | "reven
 export type MatchPlayablePuzzleType =
   | "rotate_pipes"
   | "circuit_clash"
+  | "link_lock"
+  | "mirror_maze"
   | "number_grid"
   | "pattern_match"
   | "word_scramble"
@@ -131,6 +133,19 @@ export type RotatePipesSubmission = {
 
 export type CircuitClashSubmission = {
   kind: "circuit_clash";
+  rotations: number[];
+};
+
+export type LinkLockSubmission = {
+  kind: "link_lock";
+  paths: Array<{
+    pairId: number;
+    cells: number[];
+  }>;
+};
+
+export type MirrorMazeSubmission = {
+  kind: "mirror_maze";
   rotations: number[];
 };
 
@@ -285,6 +300,8 @@ export type VocabularyDuelSubmission = {
 export type PuzzleSubmission =
   | RotatePipesSubmission
   | CircuitClashSubmission
+  | LinkLockSubmission
+  | MirrorMazeSubmission
   | NumberGridSubmission
   | PatternMatchSubmission
   | WordScrambleSubmission

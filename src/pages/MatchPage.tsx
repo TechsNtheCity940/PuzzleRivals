@@ -85,6 +85,32 @@ function formatPlacement(rank: number) {
   return `${rank}th`;
 }
 
+const MIN_RESULTS_REVIEW_MS = 12_000;
+
+function getResultsReviewEndsAt(
+  lobby: BackendLobby | null,
+  capturedAt = 0,
+  includeServerWindow = true,
+) {
+  if (!lobby) {
+    return 0;
+  }
+
+  const serverEndsAt = includeServerWindow && lobby.intermissionEndsAt
+    ? new Date(lobby.intermissionEndsAt).getTime()
+    : 0;
+  const completedAt = lobby.results?.completedAt
+    ? new Date(lobby.results.completedAt).getTime()
+    : 0;
+  const localHoldUntil = capturedAt > 0 ? capturedAt + MIN_RESULTS_REVIEW_MS : 0;
+
+  return Math.max(
+    serverEndsAt,
+    completedAt > 0 ? completedAt + MIN_RESULTS_REVIEW_MS : 0,
+    localHoldUntil,
+  );
+}
+
 function rankPlayers(players: BackendLobbyPlayer[], scoreRace: boolean) {
   return [...players].sort((left, right) => {
     const leftSolved =
@@ -247,6 +273,7 @@ export default function MatchPage() {
   const [resultsSnapshot, setResultsSnapshot] = useState<BackendLobby | null>(
     null,
   );
+  const [resultsSnapshotCapturedAt, setResultsSnapshotCapturedAt] = useState(0);
   const [arenaState, setArenaState] = useState<NeonRivalsGameState | null>(null);
 
   const readyTimeoutRef = useRef<number | null>(null);
@@ -283,6 +310,7 @@ export default function MatchPage() {
     setActiveHint(null);
     setSolvePending(false);
     setResultsSnapshot(null);
+    setResultsSnapshotCapturedAt(0);
     readySentLobbyIdRef.current = null;
     completedRoundRef.current = null;
     progressSubmissionKeyRef.current = null;
@@ -424,8 +452,14 @@ export default function MatchPage() {
       lobby.results?.standings?.length
     ) {
       setResultsSnapshot(lobby);
+      setResultsSnapshotCapturedAt((current) =>
+        current > 0 &&
+        resultsSnapshot?.results?.completedAt === lobby.results?.completedAt
+          ? current
+          : Date.now(),
+      );
     }
-  }, [lobby]);
+  }, [lobby, resultsSnapshot?.results?.completedAt]);
 
   useEffect(() => {
     setHintPenaltyTotal(0);
@@ -466,13 +500,27 @@ export default function MatchPage() {
       return lobby;
     }
 
-    if (!resultsSnapshot?.intermissionEndsAt) {
-      return null;
+    const reviewEndsAt = getResultsReviewEndsAt(
+      resultsSnapshot,
+      resultsSnapshotCapturedAt,
+      false,
+    );
+    return reviewEndsAt > 0 && clockNow <= reviewEndsAt
+      ? resultsSnapshot
+      : null;
+  }, [clockNow, lobby, resultsSnapshot, resultsSnapshotCapturedAt]);
+
+  const activeResultsReviewEndsAt = useMemo(() => {
+    if (!activeResultsLobby) {
+      return 0;
     }
 
-    const endsAt = new Date(resultsSnapshot.intermissionEndsAt).getTime();
-    return clockNow <= endsAt + 750 ? resultsSnapshot : null;
-  }, [clockNow, lobby, resultsSnapshot]);
+    return getResultsReviewEndsAt(
+      activeResultsLobby,
+      activeResultsLobby === resultsSnapshot ? resultsSnapshotCapturedAt : 0,
+      activeResultsLobby !== resultsSnapshot,
+    );
+  }, [activeResultsLobby, resultsSnapshot, resultsSnapshotCapturedAt]);
 
   const resultsSourceLobby = activeResultsLobby ?? lobby;
   const selfPlayer =
@@ -502,9 +550,10 @@ export default function MatchPage() {
   const intermissionTimeLeft = Math.max(
     0,
     Math.ceil(
-      ((resultsSourceLobby?.intermissionEndsAt
-        ? new Date(resultsSourceLobby.intermissionEndsAt).getTime()
-        : 0) -
+      ((activeResultsReviewEndsAt ||
+        (resultsSourceLobby?.intermissionEndsAt
+          ? new Date(resultsSourceLobby.intermissionEndsAt).getTime()
+          : 0)) -
         clockNow) /
         1000,
     ),

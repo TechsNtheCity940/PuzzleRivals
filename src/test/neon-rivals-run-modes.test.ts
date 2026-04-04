@@ -62,6 +62,18 @@ describe("Neon Rivals run modes", () => {
     expect(tileState.movesLeft).toBe(28);
   });
 
+  it("creates link and mirror arena states with dedicated board families", () => {
+    const linkObjective = buildNeonRivalsObjective("link_lock", 84);
+    const mirrorState = createInitialGameState("mirror_maze", 71);
+
+    expect(linkObjective.boardFamily).toBe("link");
+    expect(linkObjective.startingMoves).toBe(16);
+    expect(linkObjective.targetValue).toBe(100);
+    expect(mirrorState.boardFamily).toBe("mirror");
+    expect(mirrorState.movesLeft).toBe(14);
+    expect(mirrorState.objectiveTarget).toBe(100);
+  });
+
   it("creates number and spatial arena states with dedicated board families", () => {
     const numberObjective = buildNeonRivalsObjective("number_crunch", 35);
     const spatialState = createInitialGameState("spatial_spin", 19);

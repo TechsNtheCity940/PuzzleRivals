@@ -6,6 +6,8 @@
 export type PuzzleType =
   | "rotate_pipes"
   | "circuit_clash"
+  | "link_lock"
+  | "mirror_maze"
   | "number_grid"
   | "pattern_match"
   | "word_scramble"

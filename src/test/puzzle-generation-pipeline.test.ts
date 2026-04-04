@@ -72,6 +72,8 @@ describe("supabase puzzle generation pipeline", () => {
 
     expect(RANKED_ARENA_PUZZLE_TYPES).toContain(template.primaryType);
     expect(template.weights.circuit_clash).toBeGreaterThan(0);
+    expect(template.weights.link_lock).toBeGreaterThan(0);
+    expect(template.weights.mirror_maze).toBeGreaterThan(0);
     expect(template.weights.word_scramble).toBe(0);
     expect(template.weights.pattern_match).toBe(0);
   });

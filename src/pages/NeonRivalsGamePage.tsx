@@ -66,6 +66,16 @@ const BOARD_CONTROL_HINTS: Record<NeonRivalsBoardFamily, string[]> = {
     "Switching to a different tile leaves the previous conduit exactly where you left it.",
     "Revisit any tile until the network lights cleanly from source to finish.",
   ],
+  link: [
+    "Tap a glowing node to arm that pair, then walk its path one adjacent cell at a time.",
+    "Backtrack cleanly if the route gets boxed in. Locked pairs stay on the board until you reopen them.",
+    "Crossing another live route invalidates the link, so finish the tightest lanes first.",
+  ],
+  mirror: [
+    "Only reflector cells rotate. Every tap flips that mirror between the two legal angles.",
+    "Watch the live beam after every turn. The board is readable instantly if you follow the lit path.",
+    "Targets stay warm when the beam is close, so use near-hits to line up the final reflection.",
+  ],
   tile: [
     "Select the tile you want to move, then tap the adjacent blank slot.",
     "Slides happen one space at a time. The current tile and valid destination stay highlighted.",
@@ -169,6 +179,10 @@ function getBoardMetricCard(state: NeonRivalsGameState) {
       return { title: "Route Pressure", value: String(state.matchedTiles), detail: "Route Steps" };
     case "pipe":
       return { title: "Network Online", value: `${state.objectiveValue}%`, detail: `${state.resourceLabel} left ${state.movesLeft}` };
+    case "link":
+      return { title: "Pairs Locked", value: String(state.matchedTiles), detail: `${state.resourceLabel} left ${state.movesLeft}` };
+    case "mirror":
+      return { title: "Targets Lit", value: String(state.matchedTiles), detail: `${state.resourceLabel} left ${state.movesLeft}` };
     case "tile":
       return { title: "Board Lock", value: String(state.matchedTiles), detail: `${state.resourceLabel} left ${state.movesLeft}` };
     case "number":
@@ -189,6 +203,8 @@ function getBoardMetricCard(state: NeonRivalsGameState) {
 function getProgressDetail(state: NeonRivalsGameState) {
   if (state.boardFamily === "maze") return `${state.matchedTiles} route steps`;
   if (state.boardFamily === "pipe") return `${state.matchedTiles} cells connected`;
+  if (state.boardFamily === "link") return `${state.matchedTiles} node pairs locked`;
+  if (state.boardFamily === "mirror") return `${state.matchedTiles} beam targets lit`;
   if (state.boardFamily === "tile") return `${state.matchedTiles} tiles aligned`;
   if (state.boardFamily === "number") return `${state.matchedTiles} blanks solved`;
   if (state.boardFamily === "spatial") return `${state.matchedTiles} shapes solved`;
@@ -203,6 +219,8 @@ function boardFamilyLabel(family: "all" | NeonRivalsBoardFamily) {
   if (family === "match3") return "Match";
   if (family === "maze") return "Maze";
   if (family === "pipe") return "Pipe";
+  if (family === "link") return "Link";
+  if (family === "mirror") return "Mirror";
   if (family === "tile") return "Tile";
   if (family === "number") return "Number";
   if (family === "spatial") return "Spatial";
