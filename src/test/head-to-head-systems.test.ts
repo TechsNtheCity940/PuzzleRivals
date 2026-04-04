@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveIncomingAttack, scoreSolve } from "@/game/head-to-head/systems";
+import { resolveAttackDuration, resolveIncomingAttack, scoreSolve } from "@/game/head-to-head/systems";
 import type {
   HeadToHeadCombatantState,
   HeadToHeadModeDefinition,
@@ -110,5 +110,12 @@ describe("head to head systems", () => {
 
     expect(resolution.ignored).toBe(true);
     expect(resolution.durationMs).toBe(0);
+  });
+
+  it("keeps live attack durations at five seconds or longer", () => {
+    const target = createCombatant();
+    const duration = resolveAttackDuration(target, "reverse_input", 100);
+
+    expect(duration).toBeGreaterThanOrEqual(5000);
   });
 });

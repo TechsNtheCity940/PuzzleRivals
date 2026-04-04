@@ -23,6 +23,21 @@ export interface AdminDashboardMonitoring {
   activeProductCount: number;
 }
 
+export interface AdminBroadcastRecord {
+  slot: "home_top";
+  title: string;
+  message: string;
+  ctaLabel: string | null;
+  ctaHref: string | null;
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface AdminSignupTrendPoint {
+  date: string;
+  count: number;
+}
+
 export interface AdminProductSummary {
   id: string;
   kind: string;
@@ -115,12 +130,22 @@ export interface AdminArenaRunEntry {
 export interface AdminDashboardSnapshot {
   metrics: AdminDashboardMetrics;
   monitoring: AdminDashboardMonitoring;
+  broadcast: AdminBroadcastRecord | null;
+  signupTrend: AdminSignupTrendPoint[];
   products: AdminProductSummary[];
   recentUsers: AdminUserRecord[];
   recentTickets: AdminSupportTicket[];
   recentAudits: AdminAuditEntry[];
   recentWebhooks: AdminWebhookEntry[];
   recentRuns: AdminArenaRunEntry[];
+}
+
+export interface AdminBroadcastUpdateInput {
+  title: string;
+  message: string;
+  ctaLabel?: string | null;
+  ctaHref?: string | null;
+  isActive: boolean;
 }
 
 export interface AdminUserUpdateInput {
@@ -195,4 +220,8 @@ export function loadAdminTickets(status: SupportTicketStatus | "all" = "open", l
 
 export function updateAdminTicket(input: AdminTicketUpdateInput) {
   return invoke<{ ticket: AdminSupportTicket }>({ action: "update_ticket", ...input });
+}
+
+export function updateAdminBroadcast(input: AdminBroadcastUpdateInput) {
+  return invoke<{ broadcast: AdminBroadcastRecord }>({ action: "update_broadcast", ...input });
 }

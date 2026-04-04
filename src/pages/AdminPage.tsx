@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, RefreshCw, Search, Shield, ShoppingBag } from "lucide-react";
+import { Activity, AlertTriangle, Megaphone, RefreshCw, Search, Shield, ShoppingBag, TrendingUp } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import {
   loadAdminDashboard,
   loadAdminTickets,
   searchAdminUsers,
+  updateAdminBroadcast,
   updateAdminTicket,
   updateAdminUser,
   type AdminDashboardSnapshot,
@@ -50,6 +51,14 @@ type TicketDraft = {
   status: SupportTicketStatus;
   priority: SupportTicketPriority;
   adminNotes: string;
+};
+
+type BroadcastDraft = {
+  title: string;
+  message: string;
+  ctaLabel: string;
+  ctaHref: string;
+  isActive: boolean;
 };
 
 const ROLE_OPTIONS: UserAppRole[] = ["player", "admin", "owner"];
@@ -106,6 +115,22 @@ function createTicketDraft(ticket: AdminSupportTicket): TicketDraft {
   };
 }
 
+function createBroadcastDraft(broadcast: AdminDashboardSnapshot["broadcast"] | null): BroadcastDraft {
+  return {
+    title: broadcast?.title ?? "Arena Broadcast",
+    message: broadcast?.message ?? "",
+    ctaLabel: broadcast?.ctaLabel ?? "",
+    ctaHref: broadcast?.ctaHref ?? "",
+    isActive: broadcast?.isActive ?? false,
+  };
+}
+
+function formatTrendDate(value: string) {
+  const parsed = Date.parse(`${value}T00:00:00Z`);
+  if (Number.isNaN(parsed)) return value;
+  return new Date(parsed).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 function metricCards(snapshot: AdminDashboardSnapshot | null) {
   if (!snapshot) return [];
   return [
@@ -138,6 +163,7 @@ export default function AdminPage() {
   const [userDraft, setUserDraft] = useState<UserDraft | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGrantProduct, setSelectedGrantProduct] = useState<string>("");
+  const [broadcastDraft, setBroadcastDraft] = useState<BroadcastDraft>(() => createBroadcastDraft(null));
   const [tickets, setTickets] = useState<AdminSupportTicket[]>([]);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [ticketDraft, setTicketDraft] = useState<TicketDraft | null>(null);
@@ -147,6 +173,7 @@ export default function AdminPage() {
   const [isTicketsLoading, setIsTicketsLoading] = useState(false);
   const [isSavingUser, setIsSavingUser] = useState(false);
   const [isGrantingProduct, setIsGrantingProduct] = useState(false);
+  const [isSavingBroadcast, setIsSavingBroadcast] = useState(false);
   const [isSavingTicket, setIsSavingTicket] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -154,10 +181,12 @@ export default function AdminPage() {
   const selectedTicket = useMemo(() => tickets.find((entry) => entry.id === selectedTicketId) ?? null, [selectedTicketId, tickets]);
   const latestWebhookIssue = dashboard?.recentWebhooks.find((entry) => !entry.processedAt) ?? dashboard?.recentWebhooks[0] ?? null;
   const latestRunReview = dashboard?.recentRuns.find((entry) => entry.suspicionLabel !== "clean") ?? dashboard?.recentRuns[0] ?? null;
+  const signupTrendMax = Math.max(1, ...(dashboard?.signupTrend ?? []).map((entry) => entry.count));
 
   async function refreshDashboard() {
     const snapshot = await loadAdminDashboard();
     setDashboard(snapshot);
+    setBroadcastDraft(createBroadcastDraft(snapshot.broadcast));
     setSelectedGrantProduct((current) => current || snapshot.products[0]?.id || "");
   }
 
@@ -201,6 +230,7 @@ export default function AdminPage() {
       .then(([dashboardSnapshot, userResponse, ticketResponse]) => {
         if (!active) return;
         setDashboard(dashboardSnapshot);
+        setBroadcastDraft(createBroadcastDraft(dashboardSnapshot.broadcast));
         setSelectedGrantProduct(dashboardSnapshot.products[0]?.id ?? "");
         setUsers(userResponse.users);
         const firstUser = userResponse.users[0] ?? null;
@@ -235,6 +265,10 @@ export default function AdminPage() {
     if (!selectedTicket) return;
     setTicketDraft(createTicketDraft(selectedTicket));
   }, [selectedTicket]);
+
+  useEffect(() => {
+    setBroadcastDraft(createBroadcastDraft(dashboard?.broadcast ?? null));
+  }, [dashboard?.broadcast]);
 
   if (!isReady || isPageLoading) {
     return <div className="page-screen"><div className="page-stack"><section className="command-panel flex min-h-[320px] items-center justify-center p-5 text-sm text-muted-foreground">Loading the owner console...</section></div></div>;
@@ -293,6 +327,26 @@ export default function AdminPage() {
       toast.error(error instanceof Error ? error.message : "Failed to update user.");
     } finally {
       setIsSavingUser(false);
+    }
+  }
+
+  async function handleSaveBroadcast() {
+    setIsSavingBroadcast(true);
+    try {
+      const response = await updateAdminBroadcast({
+        title: broadcastDraft.title,
+        message: broadcastDraft.message,
+        ctaLabel: broadcastDraft.ctaLabel.trim() || null,
+        ctaHref: broadcastDraft.ctaHref.trim() || null,
+        isActive: broadcastDraft.isActive,
+      });
+      setDashboard((current) => current ? { ...current, broadcast: response.broadcast } : current);
+      setBroadcastDraft(createBroadcastDraft(response.broadcast));
+      toast.success(`Broadcast ${response.broadcast.isActive ? "published" : "saved"}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update broadcast.");
+    } finally {
+      setIsSavingBroadcast(false);
     }
   }
 
@@ -360,7 +414,51 @@ export default function AdminPage() {
           <div className="metric-grid mt-4">{metricCards(dashboard).map((card) => <div key={card.label} className="rich-stat"><p className="hud-label">{card.label}</p><p className="stat-value">{card.value}</p></div>)}</div>
           {dashboard ? (
             <>
-              <div className="mt-6 grid gap-4 xl:grid-cols-[320px,1fr,1fr]">
+              <div className="mt-6 grid gap-4 xl:grid-cols-[1.2fr,0.8fr]">
+                <div className="command-panel-soft p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="neon-rivals-stat-icon"><Megaphone size={18} /></div>
+                    <div>
+                      <p className="section-kicker">Home Broadcast</p>
+                      <h2 className="section-title mt-1">Top-of-home announcement</h2>
+                      <p className="mt-2 text-sm text-muted-foreground">This banner is shown at the top of the home page for every player as soon as it goes live.</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div><label className="hud-label">Title</label><Input value={broadcastDraft.title} onChange={(event) => setBroadcastDraft({ ...broadcastDraft, title: event.target.value })} className="mt-2" maxLength={80} /></div>
+                    <div className="command-panel-soft flex items-center justify-between gap-3 p-4"><div><p className="font-black">Broadcast Live</p><p className="text-xs text-muted-foreground">When active, the banner is visible to all players immediately.</p></div><Switch checked={broadcastDraft.isActive} onCheckedChange={(checked) => setBroadcastDraft({ ...broadcastDraft, isActive: checked })} /></div>
+                    <div className="md:col-span-2"><label className="hud-label">Message</label><Textarea value={broadcastDraft.message} onChange={(event) => setBroadcastDraft({ ...broadcastDraft, message: event.target.value })} className="mt-2 min-h-[120px]" maxLength={320} placeholder="Post a visible platform message for all players." /></div>
+                    <div><label className="hud-label">CTA Label</label><Input value={broadcastDraft.ctaLabel} onChange={(event) => setBroadcastDraft({ ...broadcastDraft, ctaLabel: event.target.value })} className="mt-2" placeholder="Optional button label" maxLength={32} /></div>
+                    <div><label className="hud-label">CTA Link</label><Input value={broadcastDraft.ctaHref} onChange={(event) => setBroadcastDraft({ ...broadcastDraft, ctaHref: event.target.value })} className="mt-2" placeholder="/play or https://..." maxLength={240} /></div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs text-muted-foreground">Last updated {dashboard.broadcast ? formatDateTime(dashboard.broadcast.updatedAt) : "never"}</p>
+                    <Button onClick={() => void handleSaveBroadcast()} variant="play" size="lg" disabled={isSavingBroadcast}>{isSavingBroadcast ? "Saving..." : "Save Broadcast"}</Button>
+                  </div>
+                </div>
+                <div className="command-panel-soft p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="neon-rivals-stat-icon"><TrendingUp size={18} /></div>
+                    <div>
+                      <p className="section-kicker">Growth Pulse</p>
+                      <h2 className="section-title mt-1">New user trend</h2>
+                      <p className="mt-2 text-sm text-muted-foreground">Track daily signup volume and recent account creation velocity over the last two weeks.</p>
+                    </div>
+                  </div>
+                  <div className="signup-trend-grid mt-5">
+                    {dashboard.signupTrend.map((point) => (
+                      <div key={point.date} className="signup-trend-column">
+                        <div className="signup-trend-value">{point.count}</div>
+                        <div className="signup-trend-bar-shell">
+                          <div className="signup-trend-bar" style={{ height: `${Math.max(10, (point.count / signupTrendMax) * 100)}%` }} />
+                        </div>
+                        <div className="signup-trend-label">{formatTrendDate(point.date)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-4 xl:grid-cols-[320px,1fr,1fr]">
               <div className="command-panel-soft p-4">
                 <p className="section-kicker">Commerce Readiness</p>
                 <h2 className="section-title mt-1">Checkout status</h2>

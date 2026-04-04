@@ -30,6 +30,21 @@ type AdminDashboardMonitoring = {
   activeProductCount: number;
 };
 
+type AdminBroadcastRecord = {
+  slot: "home_top";
+  title: string;
+  message: string;
+  ctaLabel: string | null;
+  ctaHref: string | null;
+  isActive: boolean;
+  updatedAt: string;
+};
+
+type AdminSignupTrendPoint = {
+  date: string;
+  count: number;
+};
+
 type AdminUserRecord = {
   id: string;
   email: string | null;
@@ -194,6 +209,16 @@ type RunRow = {
   created_at: string;
 };
 
+type SiteBroadcastRow = {
+  slot: string;
+  title: string;
+  message: string;
+  cta_label: string | null;
+  cta_href: string | null;
+  is_active: boolean;
+  updated_at: string;
+};
+
 const VALID_APP_ROLES = new Set(["player", "admin", "owner"]);
 const VALID_TICKET_STATUSES = new Set(["open", "reviewing", "resolved", "dismissed"]);
 const VALID_TICKET_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
@@ -217,6 +242,20 @@ function asString(value: unknown) {
 
 function asOptionalString(value: unknown) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function isMissingRelationError(error: { code?: string; message?: string } | null) {
+  if (!error) {
+    return false;
+  }
+
+  return (
+    error.code === "42P01" ||
+    error.code === "PGRST205" ||
+    error.code === "404" ||
+    (error.message ?? "").toLowerCase().includes("does not exist") ||
+    (error.message ?? "").toLowerCase().includes("not found")
+  );
 }
 
 function asNumber(value: unknown, fallback = 0) {
@@ -320,6 +359,40 @@ async function loadProfileNameMap(admin: SupabaseClient, ids: string[]) {
   }
 
   return new Map(((data ?? []) as Array<{ id: string; username: string }>).map((entry) => [entry.id, { username: entry.username }]));
+}
+
+function mapBroadcast(row: SiteBroadcastRow | null): AdminBroadcastRecord | null {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    slot: "home_top",
+    title: row.title,
+    message: row.message,
+    ctaLabel: row.cta_label,
+    ctaHref: row.cta_href,
+    isActive: row.is_active,
+    updatedAt: row.updated_at,
+  };
+}
+
+function buildSignupTrend(rows: Array<{ created_at: string }>, days = 14) {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    const key = row.created_at.slice(0, 10);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  const points: AdminSignupTrendPoint[] = [];
+  const today = new Date();
+  for (let offset = days - 1; offset >= 0; offset -= 1) {
+    const date = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - offset));
+    const key = date.toISOString().slice(0, 10);
+    points.push({ date: key, count: counts.get(key) ?? 0 });
+  }
+
+  return points;
 }
 
 function mapUserRecord(profile: ProfileRow, email: string | null): AdminUserRecord {
@@ -465,6 +538,7 @@ async function loadDashboard(admin: SupabaseClient) {
   const now = new Date();
   const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const last14d = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
   const last30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   const [
@@ -484,6 +558,8 @@ async function loadDashboard(admin: SupabaseClient) {
     recentAuditsResult,
     recentWebhooksResult,
     recentRunsResult,
+    signupTrendRowsResult,
+    broadcastResult,
   ] = await Promise.all([
     admin.from("profiles").select("id", { count: "exact", head: true }),
     admin.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", last24h),
@@ -501,6 +577,8 @@ async function loadDashboard(admin: SupabaseClient) {
     admin.from("owner_admin_audit_log").select(AUDIT_SELECT).order("created_at", { ascending: false }).limit(10),
     admin.from("paypal_webhook_events").select(WEBHOOK_SELECT).order("received_at", { ascending: false }).limit(10),
     admin.from("neon_rivals_runs").select(RUN_SELECT).order("created_at", { ascending: false }).limit(12),
+    admin.from("profiles").select("created_at").gte("created_at", last14d).order("created_at", { ascending: true }),
+    admin.from("site_broadcasts").select("slot, title, message, cta_label, cta_href, is_active, updated_at").eq("slot", "home_top").maybeSingle(),
   ]);
 
   for (const result of [
@@ -520,6 +598,7 @@ async function loadDashboard(admin: SupabaseClient) {
     recentAuditsResult,
     recentWebhooksResult,
     recentRunsResult,
+    signupTrendRowsResult,
   ]) {
     if (result.error) {
       throw result.error;
@@ -543,6 +622,9 @@ async function loadDashboard(admin: SupabaseClient) {
   const paypalMode = (Deno.env.get("PAYPAL_ENV") ?? "live") === "live" ? "live" : "sandbox";
   const paypalConfigured = Boolean(Deno.env.get("PAYPAL_CLIENT_ID") && Deno.env.get("PAYPAL_CLIENT_SECRET"));
   const paypalWebhookConfigured = Boolean(Deno.env.get("PAYPAL_WEBHOOK_ID"));
+  if (broadcastResult.error && !isMissingRelationError(broadcastResult.error)) {
+    throw broadcastResult.error;
+  }
 
   return {
     metrics: {
@@ -564,6 +646,8 @@ async function loadDashboard(admin: SupabaseClient) {
       paypalWebhookConfigured,
       activeProductCount: products.length,
     } satisfies AdminDashboardMonitoring,
+    broadcast: mapBroadcast((broadcastResult.data ?? null) as SiteBroadcastRow | null),
+    signupTrend: buildSignupTrend((signupTrendRowsResult.data ?? []) as Array<{ created_at: string }>),
     products,
     recentUsers: ((recentUsersResult.data ?? []) as ProfileRow[]).map((profile) => mapUserRecord(profile, authUserMap.get(profile.id) ?? null)),
     recentTickets: await mapTickets(admin, (recentTicketsResult.data ?? []) as TicketRow[], authUserMap),
@@ -717,6 +801,56 @@ async function updateUser(admin: SupabaseClient, ownerUserId: string, payload: R
   };
 }
 
+async function updateBroadcast(admin: SupabaseClient, ownerUserId: string, payload: Record<string, unknown>) {
+  const title = asString(payload.title).trim();
+  const message = asString(payload.message).trim();
+  const ctaLabel = asOptionalString(payload.ctaLabel);
+  const ctaHref = asOptionalString(payload.ctaHref);
+
+  if (!title) {
+    throw new Error("Broadcast title is required.");
+  }
+
+  if (!message) {
+    throw new Error("Broadcast message is required.");
+  }
+
+  const { data, error } = await admin
+    .from("site_broadcasts")
+    .upsert({
+      slot: "home_top",
+      title,
+      message,
+      cta_label: ctaLabel,
+      cta_href: ctaHref,
+      is_active: payload.isActive === true,
+      updated_by: ownerUserId,
+    }, { onConflict: "slot" })
+    .select("slot, title, message, cta_label, cta_href, is_active, updated_at")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  await writeAuditLog(admin, {
+    actorUserId: ownerUserId,
+    action: "update_broadcast",
+    metadata: {
+      slot: "home_top",
+      title,
+      message,
+      ctaLabel,
+      ctaHref,
+      isActive: payload.isActive === true,
+    },
+  });
+
+  return {
+    broadcast: mapBroadcast(data as SiteBroadcastRow)!
+  };
+}
+
 async function grantProduct(admin: SupabaseClient, ownerUserId: string, payload: Record<string, unknown>) {
   const userId = asString(payload.userId).trim();
   const productId = asString(payload.productId).trim();
@@ -833,6 +967,9 @@ Deno.serve(async (req) => {
         break;
       case "grant_product":
         result = await grantProduct(admin, user.id, body as Record<string, unknown>);
+        break;
+      case "update_broadcast":
+        result = await updateBroadcast(admin, user.id, body as Record<string, unknown>);
         break;
       case "list_tickets":
         result = await listTickets(admin, (body as Record<string, unknown>).status, (body as Record<string, unknown>).limit);

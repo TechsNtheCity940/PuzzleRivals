@@ -24,8 +24,6 @@ const MATCH_PLAYABLE_PUZZLES: MatchPlayablePuzzleType[] = [
   "memory_grid",
   "riddle_choice",
   "wordle_guess",
-  "chess_tactic",
-  "checkers_tactic",
   "logic_sequence",
   "trivia_blitz",
   "geography_quiz",
@@ -34,9 +32,6 @@ const MATCH_PLAYABLE_PUZZLES: MatchPlayablePuzzleType[] = [
   "code_breaker",
   "analogies",
   "deduction_grid",
-  "chess_endgame",
-  "chess_opening",
-  "chess_mate_net",
   "vocabulary_duel",
 ];
 

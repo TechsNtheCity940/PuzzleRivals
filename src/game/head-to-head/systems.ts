@@ -171,9 +171,7 @@ export function resolveAttackDuration(
   attackId: HeadToHeadAttackId,
   now: number,
 ) {
-  const base = attackId === "mini_scramble"
-    ? 0
-    : HEAD_TO_HEAD_BALANCE.attackDurationsMs[attackId];
+  const base = HEAD_TO_HEAD_BALANCE.attackDurationsMs[attackId];
   const recentControlHits = isControlAttack(attackId)
     ? target.activeStatuses.filter(
         (status) =>
@@ -190,7 +188,7 @@ export function resolveAttackDuration(
   const focused = hasActiveStatus(target, "focus_mode", now)
     ? HEAD_TO_HEAD_BALANCE.focusReduction
     : 1;
-  return Math.round(base * diminishing * focused);
+  return Math.max(5000, Math.round(base * diminishing * focused));
 }
 
 export function resolveIncomingAttack(input: {

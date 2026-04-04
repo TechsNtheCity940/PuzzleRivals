@@ -5,6 +5,7 @@ import {
   Eye,
   Flame,
   LifeBuoy,
+  Megaphone,
   Shield,
   Swords,
   TimerReset,
@@ -26,6 +27,7 @@ import {
   type GameContentSource,
 } from "@/lib/game-content";
 import { isOwnerUser } from "@/lib/dev-account";
+import { loadHomeBroadcast, type SiteBroadcast } from "@/lib/site-broadcast";
 import { getRankBand, getRankColor } from "@/lib/seed-data";
 import type {
   DailyChallenge,
@@ -91,6 +93,7 @@ export default function HomePage() {
   >([]);
   const [challengeSource, setChallengeSource] =
     useState<GameContentSource>("supabase");
+  const [homeBroadcast, setHomeBroadcast] = useState<SiteBroadcast | null>(null);
   const [challengeResolution, setChallengeResolution] =
     useState<GameContentResolution>("unavailable");
   const [leaderboardSource, setLeaderboardSource] =
@@ -118,9 +121,10 @@ export default function HomePage() {
       setContentError(null);
 
       try {
-        const [discovery, profile] = await Promise.all([
+        const [discovery, profile, broadcastSnapshot] = await Promise.all([
           loadDiscoveryContent(),
           loadProfileContent(user?.id),
+          loadHomeBroadcast(),
         ]);
 
         if (cancelled) return;
@@ -141,6 +145,7 @@ export default function HomePage() {
         setUnreadCount(
           profile.activityFeed.filter((entry) => !entry.isRead).length,
         );
+        setHomeBroadcast(broadcastSnapshot.broadcast);
       } catch (error) {
         if (cancelled) return;
         setContentError(
@@ -204,6 +209,18 @@ export default function HomePage() {
       ? `${rankBand.label} rank with live stats active`
       : "Guests can explore every room. Sign up when you are ready to lock in progress.";
 
+  function handleBroadcastAction() {
+    const href = homeBroadcast?.ctaHref?.trim();
+    if (!href) return;
+
+    if (/^https?:\/\//i.test(href)) {
+      window.open(href, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    navigate(href);
+  }
+
   return (
     <div className="page-screen">
       <div className="page-stack">
@@ -262,6 +279,26 @@ export default function HomePage() {
             )
           }
         />
+
+        {homeBroadcast ? (
+          <section className="broadcast-banner">
+            <div className="broadcast-banner-shell">
+              <div className="broadcast-banner-icon">
+                <Megaphone size={20} />
+              </div>
+              <div className="broadcast-banner-copy">
+                <p className="section-kicker">Live Broadcast</p>
+                <h2 className="broadcast-banner-title">{homeBroadcast.title}</h2>
+                <p className="broadcast-banner-message">{homeBroadcast.message}</p>
+              </div>
+              {homeBroadcast.ctaLabel && homeBroadcast.ctaHref ? (
+                <Button onClick={handleBroadcastAction} variant="play" size="lg" className="broadcast-banner-action">
+                  {homeBroadcast.ctaLabel}
+                </Button>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
 
         <section className="hero-panel">
           <div className="hero-grid">

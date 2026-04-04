@@ -111,16 +111,16 @@ function createLobby(status: BackendLobby["status"], overrides: Partial<BackendL
     selection: status === "filling"
       ? null
       : {
-          puzzleType: "chess_tactic",
+          puzzleType: "maze",
           difficulty: 3,
           practiceSeed: 12,
           liveSeed: 34,
           selectedAt: "2026-03-13T00:00:00.000Z",
           meta: {
-            type: "chess_tactic",
-            label: "Chess Tactic",
-            icon: "CH",
-            description: "Read the tactical position and find the strongest move.",
+            type: "maze",
+            label: "Maze Rush",
+            icon: "MZ",
+            description: "Trace the cleanest route through the live maze board.",
           },
         },
     practiceStartsAt: "2026-03-13T00:00:00.000Z",
@@ -244,7 +244,7 @@ describe("MatchPage states", () => {
     renderMatchPage();
 
     expect(await screen.findByText("Puzzle Lock")).toBeInTheDocument();
-    expect(screen.getByText("Chess Tactic")).toBeInTheDocument();
+    expect(screen.getByText("Maze Rush")).toBeInTheDocument();
   });
 
   it("renders practice state", async () => {
@@ -307,6 +307,9 @@ describe("MatchPage states", () => {
     expect(screen.queryByText(/Warm-up round before the scored battle\./i)).not.toBeInTheDocument();
   });
 });
+
+
+
 
 
 

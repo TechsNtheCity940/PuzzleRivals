@@ -150,10 +150,14 @@ export const HEAD_TO_HEAD_BALANCE = {
     anchor: 6500,
   },
   attackDurationsMs: {
-    reverse_input: 1800,
-    fog_tiles: 3400,
-    mini_scramble: 1,
-    freeze_pulse: 850,
+    reverse_input: 5600,
+    fog_tiles: 6200,
+    mini_scramble: 5400,
+    freeze_pulse: 5200,
+  },
+  freezePulse: {
+    cycleMs: 1500,
+    lockMs: 520,
   },
   diminishingReturnsWindowMs: 12000,
   focusReduction: 0.65,

@@ -154,41 +154,6 @@ export const NEON_RIVALS_RUN_MODE_OPTIONS: NeonRivalsRunModeOption[] = [
     kicker: "Recall lane",
     description: "Watch the live memory pulse, hold the sequence, and tap the glowing cells back into place.",
   },
-  {
-    id: "chess_shot",
-    boardFamily: "strategy",
-    label: "Chess Shot",
-    kicker: "Tactics lane",
-    description: "Read the tactical prompt, then fire the winning move by tapping the live board target.",
-  },
-  {
-    id: "checkers_trap",
-    boardFamily: "strategy",
-    label: "Checkers Trap",
-    kicker: "Capture lane",
-    description: "Spot the strongest jump lane and trigger the best continuation straight from the animated board.",
-  },
-  {
-    id: "chess_endgame",
-    boardFamily: "strategy",
-    label: "Chess Endgame",
-    kicker: "Conversion lane",
-    description: "Convert tense endgame positions on the live board and squeeze the winning square without drift.",
-  },
-  {
-    id: "chess_opening",
-    boardFamily: "strategy",
-    label: "Chess Opening",
-    kicker: "Development lane",
-    description: "Read the opening principle or move order, then tap the strongest developing continuation on board.",
-  },
-  {
-    id: "chess_mate_net",
-    boardFamily: "strategy",
-    label: "Mate Net",
-    kicker: "Finisher lane",
-    description: "Close the king box, cover the last escape square, and trigger the forcing mating line from the board.",
-  },
 ];
 
 const OBJECTIVE_PRESETS: Record<Exclude<NeonRivalsRunMode, "color_hunt" | "combo_rush">, ObjectivePreset> = {

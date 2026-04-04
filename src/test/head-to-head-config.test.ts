@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  HEAD_TO_HEAD_BALANCE,
   HEAD_TO_HEAD_MODE_POOL,
   HEAD_TO_HEAD_PRESETS,
   pickHeadToHeadMode,
@@ -19,6 +20,10 @@ describe("head to head config", () => {
         (entry) => entry.boardFamily !== "quiz" && entry.boardFamily !== "strategy",
       ),
     ).toBe(true);
+  });
+
+  it("keeps attack effects at five seconds or longer by default", () => {
+    expect(Object.values(HEAD_TO_HEAD_BALANCE.attackDurationsMs).every((duration) => duration >= 5000)).toBe(true);
   });
 
   it("picks only supported head to head modes", () => {

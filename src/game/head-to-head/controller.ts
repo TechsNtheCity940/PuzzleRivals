@@ -10,8 +10,6 @@ import {
   buildBotSolveSample,
   getBotResolveAt,
   nextBotSeed,
-  shouldBotUseAttack,
-  shouldBotUseDefense,
 } from "@/game/head-to-head/bot";
 import {
   applyDisruptionPenalty,
@@ -252,6 +250,93 @@ export default class HeadToHeadMatchController {
     return true;
   }
 
+  private chooseAutoDefense(
+    combatant: HeadToHeadCombatantState,
+    now: number,
+    incomingAttackId: HeadToHeadAttackId | null = null,
+  ): HeadToHeadDefenseId | null {
+    if (combatant.defenseCharge < HEAD_TO_HEAD_BALANCE.charge.threshold) {
+      return null;
+    }
+
+    const activeAttackStatuses = combatant.activeStatuses.filter(
+      (status) => status.kind === "attack" && status.endsAtMs > now,
+    );
+
+    if (incomingAttackId) {
+      if (
+        (incomingAttackId === "reverse_input" || incomingAttackId === "mini_scramble")
+        && !hasActiveStatus(combatant, "anchor", now)
+      ) {
+        return "anchor";
+      }
+
+      if (incomingAttackId === "fog_tiles" || incomingAttackId === "freeze_pulse") {
+        if (!hasActiveStatus(combatant, "shield", now)) {
+          return "shield";
+        }
+
+        if (!hasActiveStatus(combatant, "focus_mode", now)) {
+          return "focus_mode";
+        }
+      }
+
+      if (!hasActiveStatus(combatant, "shield", now)) {
+        return "shield";
+      }
+
+      return activeAttackStatuses.length > 0 ? "cleanse" : null;
+    }
+
+    if (activeAttackStatuses.length === 0) {
+      return null;
+    }
+
+    if (
+      activeAttackStatuses.some(
+        (status) => status.abilityId === "reverse_input" || status.abilityId === "mini_scramble",
+      ) && !hasActiveStatus(combatant, "anchor", now)
+    ) {
+      return "anchor";
+    }
+
+    if (
+      activeAttackStatuses.some(
+        (status) => status.abilityId === "fog_tiles" || status.abilityId === "freeze_pulse",
+      ) && !hasActiveStatus(combatant, "focus_mode", now)
+    ) {
+      return "focus_mode";
+    }
+
+    return "cleanse";
+  }
+
+  private maybeAutoDeployDefense(
+    combatantId: HeadToHeadCombatantId,
+    now: number,
+    incomingAttackId: HeadToHeadAttackId | null = null,
+  ) {
+    const combatant = combatantId === "player" ? this.player : this.opponent;
+    const defenseId = this.chooseAutoDefense(combatant, now, incomingAttackId);
+
+    if (!defenseId) {
+      return false;
+    }
+
+    this.activateDefense(combatantId, now, defenseId, true);
+    return true;
+  }
+
+  private maybeAutoDeployAttack(combatantId: HeadToHeadCombatantId, now: number) {
+    const combatant = combatantId === "player" ? this.player : this.opponent;
+    if (combatant.attackCharge < HEAD_TO_HEAD_BALANCE.charge.threshold) {
+      return false;
+    }
+
+    this.activateAttack(combatantId, now, true);
+    return true;
+  }
+
   private tick() {
     if (this.disposed) {
       return;
@@ -280,6 +365,9 @@ export default class HeadToHeadMatchController {
     }
 
     if (this.status === "live") {
+      this.maybeAutoDeployDefense("player", now);
+      this.maybeAutoDeployDefense("opponent", now);
+
       if (this.pendingPlayerBoardAtMs && now >= this.pendingPlayerBoardAtMs) {
         this.pendingPlayerBoardAtMs = null;
         this.advancePlayerBoard();
@@ -338,10 +426,12 @@ export default class HeadToHeadMatchController {
 
     this.pushLog(
       "score",
-      `${this.player.displayName} solved clean for +${outcome.scoreDelta}. ${this.player.nextAttack === "freeze_pulse" ? "Freeze Pulse" : getAttackLabel(this.player.nextAttack)} charging.`,
+      `${this.player.displayName} solved clean for +${outcome.scoreDelta}.`,
       now,
     );
 
+    this.maybeAutoDeployDefense("player", now);
+    this.maybeAutoDeployAttack("player", now);
     this.queueNextPlayerBoard(now);
     this.checkForWinner(now);
     this.emitSnapshot(now);
@@ -355,19 +445,12 @@ export default class HeadToHeadMatchController {
     this.player.mistakes += 1;
     refreshMomentumTier(this.player);
     this.pushLog("warning", `${this.player.displayName} lost the board and dropped momentum.`, now);
+    this.maybeAutoDeployDefense("player", now);
     this.queueNextPlayerBoard(now);
     this.emitSnapshot(now);
   }
 
   private resolveBotTurn(now: number) {
-    const defensePressure = this.player.activeStatuses.some((status) => status.kind === "attack")
-      ? (this.player.activeStatuses[this.player.activeStatuses.length - 1]?.abilityId as HeadToHeadAttackId | undefined)
-      : null;
-
-    if (shouldBotUseDefense({ combatant: this.opponent, opponentAttack: defensePressure ?? null, seedHint: this.botSeed })) {
-      this.activateDefense("opponent", now);
-    }
-
     const difficulty = this.playerBoard.difficulty;
     const outcome = buildBotSolveSample({
       mode: this.mode,
@@ -409,10 +492,8 @@ export default class HeadToHeadMatchController {
       this.pushLog("score", `${this.opponent.displayName} solved for +${solveOutcome.scoreDelta}.`, now);
     }
 
-    if (shouldBotUseAttack({ attacker: this.opponent, defender: this.player, seedHint: this.botSeed })) {
-      this.activateAttack("opponent", now);
-    }
-
+    this.maybeAutoDeployDefense("opponent", now);
+    this.maybeAutoDeployAttack("opponent", now);
     this.checkForWinner(now);
     this.botNextResolveAtMs = this.status === "live"
       ? getBotResolveAt({
@@ -426,7 +507,7 @@ export default class HeadToHeadMatchController {
     this.emitSnapshot(now);
   }
 
-  private activateAttack(attackerId: HeadToHeadCombatantId, now: number) {
+  private activateAttack(attackerId: HeadToHeadCombatantId, now: number, autoTriggered = false) {
     const attacker = attackerId === "player" ? this.player : this.opponent;
     const defender = attackerId === "player" ? this.opponent : this.player;
     const attackId = attacker.nextAttack;
@@ -437,6 +518,7 @@ export default class HeadToHeadMatchController {
 
     attacker.attackCharge = 0;
     attacker.nextAttack = cycleAttack(attacker.nextAttack);
+    this.maybeAutoDeployDefense(defender.id, now, attackId);
 
     const resolution = resolveIncomingAttack({ target: defender, attackId, now });
     this.onAudioCue?.("attack");
@@ -465,39 +547,48 @@ export default class HeadToHeadMatchController {
       } else if (this.botNextResolveAtMs) {
         this.botNextResolveAtMs += 700;
       }
-    } else {
-      defender.activeStatuses.push(
-        createStatusEffect({
-          id: `${attackId}:${now}:${defender.id}`,
-          abilityId: attackId,
-          kind: "attack",
-          label: getAttackLabel(attackId),
-          target: defender.id,
-          startedAtMs: now,
-          endsAtMs: now + resolution.durationMs,
-        }),
-      );
     }
+
+    defender.activeStatuses.push(
+      createStatusEffect({
+        id: `${attackId}:${now}:${defender.id}`,
+        abilityId: attackId,
+        kind: "attack",
+        label: getAttackLabel(attackId),
+        target: defender.id,
+        startedAtMs: now,
+        endsAtMs: now + resolution.durationMs,
+      }),
+    );
 
     if (defender.id === "player") {
       this.incomingAttackLabel = getAttackLabel(attackId);
-      this.incomingAttackUntilMs = now + 1800;
+      this.incomingAttackUntilMs = now + resolution.durationMs;
       this.onAudioCue?.("warning");
     }
 
-    this.pushLog("attack", resolution.log, now);
+    this.pushLog(
+      "attack",
+      autoTriggered ? `${getAttackLabel(attackId)} auto-fired at ${defender.displayName}.` : resolution.log,
+      now,
+    );
   }
 
-  private activateDefense(combatantId: HeadToHeadCombatantId, now: number) {
+  private activateDefense(
+    combatantId: HeadToHeadCombatantId,
+    now: number,
+    defenseOverride?: HeadToHeadDefenseId,
+    autoTriggered = false,
+  ) {
     const combatant = combatantId === "player" ? this.player : this.opponent;
-    const defenseId = combatant.nextDefense;
+    const defenseId = defenseOverride ?? combatant.nextDefense;
 
     if (combatant.defenseCharge < 100) {
       return;
     }
 
     combatant.defenseCharge = 0;
-    combatant.nextDefense = cycleDefense(combatant.nextDefense);
+    combatant.nextDefense = cycleDefense(defenseId);
     this.onAudioCue?.("defense");
 
     if (defenseId === "cleanse") {
@@ -506,7 +597,7 @@ export default class HeadToHeadMatchController {
       this.pushLog(
         "defense",
         removedCount > 0
-          ? `${combatant.displayName} cleansed the board pressure.`
+          ? `${combatant.displayName} ${autoTriggered ? "auto-cleansed" : "cleansed"} the board pressure.`
           : `${combatant.displayName} primed a late cleanse with no status to clear.`,
         now,
       );
@@ -525,7 +616,11 @@ export default class HeadToHeadMatchController {
         endsAtMs: now + durationMs,
       }),
     );
-    this.pushLog("defense", `${combatant.displayName} activated ${getDefenseLabel(defenseId)}.`, now);
+    this.pushLog(
+      "defense",
+      `${combatant.displayName} ${autoTriggered ? "auto-raised" : "activated"} ${getDefenseLabel(defenseId)}.`,
+      now,
+    );
   }
 
   private scramblePlayerBoard() {
@@ -571,10 +666,14 @@ export default class HeadToHeadMatchController {
   private buildPlayerBoardModifiers(now: number): HeadToHeadBoardModifiers {
     const attackStatuses = this.player.activeStatuses.filter((status) => status.kind === "attack" && status.endsAtMs > now);
     const activeFog = attackStatuses.find((status) => status.abilityId === "fog_tiles");
+    const freezeStatus = attackStatuses.find((status) => status.abilityId === "freeze_pulse");
+    const freezeLocked = freezeStatus
+      ? (now - freezeStatus.startedAtMs) % HEAD_TO_HEAD_BALANCE.freezePulse.cycleMs <= HEAD_TO_HEAD_BALANCE.freezePulse.lockMs
+      : false;
 
     return {
       reversed: attackStatuses.some((status) => status.abilityId === "reverse_input"),
-      frozen: attackStatuses.some((status) => status.abilityId === "freeze_pulse"),
+      frozen: freezeLocked,
       fogPatches: activeFog ? buildFogPatches(activeFog.startedAtMs + this.playerBoard.sessionSeed) : [],
       scrambleVersion: this.playerScrambleVersion,
       activeStatuses: [...this.player.activeStatuses],
